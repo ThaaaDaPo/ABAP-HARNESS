@@ -1,0 +1,15 @@
+{
+  "sap": {
+    "url": "https://HOST:PORT",
+    "mandant": "010",
+    "benutzer": "DEIN_SAP_USER",
+    "sprache": "DE",
+    "cookieNamen": ["MYSAPSSO2", "SAP_SESSIONID_B1E_010"],
+    "edgePfad": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "testProgramm": "ZHARNESS_PRUEF_T0",
+    "leseKlasse": "CL_ABAP_CHAR_UTILITIES"
+  },
+  "copilot": {
+    "modell": ""
+  }
+}
