@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["./**/*.ts", "../gemeinsam/**/*.ts"]
+  "include": ["./**/*.ts", "../gemeinsam/**/*.ts", "../mcp/**/*.ts"]
 }

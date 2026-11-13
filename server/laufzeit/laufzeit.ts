@@ -1,7 +1,9 @@
 // Die Agenten-Laufzeit ist austauschbar: echtes Copilot oder Simulation (Drehbuch).
 // Der Rest der App kennt nur diese Schnittstelle und weiß nicht, welche gerade läuft.
 import type { Ereignis } from "../../gemeinsam/typen.ts";
+import type { GespeicherterServer } from "../datenbank/mcp-server.ts";
 import type { Einstellungen } from "../einstellungen.ts";
+import type { ToolGateway } from "../gateway/gateway.ts";
 
 export interface SitzungsEinstellungen {
   /** Systemprompt: wer der Agent ist und wie er arbeiten soll. */
@@ -9,6 +11,10 @@ export interface SitzungsEinstellungen {
   /** Leer = automatische Auswahl. */
   modell: string;
   workspaceOrdner: string;
+  /** Die MCP-Server, die der Agent benutzen kann. */
+  mcpServer: GespeicherterServer[];
+  /** Entscheidet bei jedem MCP-Aufruf nach den eingestellten Regeln. Muss jede Laufzeit fragen. */
+  gateway: ToolGateway;
 }
 
 /** Bekommt jedes Ereignis der Sitzung, sobald es passiert. */

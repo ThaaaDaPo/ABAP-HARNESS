@@ -3,10 +3,12 @@ import path from "node:path";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer as erstelleViteServer } from "vite";
 import type { StatusAntwort } from "../../gemeinsam/typen.ts";
-import { Fehler, type ChatDienst } from "../chat/chat-dienst.ts";
+import type { ChatDienst } from "../chat/chat-dienst.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { projektOrdner, type Einstellungen } from "../einstellungen.ts";
+import { Fehler } from "../fehler.ts";
 import { routenAufgaben } from "./routen-aufgaben.ts";
+import { routenMcp } from "./routen-mcp.ts";
 
 export async function erstelleHttpServer(einstellungen: Einstellungen, db: Datenbank, chat: ChatDienst) {
   const app = express();
@@ -23,6 +25,7 @@ export async function erstelleHttpServer(einstellungen: Einstellungen, db: Daten
   });
 
   app.use("/api/aufgaben", routenAufgaben(db, chat));
+  app.use("/api/mcp", routenMcp(db, chat));
 
   // Fehler aus den Routen als lesbare JSON-Antwort zurückgeben
   app.use("/api", (fehler: unknown, _anfrage: Request, antwort: Response, _weiter: NextFunction) => {

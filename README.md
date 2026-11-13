@@ -3,8 +3,9 @@
 KI-Plattform mit Harness für die ABAP-Entwicklung: Agenten über das GitHub Copilot SDK anlegen,
 verwalten und betreiben.
 
-Stand: **Phase 1, Schritt 1** – Chat mit einem Agenten, Live-Ansicht, Simulation und
-Copilot-Anbindung. Planung und Entscheidungen stehen in [docs/](docs/).
+Stand: **Phase 1, Schritt 2** – Chat mit einem Agenten, Live-Ansicht, Simulation,
+Copilot-Anbindung, MCP-Server und Tool-Gateway mit Regeln je Tool. Planung und Entscheidungen
+stehen in [docs/](docs/).
 
 ## Starten
 
@@ -33,13 +34,29 @@ ein Drehbuch ab ([server/laufzeit/simulation/drehbuch.json](server/laufzeit/simu
 Der Agent darf Dateien nur im Workspace-Ordner lesen und schreiben. Shell-Befehle und
 Internetzugriff sind gesperrt.
 
+### MCP-Server und Regeln
+
+Auf der Seite **MCP-Server** werden Server mit ihrem Startbefehl eingetragen; die App liest
+deren Tools aus. Je Tool gilt eine Regel:
+
+| Regel | Wirkung |
+|---|---|
+| Erlauben | wird ausgeführt |
+| Erlauben + melden | wird ausgeführt, Meldung im Postfach |
+| Freigabe nötig | wird nicht ausgeführt, sondern als Vorschlag ins Postfach gelegt |
+| Verbieten | wird dem Agenten nicht angeboten und abgelehnt |
+
+Beim ersten Start sind zwei Stellvertreter-Server eingetragen (SAP, Jira/Confluence) mit
+Beispieldaten. Sie funktionieren in der Simulation und mit echtem Copilot und können gelöscht
+werden.
+
 ## Befehle
 
 | Befehl | Wirkung |
 |---|---|
 | `npm start` | App starten |
 | `npm run entwickeln` | wie `start`, startet bei Änderungen am Server neu |
-| `npm test` | prüft die Berechtigungsregeln |
+| `npm test` | prüft Tool-Gateway, MCP-Client und Berechtigungsregeln |
 | `npm run typpruefung` | TypeScript-Prüfung von Server und Oberfläche |
 
 ## Ordner
@@ -48,11 +65,13 @@ Internetzugriff sind gesperrt.
 server/                 Backend (Node, TypeScript – wird ohne Bau-Schritt direkt ausgeführt)
   start.ts              Einstieg
   einstellungen.ts      liest einstellungen.json
-  datenbank/            SQLite: Aufgaben und ihre Ereignisse
+  datenbank/            SQLite: Aufgaben, Ereignisse, MCP-Server, Regeln, Postfach
   laufzeit/             Agenten-Laufzeit, austauschbar
     laufzeit.ts         die gemeinsame Schnittstelle
-    copilot/            echtes Copilot SDK, Berechtigungsregeln
+    copilot/            echtes Copilot SDK, Berechtigungsregeln, Gateway-Hooks
     simulation/         Drehbuch statt Modell
+  gateway/              Tool-Gateway: entscheidet je Aufruf nach der Regel des Tools
+  mcp/                  MCP-Server verwalten, eigener kleiner MCP-Client, Stellvertreter eintragen
   chat/                 Ablauf Nachricht → Agent → Anzeige, Live-Verteilung
   http/                 HTTP-Server und Routen
 oberflaeche/            React-Oberfläche
@@ -60,7 +79,7 @@ oberflaeche/            React-Oberfläche
   komponenten/          Bausteine der Seiten
   live/                 Live-Ereignisse vom Server
 gemeinsam/              Typen, die Server und Oberfläche teilen
-mcp/                    MCP-Server, je einer pro Unterordner (ab Schritt 2)
+mcp/                    MCP-Server, je einer pro Unterordner (Stellvertreter, später ADT)
 pruefpaket/             Phase 0: Prüfung von Copilot und ADT auf dem Firmenrechner
 docs/                   Planung, Entscheidungen, offene Fragen
 daten/                  Datenbank und Standard-Workspace (wird angelegt, nicht im Repo)

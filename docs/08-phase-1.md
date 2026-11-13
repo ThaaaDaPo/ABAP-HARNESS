@@ -1,6 +1,6 @@
 # 08 – Phase 1: Plattformkern (Umfang)
 
-Status: **gestartet 2026-11-13. Schritt 1 abgenommen. Als Nächstes Schritt 2 (MCP-Server, Tool-Gateway).**
+Status: **gestartet 2026-11-13. Schritt 1 abgenommen. Schritt 2 (MCP-Server, Tool-Gateway) gebaut, Abnahme auf dem Firmenrechner steht aus.**
 
 ## Stand Schritt 1 (2026-11-13)
 
@@ -55,6 +55,100 @@ Lehre für später: Gesperrtes immer auch dem Agenten sagen, nicht nur technisch
   gerendert → Schritt 4, braucht ein zusätzliches Paket.
 - Abbrechen hinterlässt keinen Hinweis im Verlauf.
 - Ein Agent fest aus `einstellungen.json`; Agentenverwaltung kommt in Schritt 4.
+
+## Stand Schritt 2 (2026-11-13)
+
+Gebaut:
+
+- **Seite „MCP-Server"**: Server eintragen (Schlüssel, Name, Startbefehl, Argumente je Zeile,
+  Umgebungsvariablen, Arbeitsordner), Tools auslesen, ändern, löschen. Die App liest die Tools
+  mit einem eigenen kleinen MCP-Client aus ([server/mcp/](../server/mcp/)), ohne Zusatzpaket.
+  Nur Server, die über stdio laufen (Start als Unterprozess); HTTP-Server bei Bedarf später.
+- **Tool-Gateway** ([server/gateway/gateway.ts](../server/gateway/gateway.ts)): je Tool eine
+  der vier Regeln, dazu eine Standardregel je Server für alle Tools ohne eigene Regel (auch für
+  Tools, die später neu dazukommen). Regeln werden bei jedem Aufruf neu gelesen, Änderungen
+  wirken sofort.
+  - *erlauben*: wird ausgeführt
+  - *melden*: wird ausgeführt, danach Postfach-Eintrag mit Argumenten und Ergebnis
+  - *freigabe*: wird nicht ausgeführt; Postfach-Eintrag, der Agent bekommt „Vorschlag #n
+    wartet auf Freigabe, nicht wiederholen, weiterarbeiten"
+  - *verbieten*: wird dem Agenten gar nicht angeboten (`excludedTools`) und trotzdem abgelehnt
+- **Durchsetzung bei Copilot** ([gateway-hooks.ts](../server/laufzeit/copilot/gateway-hooks.ts)):
+  im Hook `onPreToolUse` (Lehre aus Schritt 1) und unabhängig davon noch einmal in
+  `onPermissionRequest`. Meldungen entstehen im Hook `onPostToolUse`. MCP-Server, die nicht in
+  der App eingetragen sind, werden abgelehnt.
+- **Postfach-Ablage**: Freigaben und Meldungen landen in der Tabelle `postfach` und erscheinen
+  im Chat als Hinweis „Vorschlag #n …". Anzeige und Aktionen im Postfach kommen in Schritt 3.
+- **Stellvertreter-Server** [mcp/stellvertreter-sap/](../mcp/stellvertreter-sap/) und
+  [mcp/stellvertreter-jira-confluence/](../mcp/stellvertreter-jira-confluence/) mit festen
+  Beispieldaten. Sie werden beim ersten Start einmalig mit Regeln eingetragen (SAP: lesen
+  erlaubt, `objekt_aendern` verboten; Jira: lesen erlaubt, verschieben melden, Seite anlegen
+  Freigabe). Gelöschte Stellvertreter kommen nicht wieder.
+- **Simulation**: Tool-Schritte im Drehbuch gehen jetzt durch das Gateway und rufen die
+  eingetragenen Server wirklich auf. Stichwörter: *Ticket*, *Klasse*, *Fehler*,
+  *verschieben* (melden), *Doku* (Freigabe), *ändern* (verboten).
+
+Auf dem Privatrechner geprüft (nur Simulation, auch mit Node 22.16): alle vier Regeln im Chat,
+Postfach-Einträge, Regeländerung wirkt sofort, Eingabeprüfung (Schlüssel, doppelte Server),
+verständlicher Fehler bei falschem Startbefehl, keine Restprozesse nach dem Beenden.
+`npm test`: 18 Tests (Gateway, MCP-Client gegen echten Stellvertreter-Prozess, Berechtigungen).
+
+### Festlegungen in Schritt 2 (Vorschlag)
+
+- MCP-Server werden in der App eingetragen und in der Datenbank gespeichert, nicht in
+  `einstellungen.json` – Windows-Pfade lassen sich so ohne JSON-Schreibweise eintragen.
+- Server-Schlüssel ohne Bindestrich (nur `a-z`, `0-9`, `_`): Copilot nennt die Tools
+  `<schlüssel>-<tool>`, das Gateway trennt am ersten Bindestrich.
+- Neuer Server: Standardregel *Freigabe* – erst fragen, dann schrittweise freigeben.
+- Regeln gelten je Agent; bis zur Agentenverwaltung (Schritt 4) gibt es nur den Agenten
+  `standard`.
+- *melden* erzeugt nur nach erfolgreichen Aufrufen eine Meldung.
+
+### Annahmen, die erst am Firmenrechner geprüft werden können
+
+- Bei Ablehnung im Hook `onPreToolUse` meldet Copilot das Tool als fehlgeschlagen und gibt dem
+  Agenten den Grund weiter (im Chat: Tool-Karte „fehlgeschlagen" mit dem Text „Nicht ausgeführt: …").
+- `onPermissionRequest` liefert bei MCP-Tools als `serverName` den Schlüssel aus der App.
+  Falls nicht, würden **alle** MCP-Aufrufe abgelehnt – dann Foto der Tool-Karte.
+- `excludedTools` mit `mcp:<schlüssel>-<tool>` blendet verbotene Tools aus.
+- `onPostToolUse` kommt auch für MCP-Tools (sonst fehlt der Hinweis „Meldung #n").
+- Umgebungsvariablen: ob Copilot sie zur eigenen Umgebung (PATH) ergänzt oder sie ersetzt.
+- Ob die in der Copilot-Kommandozeile eingerichteten MCP-Server auch in SDK-Sitzungen
+  auftauchen. Wenn ja, werden ihre Tools abgelehnt (nicht in der App eingetragen).
+
+### Abnahme Schritt 2 auf dem Firmenrechner
+
+Vorher: `npm install`, `einstellungen.json` aus Schritt 1 mit `"modus": "copilot"` behalten.
+
+1. `npm start`, Seite **MCP-Server**: „SAP (Stellvertreter)" und „Jira/Confluence
+   (Stellvertreter)" sind da, je mit Tool-Liste und Regeln.
+2. Chat: „Lies das Ticket ABAP-123" → Tool `jira-ticket_lesen` erledigt, Antwort nennt die
+   Kundengruppe.
+3. „Setze ABAP-123 auf Review" → Tool erledigt, darunter orange „Meldung #… im Postfach".
+4. „Lege in Confluence im Bereich ABAP eine Seite zu ZCL_KUNDEN_SERVICE an" → Tool
+   fehlgeschlagen mit „Nicht ausgeführt: … Vorschlag #…", orange „Vorschlag #… wartet auf
+   Freigabe"; der Agent nennt die Nummer und versucht es nicht erneut.
+5. „Ändere den Quelltext von ZCL_KUNDEN_SERVICE über den SAP-Server" → der Agent sagt, dass er
+   das nicht kann (das Tool wird ihm nicht angeboten).
+6. Auf der Seite MCP-Server bei Jira `ticket_lesen` auf **Verbieten** stellen, im selben Chat
+   noch einmal Punkt 2 → wird abgelehnt. Danach wieder auf „Standard" stellen.
+7. **Echte Server**: „Server eintragen" für den Jira/Confluence-MCP und den SAP-MCP, mit dem
+   Startbefehl, den Copilot-Kommandozeile bzw. Eclipse heute benutzen (Schlüssel z. B. `jira2`
+   und `sap2`, solange die Stellvertreter noch da sind). Beim SAP-MCP kann Edge für das Cookie
+   aufgehen. → Tool-Liste erscheint.
+8. Lesende Tools auf **Erlauben**, schreibende beim SAP-MCP auf **Verbieten** (V-06). Im Chat
+   ein echtes Ticket lesen lassen.
+
+Bitte fotografieren: Tool-Listen der echten Server (Punkt 7 – die Tool-Namen brauchen wir für
+die Stellvertreter und spätere Voreinstellungen) und bei Fehlern Terminal und Browser.
+
+### Bekannte Lücken nach Schritt 2
+
+- Postfach nur als Ablage: keine Anzeige, kein Freigeben/Verwerfen → Schritt 3.
+- Regel *verbieten* auf *erlauben* zurückgestellt: Das Tool wird erst angeboten, wenn die
+  Sitzung neu aufgebaut wird. Das passiert automatisch bei der nächsten Nachricht, sofern der
+  Agent gerade nicht arbeitet.
+- MCP-Server über HTTP werden noch nicht unterstützt.
 
 ## Ziel
 

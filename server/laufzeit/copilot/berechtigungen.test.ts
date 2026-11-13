@@ -6,7 +6,9 @@ import type { PermissionHandler } from "@github/copilot-sdk";
 import { erstelleBerechtigungsPruefung, istShellWerkzeug, liegtImOrdner, shellSperre } from "./berechtigungen.ts";
 
 const workspace = path.resolve("/tmp/harness-test/workspace");
-const pruefe = erstelleBerechtigungsPruefung(workspace);
+// Stellvertreter fürs Gateway: nur jira-ticket_lesen ist erlaubt.
+const gateway = { darfAusfuehren: (a: { server: string; tool: string }) => a.server === "jira" && a.tool === "ticket_lesen" };
+const pruefe = erstelleBerechtigungsPruefung(workspace, gateway);
 
 type Anfrage = Parameters<PermissionHandler>[0];
 const aufruf = { sessionId: "test" } as Parameters<PermissionHandler>[1];
@@ -69,7 +71,12 @@ test("Die Shell-Sperre lehnt Shell-Werkzeuge vor der Ausführung ab", async () =
   assert.equal(datei, undefined);
 });
 
-test("MCP- und eigene Tools sind vorerst erlaubt", async () => {
-  assert.equal(await entscheidung({ kind: "mcp", toolName: "x" }), "approve-once");
+test("MCP-Tools nur, wenn das Gateway sie erlaubt", async () => {
+  assert.equal(await entscheidung({ kind: "mcp", serverName: "jira", toolName: "ticket_lesen" }), "approve-once");
+  assert.equal(await entscheidung({ kind: "mcp", serverName: "jira", toolName: "seite_anlegen" }), "reject");
+  assert.equal(await entscheidung({ kind: "mcp", serverName: "fremd", toolName: "ticket_lesen" }), "reject");
+});
+
+test("Eigene Tools der App sind erlaubt", async () => {
   assert.equal(await entscheidung({ kind: "custom-tool", toolName: "y" }), "approve-once");
 });

@@ -1,7 +1,7 @@
 // Linke Leiste: Seiten der App und Modus-Anzeige.
 import type { StatusAntwort } from "../../gemeinsam/typen.ts";
 
-export type SeitenName = "chat" | "postfach" | "agenten" | "einrichtung";
+export type SeitenName = "chat" | "mcp" | "postfach" | "agenten" | "einrichtung";
 
 interface Eintrag {
   name: SeitenName;
@@ -12,6 +12,7 @@ interface Eintrag {
 
 const eintraege: Eintrag[] = [
   { name: "chat", titel: "Chat" },
+  { name: "mcp", titel: "MCP-Server" },
   { name: "postfach", titel: "Postfach", kommtIn: "Schritt 3" },
   { name: "agenten", titel: "Agenten", kommtIn: "Schritt 4" },
   { name: "einrichtung", titel: "Einrichtung", kommtIn: "Schritt 4" },

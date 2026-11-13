@@ -1,9 +1,10 @@
 // Entscheidet vor jeder Aktion des Agenten, ob sie erlaubt ist.
 // Grundregel: Dateien nur im Workspace-Ordner, keine Shell, kein Internet.
+// MCP-Tools nur, wenn das Tool-Gateway sie erlaubt.
 // Das ist technisch erzwungen – der Agent kann es nicht per Prompt umgehen.
-// Die Regeln je Tool (erlauben / melden / Freigabe / verbieten) kommen mit dem Tool-Gateway in Schritt 2.
 import path from "node:path";
 import type { PermissionHandler, PermissionRequestResult, SessionHooks } from "@github/copilot-sdk";
+import type { ToolAdresse } from "../../gateway/gateway.ts";
 
 /** Das SDK exportiert den Typ des Hooks nicht einzeln, deshalb hier abgeleitet. */
 type PreToolUseHandler = NonNullable<SessionHooks["onPreToolUse"]>;
@@ -49,7 +50,12 @@ export function liegtImOrdner(ordner: string, pfad: string): boolean {
   return relativ === "" || (!relativ.startsWith("..") && !path.isAbsolute(relativ));
 }
 
-export function erstelleBerechtigungsPruefung(workspaceOrdner: string): PermissionHandler {
+/** Was die Berechtigungsprüfung vom Tool-Gateway braucht. */
+export interface GatewayAuskunft {
+  darfAusfuehren(adresse: ToolAdresse): boolean;
+}
+
+export function erstelleBerechtigungsPruefung(workspaceOrdner: string, gateway: GatewayAuskunft): PermissionHandler {
   return (anfrage) => {
     switch (anfrage.kind) {
       case "read":
@@ -69,8 +75,15 @@ export function erstelleBerechtigungsPruefung(workspaceOrdner: string): Permissi
         return abgelehnt("Internetzugriff ist in dieser Umgebung abgeschaltet.");
 
       case "mcp":
+        // Zweite Sperre: Das Gateway hat im Hook onPreToolUse schon entschieden (und bei
+        // "freigabe" den Vorschlag abgelegt). Hier wird nur noch einmal ohne Nebenwirkung geprüft.
+        // Das fängt auch MCP-Server ab, die nicht in der App eingetragen sind.
+        return gateway.darfAusfuehren({ server: anfrage.serverName, tool: anfrage.toolName })
+          ? erlaubt
+          : abgelehnt(`Das Tool ${anfrage.serverName}-${anfrage.toolName} ist ohne Freigabe nicht erlaubt.`);
+
       case "custom-tool":
-        // Vorerst erlaubt. Ab Schritt 2 entscheidet hier das Tool-Gateway nach den Regeln je Tool.
+        // Eigene Tools der App (bisher keine) sind erlaubt.
         return erlaubt;
 
       default:

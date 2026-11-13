@@ -168,6 +168,93 @@ button:disabled { cursor: default; }
 .eingabe textarea:focus { outline: 2px solid var(--akzent-hell); border-color: var(--akzent); }
 .fehlerleiste { margin: 0 24px 8px; padding: 8px 12px; background: var(--fehler-hell); color: var(--fehler); border-radius: var(--radius); }
 
+/* Postfach-Hinweis im Chat */
+.postfach-hinweis {
+  align-self: flex-start;
+  max-width: 760px;
+  padding: 6px 12px;
+  border-left: 3px solid var(--warnung);
+  background: #fff7ed;
+  color: var(--warnung);
+  font-size: 13px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* Seiten mit Liste links und Details rechts (MCP-Server) */
+.zweispaltig { display: flex; height: 100%; }
+.seiten-liste {
+  width: 260px;
+  border-right: 1px solid var(--rand);
+  background: var(--flaeche);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+.seiten-liste .knopf { margin-bottom: 8px; }
+.listen-eintrag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  color: var(--text);
+}
+.listen-eintrag:hover { background: var(--hintergrund); }
+.listen-eintrag.aktiv { background: var(--akzent-hell); }
+.fehler-punkt { width: 8px; height: 8px; border-radius: 50%; background: var(--fehler); }
+.detail { flex: 1; min-width: 0; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.detail h2 { margin: 0; font-size: 20px; }
+.detail .fehlerleiste { margin: 0; }
+.server-kopf { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.server-kopf code { color: var(--text-leise); word-break: break-all; }
+.knopfreihe { display: flex; gap: 8px; }
+.hinweis { color: var(--text-leise); font-size: 13px; margin: 0; }
+
+/* Formular */
+.formular { display: flex; flex-direction: column; gap: 14px; max-width: 640px; }
+.formular label, .standard-regel { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
+.formular .hinweis { font-weight: normal; }
+.formular input, .formular textarea, .tool-regeln select {
+  font: inherit;
+  font-weight: normal;
+  padding: 7px 10px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  background: var(--flaeche);
+}
+.formular textarea { resize: vertical; font-family: Consolas, monospace; font-size: 13px; }
+.formular input:disabled { background: var(--hintergrund); color: var(--text-leise); }
+
+/* Tool-Regeln */
+.tool-regeln { display: flex; flex-direction: column; gap: 16px; }
+.standard-regel select { max-width: 640px; }
+.tool-regeln table { border-collapse: collapse; width: 100%; background: var(--flaeche); border: 1px solid var(--rand); border-radius: var(--radius); }
+.tool-regeln th { text-align: left; font-size: 13px; color: var(--text-leise); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--rand); }
+.tool-regeln td { padding: 8px 12px; border-bottom: 1px solid var(--rand); vertical-align: top; font-size: 14px; }
+.tool-regeln tr:last-child td { border-bottom: none; }
+.tool-regeln td.tool-name { white-space: nowrap; }
+.tool-beschreibung { color: var(--text-leise); }
+.marke-lesend {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  border-radius: 4px;
+  background: #ecfdf5;
+  color: var(--ok);
+}
+.tool-regeln select.regel-erlauben { color: var(--ok); }
+.tool-regeln select.regel-melden { color: var(--akzent); }
+.tool-regeln select.regel-freigabe { color: var(--warnung); }
+.tool-regeln select.regel-verbieten { color: var(--fehler); }
+.tool-regeln select.regel-standard { color: var(--text-leise); }
+
 /* Knöpfe */
 .knopf {
   padding: 8px 16px;

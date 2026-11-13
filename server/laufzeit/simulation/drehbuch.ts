@@ -5,7 +5,11 @@ import path from "node:path";
 
 export type DrehbuchSchritt =
   | { text: string }
-  | { tool: string; argumente: unknown; ergebnis: string; fehlgeschlagen?: boolean }
+  /**
+   * Tool-Aufruf. Gehört das Tool zu einem eingetragenen MCP-Server ("<server>-<tool>"), entscheidet
+   * das Gateway und der Server liefert das Ergebnis. Sonst gelten ergebnis und fehlgeschlagen.
+   */
+  | { tool: string; argumente: unknown; ergebnis?: string; fehlgeschlagen?: boolean }
   | { warten: number };
 
 interface DrehbuchEintrag {

@@ -8,6 +8,7 @@ type Block =
   | { art: "nutzer"; text: string }
   | { art: "agent"; text: string }
   | { art: "tool"; aufruf: ToolAufrufDaten }
+  | { art: "postfach"; text: string }
   | { art: "fehler"; text: string };
 
 /** Macht aus der Ereignisliste die Blöcke für die Anzeige. Tool-Start und -Ende werden zu einem Block. */
@@ -34,6 +35,15 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
         if (aufruf) aufruf.ende = { erfolgreich: ereignis.erfolgreich, ergebnis: ereignis.ergebnis };
         break;
       }
+      case "postfach":
+        bloecke.push({
+          art: "postfach",
+          text:
+            ereignis.eintragsArt === "freigabe"
+              ? `Vorschlag #${ereignis.postfachNr} liegt im Postfach und wartet auf Freigabe (${ereignis.toolName})`
+              : `Meldung #${ereignis.postfachNr} im Postfach: ${ereignis.toolName} wurde ausgeführt`,
+        });
+        break;
       case "fehler":
         bloecke.push({ art: "fehler", text: ereignis.meldung });
         break;
@@ -71,6 +81,8 @@ export function Verlauf({ ereignisse, laufenderText, arbeitet }: Eigenschaften) 
             return <div key={index} className="nachricht agent">{block.text}</div>;
           case "tool":
             return <ToolAufruf key={index} aufruf={block.aufruf} />;
+          case "postfach":
+            return <div key={index} className="postfach-hinweis">{block.text}</div>;
           case "fehler":
             return <div key={index} className="nachricht fehler">{block.text}</div>;
         }

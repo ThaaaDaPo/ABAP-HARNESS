@@ -4,9 +4,11 @@ import { oeffneDatenbank } from "./datenbank/datenbank.ts";
 import { ladeEinstellungen } from "./einstellungen.ts";
 import { erstelleHttpServer } from "./http/http-server.ts";
 import { erstelleLaufzeit } from "./laufzeit/laufzeit.ts";
+import { richteStellvertreterEin } from "./mcp/stellvertreter.ts";
 
 const einstellungen = ladeEinstellungen();
 const db = oeffneDatenbank(einstellungen.datenOrdner);
+await richteStellvertreterEin(db);
 const laufzeit = await erstelleLaufzeit(einstellungen);
 const chat = new ChatDienst(db, laufzeit, einstellungen);
 const { app, vite } = await erstelleHttpServer(einstellungen, db, chat);

@@ -1,10 +1,13 @@
 // Echte Laufzeit über das GitHub Copilot SDK.
 // Kann auf dem Privatrechner nicht getestet werden (kein Copilot erlaubt) – Vorlage war das
 // Prüfpaket (pruefpaket/src/schritte-copilot.js), das auf dem Firmenrechner erfolgreich lief.
-import { CopilotClient, type CopilotSession, type SessionConfig } from "@github/copilot-sdk";
+import { CopilotClient, type CopilotSession, type MCPServerConfig, type SessionConfig } from "@github/copilot-sdk";
+import { laufzeitName } from "../../gateway/gateway.ts";
+import { startAngaben } from "../../mcp/mcp-dienst.ts";
 import type { AgentenLaufzeit, AgentenSitzung, EreignisEmpfaenger, SitzungsEinstellungen } from "../laufzeit.ts";
-import { erstelleBerechtigungsPruefung, shellSperre, shellWerkzeuge } from "./berechtigungen.ts";
+import { erstelleBerechtigungsPruefung, shellWerkzeuge } from "./berechtigungen.ts";
 import { uebersetze } from "./ereignisse-uebersetzen.ts";
+import { erstelleGatewayHooks } from "./gateway-hooks.ts";
 
 // Steht immer im Auftrag. Ohne diesen Hinweis probiert der Agent gesperrte Wege mehrfach aus
 // (am Firmenrechner beobachtet: fünf Versuche für `dir`) und verbraucht dabei Credits.
@@ -12,18 +15,43 @@ const umgebungsRegeln = [
   "Regeln dieser Umgebung:",
   "- Shell-Befehle und Internetzugriff sind technisch gesperrt. Versuche sie nicht und suche keine Umwege.",
   "- Dateien kannst du nur im Arbeitsverzeichnis lesen und schreiben.",
+  "- Manche Tool-Aufrufe brauchen eine Freigabe. Sie werden dann nicht ausgeführt, sondern als Vorschlag ins Postfach gelegt. " +
+    "Wiederhole sie nicht, arbeite mit dem weiter, was nicht davon abhängt, und nenne dem Nutzer die Nummer des Vorschlags.",
   "- Wird eine Aktion abgelehnt, nimm das hin und sage dem Nutzer, was du nicht tun konntest.",
 ].join("\n");
 
+/** Die eingetragenen MCP-Server in der Form, die Copilot erwartet. Copilot startet sie selbst. */
+function mcpKonfiguration(einstellungen: SitzungsEinstellungen): Record<string, MCPServerConfig> {
+  const konfiguration: Record<string, MCPServerConfig> = {};
+  for (const server of einstellungen.mcpServer) {
+    const start = startAngaben(server);
+    konfiguration[server.schluessel] = {
+      type: "stdio",
+      command: start.befehl,
+      args: start.argumente,
+      // Nur mitgeben, wenn etwas eingetragen ist. Ob Copilot die eigene Umgebung (PATH usw.)
+      // dann ergänzt oder ersetzt, ist am Firmenrechner noch zu prüfen.
+      ...(Object.keys(start.umgebung).length > 0 ? { env: start.umgebung } : {}),
+      workingDirectory: start.arbeitsordner,
+      tools: ["*"],
+    };
+  }
+  return konfiguration;
+}
+
 function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionConfig {
+  const { gateway } = einstellungen;
+  // Verbotene Tools gar nicht erst anbieten; abgelehnt werden sie trotzdem, falls doch aufgerufen.
+  const verboten = gateway.verboteneTools(einstellungen.mcpServer).map((adresse) => `mcp:${laufzeitName(adresse)}`);
   return {
     ...(einstellungen.modell ? { model: einstellungen.modell } : {}),
     workingDirectory: einstellungen.workspaceOrdner,
     systemMessage: { mode: "append", content: `${einstellungen.auftrag}\n\n${umgebungsRegeln}` },
     streaming: true,
-    excludedTools: shellWerkzeuge,
-    hooks: { onPreToolUse: shellSperre },
-    onPermissionRequest: erstelleBerechtigungsPruefung(einstellungen.workspaceOrdner),
+    mcpServers: mcpKonfiguration(einstellungen),
+    excludedTools: [...shellWerkzeuge, ...verboten],
+    hooks: erstelleGatewayHooks(gateway),
+    onPermissionRequest: erstelleBerechtigungsPruefung(einstellungen.workspaceOrdner, gateway),
   };
 }
 

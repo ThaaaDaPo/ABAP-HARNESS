@@ -11,7 +11,7 @@
     "start": "node --experimental-strip-types --disable-warning=ExperimentalWarning server/start.ts",
     "entwickeln": "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning server/start.ts",
     "typpruefung": "tsc -p server && tsc -p oberflaeche",
-    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test server/laufzeit/copilot/berechtigungen.test.ts"
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test \"server/**/*.test.ts\""
   },
   "dependencies": {
     "@github/copilot-sdk": "1.0.32",

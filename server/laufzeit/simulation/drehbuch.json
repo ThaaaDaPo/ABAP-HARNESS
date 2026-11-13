@@ -1,35 +1,56 @@
 [
   {
-    "beschreibung": "Simuliert, dass der Agent ein Jira-Ticket liest",
-    "wennEnthaelt": ["ticket", "jira"],
+    "beschreibung": "Ticket verschieben: Regel 'melden' beim Jira-Stellvertreter",
+    "wennEnthaelt": ["verschieb"],
     "schritte": [
-      { "text": "Ich schaue mir das Ticket an." },
-      {
-        "tool": "jira-ticket_lesen",
-        "argumente": { "schluessel": "ABAP-123" },
-        "ergebnis": "ABAP-123: Methode GET_KUNDE in ZCL_KUNDEN_SERVICE soll zusätzlich die Kundengruppe zurückgeben. Status: In Arbeit."
-      },
-      { "text": "Ticket **ABAP-123** gelesen: In `ZCL_KUNDEN_SERVICE` soll die Methode `GET_KUNDE` zusätzlich die Kundengruppe liefern. Der Status ist *In Arbeit*." }
+      { "text": "Ich setze das Ticket auf Review." },
+      { "tool": "jira-ticket_verschieben", "argumente": { "schluessel": "ABAP-123", "status": "Review" } },
+      { "text": "Ticket **ABAP-123** steht jetzt auf *Review*. Die Änderung ist im Postfach gemeldet." }
     ]
   },
   {
-    "beschreibung": "Simuliert, dass der Agent ABAP-Quelltext liest",
-    "wennEnthaelt": ["klasse", "quelltext", "abap"],
+    "beschreibung": "Confluence-Seite anlegen: Regel 'freigabe' beim Jira-Stellvertreter",
+    "wennEnthaelt": ["confluence", "doku"],
     "schritte": [
+      { "text": "Ich lege eine Doku-Seite für `ZCL_KUNDEN_SERVICE` an." },
       {
-        "tool": "sap-objekt_lesen",
-        "argumente": { "name": "ZCL_KUNDEN_SERVICE", "typ": "CLAS" },
-        "ergebnis": "CLASS zcl_kunden_service DEFINITION PUBLIC FINAL CREATE PUBLIC.\n  PUBLIC SECTION.\n    METHODS get_kunde IMPORTING iv_id TYPE kunnr RETURNING VALUE(rs_kunde) TYPE kna1.\nENDCLASS."
+        "tool": "jira-seite_anlegen",
+        "argumente": { "bereich": "ABAP", "titel": "ZCL_KUNDEN_SERVICE", "inhalt": "Liest Kundenstammdaten über die Methode GET_KUNDE." }
       },
-      { "text": "Die Klasse `ZCL_KUNDEN_SERVICE` hat eine öffentliche Methode `GET_KUNDE`, die einen Kunden über die Kundennummer liest." }
+      { "text": "Die Seite ist nicht angelegt, sondern liegt als Vorschlag im Postfach und wartet auf deine Freigabe." }
+    ]
+  },
+  {
+    "beschreibung": "Quelltext ändern über den SAP-MCP: Regel 'verbieten' beim SAP-Stellvertreter",
+    "wennEnthaelt": ["ändern", "aendern"],
+    "schritte": [
+      { "tool": "sap-objekt_aendern", "argumente": { "name": "ZCL_KUNDEN_SERVICE", "quelltext": "CLASS zcl_kunden_service ..." } },
+      { "text": "Ändern über den SAP-MCP ist für mich gesperrt." }
     ]
   },
   {
     "beschreibung": "Simuliert einen fehlschlagenden Tool-Aufruf",
     "wennEnthaelt": ["fehler"],
     "schritte": [
-      { "tool": "sap-objekt_lesen", "argumente": { "name": "ZGIBT_ES_NICHT" }, "ergebnis": "Objekt ZGIBT_ES_NICHT nicht gefunden", "fehlgeschlagen": true },
+      { "tool": "sap-objekt_lesen", "argumente": { "name": "ZGIBT_ES_NICHT" } },
       { "text": "Das Objekt gibt es nicht. Ich brauche einen anderen Namen." }
+    ]
+  },
+  {
+    "beschreibung": "Simuliert, dass der Agent ein Jira-Ticket liest",
+    "wennEnthaelt": ["ticket", "jira"],
+    "schritte": [
+      { "text": "Ich schaue mir das Ticket an." },
+      { "tool": "jira-ticket_lesen", "argumente": { "schluessel": "ABAP-123" } },
+      { "text": "Ticket **ABAP-123** gelesen: In `ZCL_KUNDEN_SERVICE` soll die Methode `GET_KUNDE` zusätzlich die Kundengruppe liefern." }
+    ]
+  },
+  {
+    "beschreibung": "Simuliert, dass der Agent ABAP-Quelltext liest",
+    "wennEnthaelt": ["klasse", "quelltext", "abap"],
+    "schritte": [
+      { "tool": "sap-objekt_lesen", "argumente": { "name": "ZCL_KUNDEN_SERVICE" } },
+      { "text": "Die Klasse `ZCL_KUNDEN_SERVICE` hat eine öffentliche Methode `GET_KUNDE`, die einen Kunden über die Kundennummer liest." }
     ]
   },
   {
@@ -44,7 +65,7 @@
     "beschreibung": "Standardantwort, wenn nichts anderes passt",
     "wennEnthaelt": [],
     "schritte": [
-      { "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell. Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler* oder *langsam*." }
+      { "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell. Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *ändern* oder *langsam*." }
     ]
   }
 ]

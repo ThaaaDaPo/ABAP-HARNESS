@@ -4,8 +4,11 @@ import type { Ereignis } from "../../gemeinsam/typen.ts";
 import * as aufgaben from "../datenbank/aufgaben.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { sollGespeichertWerden, speichereEreignis } from "../datenbank/ereignisse.ts";
+import { holeAlleServer } from "../datenbank/mcp-server.ts";
+import { standardAgentId, ToolGateway } from "../gateway/gateway.ts";
 import type { Einstellungen } from "../einstellungen.ts";
 import type { AgentenLaufzeit, AgentenSitzung, SitzungsEinstellungen } from "../laufzeit/laufzeit.ts";
+import { Fehler } from "../fehler.ts";
 import { verteile } from "./live-verteiler.ts";
 
 const neuerTitel = "Neuer Chat";
@@ -67,20 +70,41 @@ export class ChatDienst {
     if (offen) return offen;
 
     const empfaenger = (ereignis: Ereignis) => this.melde(aufgabe.id, ereignis);
+    const einstellungen = this.sitzungsEinstellungen(aufgabe.id);
     const sitzung = aufgabe.sitzungId
-      ? await this.laufzeit.setzeFort(aufgabe.sitzungId, this.sitzungsEinstellungen(), empfaenger)
-      : await this.laufzeit.starte(this.sitzungsEinstellungen(), empfaenger);
+      ? await this.laufzeit.setzeFort(aufgabe.sitzungId, einstellungen, empfaenger)
+      : await this.laufzeit.starte(einstellungen, empfaenger);
 
     aufgaben.setzeSitzungId(this.db, aufgabe.id, sitzung.id);
     this.sitzungen.set(aufgabe.id, sitzung);
     return sitzung;
   }
 
-  private sitzungsEinstellungen(): SitzungsEinstellungen {
+  /**
+   * Nach Änderungen an MCP-Servern oder Regeln: Sitzungen, in denen gerade nichts läuft, aus dem
+   * Speicher nehmen. Die nächste Nachricht setzt sie fort – dann mit den neuen Servern und Tools.
+   * (Die Regeln selbst prüft das Gateway ohnehin bei jedem Aufruf neu.)
+   */
+  async konfigurationGeaendert(): Promise<void> {
+    for (const [aufgabeId, sitzung] of this.sitzungen) {
+      if (aufgaben.holeAufgabe(this.db, aufgabeId)?.status === "arbeitet") continue;
+      this.sitzungen.delete(aufgabeId);
+      await sitzung.trennen().catch(() => {});
+    }
+  }
+
+  private sitzungsEinstellungen(aufgabeId: string): SitzungsEinstellungen {
     return {
       auftrag: this.einstellungen.agent.auftrag,
       modell: this.einstellungen.modell,
       workspaceOrdner: this.einstellungen.workspaceOrdner,
+      mcpServer: holeAlleServer(this.db),
+      gateway: new ToolGateway({
+        db: this.db,
+        agentId: standardAgentId,
+        aufgabeId,
+        melde: (ereignis) => this.melde(aufgabeId, ereignis),
+      }),
     };
   }
 
@@ -93,14 +117,5 @@ export class ChatDienst {
   private melde(aufgabeId: string, ereignis: Ereignis): void {
     if (sollGespeichertWerden(ereignis)) speichereEreignis(this.db, aufgabeId, ereignis);
     verteile(aufgabeId, ereignis);
-  }
-}
-
-/** Fehler mit HTTP-Statuscode, damit die Routen die passende Antwort schicken können. */
-export class Fehler extends Error {
-  status: number;
-  constructor(status: number, meldung: string) {
-    super(meldung);
-    this.status = status;
   }
 }
