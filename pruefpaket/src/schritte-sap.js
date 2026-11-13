@@ -80,7 +80,8 @@ export async function pruefeSap(bericht, config) {
         loadCookies: async () => cookieZeile ?? undefined,
         acquireCookies: async () => (await cookieHolen()).cookieZeile,
       });
-      client = new adt.ADTClient(sap.url, sap.benutzer, "", sap.mandant ?? "", sap.sprache ?? "DE", optionen);
+      // sap.url darf einen Pfad enthalten (wird fuer das Cookie 1:1 aufgerufen); ADT braucht nur Protokoll, Host und Port.
+      client = new adt.ADTClient(new URL(sap.url).origin, sap.benutzer, "", sap.mandant ?? "", sap.sprache ?? "DE", optionen);
       await client.login();
       return `angemeldet als ${client.username}`;
     },

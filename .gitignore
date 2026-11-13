@@ -1,0 +1,4 @@
+node_modules/
+daten/
+einstellungen.json
+.DS_Store

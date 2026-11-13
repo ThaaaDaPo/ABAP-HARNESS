@@ -1,0 +1,11 @@
+{
+  "port": 4711,
+  "modus": "simulation",
+  "workspaceOrdner": "./daten/workspace",
+  "datenOrdner": "./daten",
+  "modell": "",
+  "agent": {
+    "name": "Assistent",
+    "auftrag": "Du bist ein hilfreicher Assistent für SAP- und ABAP-Entwicklung. Antworte auf Deutsch, knapp und sachlich."
+  }
+}

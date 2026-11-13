@@ -42,9 +42,9 @@ Vorgehen ausgelegt:
 
 ## Phase 0 – Prüfpaket für den Firmenrechner
 
-**Stand 2026-11-13:** gebaut in [pruefpaket/](../pruefpaket/). Copilot-Teil auf dem
-Privatrechner erfolgreich gelaufen, SAP-Teil ungetestet. Wartet auf den Lauf auf dem
-Firmenrechner.
+**Stand 2026-11-13: abgeschlossen.** Gebaut in [pruefpaket/](../pruefpaket/); Umgebung,
+Copilot und SAP auf dem Firmenrechner erfolgreich. Die Architektur ist bestätigt, ein
+Ausweichweg ist nicht nötig.
 
 Kleines eigenständiges Paket. Prüft der Reihe nach T0–T5 aus
 [05-offene-fragen](05-offene-fragen.md) und zeigt eine Ergebnistabelle.

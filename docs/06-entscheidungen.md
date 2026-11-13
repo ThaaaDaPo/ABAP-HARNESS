@@ -43,6 +43,9 @@
 | E-37 | 2026-11-13 | Planung freigegeben; Vorschläge V-01 bis V-17 gelten als bestätigt. Start mit Phase 0 (Prüfpaket) | Antwort J1 |
 | E-38 | 2026-11-13 | Cookie-Mechanismus des Proxys: `playwright-core` startet das installierte Edge sichtbar, ruft die SAP-URL auf, wartet bis 60 s auf `MYSAPSSO2` oder `SAP_SESSIONID_B1E_010` und gibt alle Cookies als Zeile zurück. System-ID B1E, Mandant 010. Wird so übernommen | Foto `get-cookie.js` |
 | E-39 | 2026-11-13 | ADT-Zugriff über die Bibliothek `abap-adt-api` 10.0.0; sie hat eine eingebaute Cookie-Sitzung (`createCookieSessionOptions`) mit automatischer Erneuerung, passend zu E-38 | Recherche Claude |
+| E-40 | 2026-11-13 | Davids privater GitHub-Login wird **nicht** für Copilot-Tests genutzt. Auf dem Privatrechner wird nur gegen die simulierte Laufzeit getestet; echtes Copilot läuft ausschließlich auf dem Firmenrechner | Antwort K1 |
+| E-41 | 2026-11-13 | Code-Vorgaben: sauber nach Themen-Ordnern gegliedert (z. B. `mcp/` mit Unterordner je Server), Datei- und Ordnernamen möglichst deutsch, lesbar und nicht zu kompliziert | Vorgabe David |
+| E-42 | 2026-11-13 | Technischer Aufbau Phase 1: ein `package.json` für alles (ein `npm install`); Server-TypeScript läuft ohne Bau-Schritt direkt in Node (Typen werden entfernt); Oberfläche wird von Vite im Server ausgeliefert (ein Startbefehl); Express für HTTP; Live-Anzeige über Server-Sent Events; Server nur an 127.0.0.1 | Claude, im Sinne von E-41 |
 
 ## Erkenntnisse aus Phase 0 (Privatrechner, 2026-11-13)
 

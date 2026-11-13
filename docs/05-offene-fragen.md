@@ -5,12 +5,9 @@ Runden 1–3 und die Freigabe sind erledigt (E-06 bis E-39).
 
 ## An David
 
-- **K1 – Copilot auf dem Privatrechner**: Das SDK läuft hier über deinen privaten GitHub-Login.
-  Darf das für Tests der Plattform genutzt werden (verbraucht Kontingent deines privaten
-  Kontos)? Wenn ja, kann die Agenten-Laufzeit hier echt getestet werden, und das Risiko aus
-  E-24 schrumpft deutlich. Wenn nein, bleibt es bei der simulierten Laufzeit.
-- **K2 – Prüfpaket auf dem Firmenrechner ausführen**: siehe
-  [pruefpaket/README.md](../pruefpaket/README.md). Ergebnis als Foto oder QR-Text zurückbringen.
+- **L1 – Abnahme Schritt 1** auf dem Firmenrechner: Liste in [08-phase-1](08-phase-1.md).
+- **L2 – Modelle**: Welche Modelle hat Schritt C2 auf dem Firmenrechner gelistet
+  (`bericht\bericht.txt`)? Eilt nicht.
 
 ## Zurückgestellt
 
@@ -22,16 +19,38 @@ Runden 1–3 und die Freigabe sind erledigt (E-06 bis E-39).
 
 | Nr. | Frage | Privatrechner | Firmenrechner |
 |---|---|---|---|
-| T0 | Umgebung (Node ≥ 22.15, Windows) | – | offen (U1–U7) |
-| T1 | Copilot SDK: Tools, MCP, Abfangen, Dateigrenze, Fortsetzen | bestätigt | offen (C1–C8) |
-| T2 | ADT mit Browser-Cookie | nicht prüfbar | offen (S2–S4) |
-| T3 | Syntaxprüfung mit ungespeichertem Quelltext | nicht prüfbar | offen (S6) |
-| T4 | Anlegen/Speichern/Aktivieren/Unit-Test/Löschen in `$TMP` | nicht prüfbar | offen (S5, S7–S10) |
-| T5 | Abhängigkeiten über Nexus | – | offen (`npm install`) |
+| T0 | Umgebung (Node ≥ 22.15, Windows) | – | bestätigt |
+| T1 | Copilot SDK: Tools, MCP, Abfangen, Dateigrenze, Fortsetzen | bestätigt | bestätigt (nach `/login` in der Copilot-Kommandozeile) |
+| T2 | ADT mit Browser-Cookie | nicht prüfbar | bestätigt |
+| T3 | Syntaxprüfung mit ungespeichertem Quelltext | nicht prüfbar | bestätigt |
+| T4 | Anlegen/Speichern/Aktivieren/Unit-Test/Löschen in `$TMP` | nicht prüfbar | bestätigt |
+| T5 | Abhängigkeiten über Nexus | – | bestätigt |
 
-Der SAP-Teil des Prüfpakets (S2–S10) ist ungetestet geschrieben: Er folgt den Typen und dem
-Quelltext von `abap-adt-api`, lief aber noch nie gegen ein System. Fehler dort sind beim ersten
-Lauf wahrscheinlich und kein Zeichen, dass der Ansatz nicht trägt.
+## Befunde vom Firmenrechner
+
+- 2026-11-13: Node v22.16.0, npm 10.9.2. `npm install` über Nexus erfolgreich (61 Pakete), T5
+  damit bestätigt. Warnung: `@effect/platform-node` 4.1.4 und `undici` 8.12.4 (Unterpakete von
+  `abap-adt-api`) verlangen Node ≥ 22.19. Ob der SAP-Teil mit 22.16 trotzdem läuft, zeigt
+  `pruefen:sap`; sonst Node auf ≥ 22.19 anheben oder ADT-Zugriff ohne diese Bibliothek bauen.
+
+- 2026-11-13, Läufe des Prüfpakets (Angaben von David):
+  - **Umgebung U1–U7: alle OK.**
+  - **SAP S1–S10: alle OK**, mit Node 22.16 trotz der Warnung. Damit bestätigt: ADT-Anmeldung
+    mit Browser-Cookie (T2), Syntaxprüfung mit ungespeichertem Quelltext (T3), Anlegen,
+    Speichern, Aktivieren, ABAP Unit und Löschen in `$TMP` (T4). Als URL diente die des
+    SAP-MCP-Proxys; ADT liegt auf demselben Host, eine zweite URL ist nicht nötig.
+  - Beim Cookie-Holen musste David in Edge ein **Zertifikat anklicken**. Für unbeaufsichtigte
+    Läufe relevant: Cookie so lange wie möglich wiederverwenden; ist es abgelaufen, pausiert
+    der Lauf mit Hinweis in der App (V-16). Ob eine Edge-Richtlinie die Auswahl automatisieren
+    kann, ist offen.
+  - **Copilot C1: FEHLER „nicht angemeldet"**, C2–C8 ausgelassen. Das SDK findet auf dem
+    Firmenrechner keine Anmeldung, obwohl `npx @github/copilot` dort funktioniert. Ursache
+    offen (genauer Meldungstext fehlt noch).
+  - Später am selben Tag: **Copilot-Prüfung erfolgreich** (Angabe von David, ohne Einzelzeilen).
+    Vorausgegangen war die Empfehlung, sich in `npx @github/copilot` per `/login` anzumelden.
+    Für die Plattform heißt das: Die Einrichtung muss diesen Anmeldeschritt prüfen und
+    verständlich darauf hinweisen. Noch unbekannt: welche Modelle C2 gelistet hat.
+  - **Phase 0 ist damit abgeschlossen: T0 bis T5 auf dem Firmenrechner bestätigt.**
 
 ## Hinweise für die Umsetzung
 

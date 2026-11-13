@@ -1,0 +1,18 @@
+{
+  // Nur für die Typprüfung (npm run typpruefung). Übersetzt wird die Oberfläche von Vite.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["./**/*.ts", "./**/*.tsx", "../gemeinsam/**/*.ts"],
+  "exclude": ["vite.config.ts"]
+}

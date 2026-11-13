@@ -1,0 +1,17 @@
+{
+  // Nur für die Typprüfung (npm run typpruefung). Node führt die .ts-Dateien direkt aus,
+  // indem es die Typen entfernt – deshalb nur Syntax, die sich einfach entfernen lässt.
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts", "../gemeinsam/**/*.ts"]
+}

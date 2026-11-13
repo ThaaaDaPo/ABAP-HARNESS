@@ -1,0 +1,50 @@
+[
+  {
+    "beschreibung": "Simuliert, dass der Agent ein Jira-Ticket liest",
+    "wennEnthaelt": ["ticket", "jira"],
+    "schritte": [
+      { "text": "Ich schaue mir das Ticket an." },
+      {
+        "tool": "jira-ticket_lesen",
+        "argumente": { "schluessel": "ABAP-123" },
+        "ergebnis": "ABAP-123: Methode GET_KUNDE in ZCL_KUNDEN_SERVICE soll zusätzlich die Kundengruppe zurückgeben. Status: In Arbeit."
+      },
+      { "text": "Ticket **ABAP-123** gelesen: In `ZCL_KUNDEN_SERVICE` soll die Methode `GET_KUNDE` zusätzlich die Kundengruppe liefern. Der Status ist *In Arbeit*." }
+    ]
+  },
+  {
+    "beschreibung": "Simuliert, dass der Agent ABAP-Quelltext liest",
+    "wennEnthaelt": ["klasse", "quelltext", "abap"],
+    "schritte": [
+      {
+        "tool": "sap-objekt_lesen",
+        "argumente": { "name": "ZCL_KUNDEN_SERVICE", "typ": "CLAS" },
+        "ergebnis": "CLASS zcl_kunden_service DEFINITION PUBLIC FINAL CREATE PUBLIC.\n  PUBLIC SECTION.\n    METHODS get_kunde IMPORTING iv_id TYPE kunnr RETURNING VALUE(rs_kunde) TYPE kna1.\nENDCLASS."
+      },
+      { "text": "Die Klasse `ZCL_KUNDEN_SERVICE` hat eine öffentliche Methode `GET_KUNDE`, die einen Kunden über die Kundennummer liest." }
+    ]
+  },
+  {
+    "beschreibung": "Simuliert einen fehlschlagenden Tool-Aufruf",
+    "wennEnthaelt": ["fehler"],
+    "schritte": [
+      { "tool": "sap-objekt_lesen", "argumente": { "name": "ZGIBT_ES_NICHT" }, "ergebnis": "Objekt ZGIBT_ES_NICHT nicht gefunden", "fehlgeschlagen": true },
+      { "text": "Das Objekt gibt es nicht. Ich brauche einen anderen Namen." }
+    ]
+  },
+  {
+    "beschreibung": "Antwortet langsam, um Abbrechen zu testen",
+    "wennEnthaelt": ["langsam"],
+    "schritte": [
+      { "warten": 8000 },
+      { "text": "Fertig nach acht Sekunden." }
+    ]
+  },
+  {
+    "beschreibung": "Standardantwort, wenn nichts anderes passt",
+    "wennEnthaelt": [],
+    "schritte": [
+      { "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell. Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler* oder *langsam*." }
+    ]
+  }
+]
