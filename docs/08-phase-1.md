@@ -1,6 +1,6 @@
 # 08 – Phase 1: Plattformkern (Umfang)
 
-Status: **gestartet 2026-11-13. Schritt 1 gebaut, wartet auf Prüfung am Firmenrechner.**
+Status: **gestartet 2026-11-13. Schritt 1 abgenommen. Als Nächstes Schritt 2 (MCP-Server, Tool-Gateway).**
 
 ## Stand Schritt 1 (2026-11-13)
 
@@ -41,7 +41,13 @@ Arbeitsverzeichnis). Copilot führt einfache Shell-Befehle offenbar aus, ohne
 [berechtigungen.ts](../server/laufzeit/copilot/berechtigungen.ts): Shell-Werkzeuge werden über
 `excludedTools` nicht angeboten und über den Hook `onPreToolUse` vor jeder Ausführung
 abgelehnt. Erkenntnis für das Tool-Gateway (Schritt 2): **Regeln immer im Hook `onPreToolUse`
-durchsetzen, nicht nur in `onPermissionRequest`.** Punkt 6 muss erneut geprüft werden.
+durchsetzen, nicht nur in `onPermissionRequest`.**
+
+Zweite Runde: `dir` scheitert jetzt – der Agent hat es auf fünf Wegen versucht, alle abgelehnt.
+**Schritt 1 ist damit abgenommen.** Damit der Agent nicht Credits mit Umwegen verbraucht, steht
+seitdem im Auftrag jeder Sitzung, dass Shell und Internet gesperrt sind (`umgebungsRegeln` in
+[copilot.ts](../server/laufzeit/copilot/copilot.ts)); noch nicht am Firmenrechner geprüft.
+Lehre für später: Gesperrtes immer auch dem Agenten sagen, nicht nur technisch sperren.
 
 ### Bekannte Lücken (bewusst später)
 

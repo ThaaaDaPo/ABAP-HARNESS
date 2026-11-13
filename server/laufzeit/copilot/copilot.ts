@@ -6,11 +6,20 @@ import type { AgentenLaufzeit, AgentenSitzung, EreignisEmpfaenger, SitzungsEinst
 import { erstelleBerechtigungsPruefung, shellSperre, shellWerkzeuge } from "./berechtigungen.ts";
 import { uebersetze } from "./ereignisse-uebersetzen.ts";
 
+// Steht immer im Auftrag. Ohne diesen Hinweis probiert der Agent gesperrte Wege mehrfach aus
+// (am Firmenrechner beobachtet: fünf Versuche für `dir`) und verbraucht dabei Credits.
+const umgebungsRegeln = [
+  "Regeln dieser Umgebung:",
+  "- Shell-Befehle und Internetzugriff sind technisch gesperrt. Versuche sie nicht und suche keine Umwege.",
+  "- Dateien kannst du nur im Arbeitsverzeichnis lesen und schreiben.",
+  "- Wird eine Aktion abgelehnt, nimm das hin und sage dem Nutzer, was du nicht tun konntest.",
+].join("\n");
+
 function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionConfig {
   return {
     ...(einstellungen.modell ? { model: einstellungen.modell } : {}),
     workingDirectory: einstellungen.workspaceOrdner,
-    systemMessage: { mode: "append", content: einstellungen.auftrag },
+    systemMessage: { mode: "append", content: `${einstellungen.auftrag}\n\n${umgebungsRegeln}` },
     streaming: true,
     excludedTools: shellWerkzeuge,
     hooks: { onPreToolUse: shellSperre },

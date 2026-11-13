@@ -7,9 +7,9 @@ den Gesamtüberblick behält und selbständig ABAP im SAP-Entwicklungssystem ent
 ## Aktueller Stand
 
 **Phase 1 läuft (seit 2026-11-13).** Phase 0 ist abgeschlossen (Prüfpaket auf dem
-Firmenrechner erfolgreich). Phase 1, Schritt 1 ist gebaut und wartet auf die Abnahme am
-Firmenrechner – Stand, Abnahmeliste und bekannte Lücken in
-[docs/08-phase-1.md](docs/08-phase-1.md). Danach folgt Schritt 2 (MCP-Server, Tool-Gateway).
+Firmenrechner erfolgreich). Phase 1, Schritt 1 ist am Firmenrechner abgenommen. Als Nächstes
+Schritt 2 (MCP-Server, Tool-Gateway). Stand, Erkenntnisse und bekannte Lücken in
+[docs/08-phase-1.md](docs/08-phase-1.md).
 Aufbau des Codes: [README.md](README.md).
 
 **Wichtige Randbedingung:** Gebaut wird auf Davids Privatrechner – hier gibt es kein SAP, kein

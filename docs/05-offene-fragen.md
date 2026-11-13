@@ -5,7 +5,6 @@ Runden 1–3 und die Freigabe sind erledigt (E-06 bis E-39).
 
 ## An David
 
-- **L1 – Abnahme Schritt 1** auf dem Firmenrechner: Liste in [08-phase-1](08-phase-1.md).
 - **L2 – Modelle**: Welche Modelle hat Schritt C2 auf dem Firmenrechner gelistet
   (`bericht\bericht.txt`)? Eilt nicht.
 
