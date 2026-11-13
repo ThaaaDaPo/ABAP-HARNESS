@@ -33,6 +33,16 @@ Sie ist nach dem Prüfpaket geschrieben, lief aber noch nie. Annahmen, die dort 
 
 Bei Fehlern: Foto vom Terminal und vom Browser.
 
+### Ergebnis der Abnahme (2026-11-13, erste Runde)
+
+Alle Punkte in Ordnung bis auf Punkt 6: **`dir` wurde ausgeführt** (laut David zumindest im
+Arbeitsverzeichnis). Copilot führt einfache Shell-Befehle offenbar aus, ohne
+`onPermissionRequest` zu fragen. Behoben durch eine zweite, unabhängige Sperre in
+[berechtigungen.ts](../server/laufzeit/copilot/berechtigungen.ts): Shell-Werkzeuge werden über
+`excludedTools` nicht angeboten und über den Hook `onPreToolUse` vor jeder Ausführung
+abgelehnt. Erkenntnis für das Tool-Gateway (Schritt 2): **Regeln immer im Hook `onPreToolUse`
+durchsetzen, nicht nur in `onPermissionRequest`.** Punkt 6 muss erneut geprüft werden.
+
 ### Bekannte Lücken (bewusst später)
 
 - Antworten werden als reiner Text angezeigt, Markdown (Fettschrift, Code-Blöcke) noch nicht

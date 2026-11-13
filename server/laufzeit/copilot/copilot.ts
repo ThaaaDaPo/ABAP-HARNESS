@@ -3,7 +3,7 @@
 // Prüfpaket (pruefpaket/src/schritte-copilot.js), das auf dem Firmenrechner erfolgreich lief.
 import { CopilotClient, type CopilotSession, type SessionConfig } from "@github/copilot-sdk";
 import type { AgentenLaufzeit, AgentenSitzung, EreignisEmpfaenger, SitzungsEinstellungen } from "../laufzeit.ts";
-import { erstelleBerechtigungsPruefung } from "./berechtigungen.ts";
+import { erstelleBerechtigungsPruefung, shellSperre, shellWerkzeuge } from "./berechtigungen.ts";
 import { uebersetze } from "./ereignisse-uebersetzen.ts";
 
 function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionConfig {
@@ -12,6 +12,8 @@ function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionCon
     workingDirectory: einstellungen.workspaceOrdner,
     systemMessage: { mode: "append", content: einstellungen.auftrag },
     streaming: true,
+    excludedTools: shellWerkzeuge,
+    hooks: { onPreToolUse: shellSperre },
     onPermissionRequest: erstelleBerechtigungsPruefung(einstellungen.workspaceOrdner),
   };
 }

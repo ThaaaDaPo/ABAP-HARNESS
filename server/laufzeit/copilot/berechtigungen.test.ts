@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 import type { PermissionHandler } from "@github/copilot-sdk";
-import { erstelleBerechtigungsPruefung, liegtImOrdner } from "./berechtigungen.ts";
+import { erstelleBerechtigungsPruefung, istShellWerkzeug, liegtImOrdner, shellSperre } from "./berechtigungen.ts";
 
 const workspace = path.resolve("/tmp/harness-test/workspace");
 const pruefe = erstelleBerechtigungsPruefung(workspace);
@@ -49,6 +49,24 @@ test("Shell, Internet und Unbekanntes sind gesperrt", async () => {
   assert.equal(await entscheidung({ kind: "shell", fullCommandText: "dir" }), "reject");
   assert.equal(await entscheidung({ kind: "url", url: "https://example.com" }), "reject");
   assert.equal(await entscheidung({ kind: "irgendwas-neues" }), "reject");
+});
+
+test("Shell-Werkzeuge werden am Namen erkannt", () => {
+  for (const name of ["powershell", "read_powershell", "bash", "pwsh", "run_shell", "terminal"]) {
+    assert.equal(istShellWerkzeug(name), true, name);
+  }
+  for (const name of ["view", "edit", "create", "glob", "sap-objekt_lesen", "jira-ticket_lesen"]) {
+    assert.equal(istShellWerkzeug(name), false, name);
+  }
+});
+
+test("Die Shell-Sperre lehnt Shell-Werkzeuge vor der Ausführung ab", async () => {
+  type Eingabe = Parameters<typeof shellSperre>[0];
+  const aufrufInfo = { sessionId: "test" } as Parameters<typeof shellSperre>[1];
+  const shell = await shellSperre({ toolName: "powershell", toolArgs: { command: "dir" } } as Eingabe, aufrufInfo);
+  assert.equal(shell?.permissionDecision, "deny");
+  const datei = await shellSperre({ toolName: "view", toolArgs: {} } as Eingabe, aufrufInfo);
+  assert.equal(datei, undefined);
 });
 
 test("MCP- und eigene Tools sind vorerst erlaubt", async () => {

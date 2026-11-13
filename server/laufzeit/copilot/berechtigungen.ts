@@ -3,7 +3,39 @@
 // Das ist technisch erzwungen – der Agent kann es nicht per Prompt umgehen.
 // Die Regeln je Tool (erlauben / melden / Freigabe / verbieten) kommen mit dem Tool-Gateway in Schritt 2.
 import path from "node:path";
-import type { PermissionHandler, PermissionRequestResult } from "@github/copilot-sdk";
+import type { PermissionHandler, PermissionRequestResult, SessionHooks } from "@github/copilot-sdk";
+
+/** Das SDK exportiert den Typ des Hooks nicht einzeln, deshalb hier abgeleitet. */
+type PreToolUseHandler = NonNullable<SessionHooks["onPreToolUse"]>;
+
+// ---------------------------------------------------------------------------------------------
+// Sperre 1: Shell-Werkzeuge
+// Copilot führt einfache Befehle wie `dir` teils aus, ohne die Berechtigungsprüfung zu fragen
+// (am Firmenrechner beobachtet). Deshalb werden Shell-Werkzeuge doppelt gesperrt:
+// gar nicht erst angeboten (shellWerkzeuge) und vor jeder Ausführung abgelehnt (shellSperre).
+// ---------------------------------------------------------------------------------------------
+
+/** Eingebaute Shell-Werkzeuge von Copilot. Namen, die es nicht gibt, schaden nicht. */
+export const shellWerkzeuge = ["bash", "powershell", "pwsh"].flatMap((name) =>
+  [name, `read_${name}`, `write_${name}`, `stop_${name}`, `list_${name}`].map((w) => `builtin:${w}`),
+);
+
+/** Erkennt Shell-Werkzeuge am Namen, auch wenn Copilot sie anders nennt als erwartet. */
+export function istShellWerkzeug(toolName: string): boolean {
+  return /bash|powershell|pwsh|shell|terminal|cmd\.exe/i.test(toolName);
+}
+
+/** Läuft vor jedem Werkzeug-Aufruf, unabhängig von der Berechtigungsprüfung. */
+export const shellSperre: PreToolUseHandler = async (eingabe) => {
+  if (istShellWerkzeug(eingabe.toolName)) {
+    return { permissionDecision: "deny", permissionDecisionReason: "Shell-Befehle sind in dieser Umgebung abgeschaltet." };
+  }
+  return undefined;
+};
+
+// ---------------------------------------------------------------------------------------------
+// Sperre 2: Berechtigungsprüfung für Dateien, Internet und alles Übrige
+// ---------------------------------------------------------------------------------------------
 
 const erlaubt: PermissionRequestResult = { kind: "approve-once" };
 
