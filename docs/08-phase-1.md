@@ -1,6 +1,6 @@
 # 08 – Phase 1: Plattformkern (Umfang)
 
-Status: **gestartet 2026-11-13. Schritt 1 und Schritt 2 (MCP-Server, Tool-Gateway) abgenommen. Schritt 3 (Postfach, Warteschlange, Wiederaufnahme) gebaut, Abnahme auf dem Firmenrechner steht aus.**
+Status: **gestartet 2026-11-13. Schritte 1 bis 3 abgenommen. Nach der Abnahme von Schritt 3 umgebaut (Freigaben im Chat, E-52) – kurze Nachprüfung steht aus. Danach Schritt 4.**
 
 ## Stand Schritt 1 (2026-11-13)
 
@@ -307,6 +307,55 @@ Auch das in der Simulation und im Browser geprüft. `npm test`: 30 Tests.
 **Bitte zurückmelden** (Foto oder Text, je Nummer ok / nicht ok): A1–6, B7–15. Fotos:
 Modellliste und Thinking-Effort-Stufen (3), Postfach mit offenen Einträgen, bei Fehlern Terminal
 und Browser. Weiter offen aus Schritt 2: die Tool-Namen der echten Server.
+
+### Ergebnis der Abnahme (2026-11-24)
+
+Alle Punkte A1–6 und B7–15 laut David in Ordnung, mit echtem Copilot und echtem Atlassian-MCP.
+**Schritt 3 ist damit abgenommen.** Bestätigt sind damit auch: eigene Tools mit `defineTool`,
+Aufrufe des echten Atlassian-MCP über den eigenen MCP-Client, `resumeSession` nach Postfach-
+Aktionen und nach Neustart, `listModels` mit Einzelmodellen, Modellwechsel im laufenden Chat,
+`deleteSession`. Die Festlegungen in Schritt 3 gelten als bestätigt, soweit unten nichts anderes steht.
+
+Rückmeldungen:
+
+- Context Window: Größe soll bei „Standard“ und „Lang“ dabeistehen (E-53).
+- **Freigaben im Chat statt im Postfach** (E-52): Wer im Chat arbeitet, will dort auch
+  bestätigen. Das Postfach ist für Workflows, die im Hintergrund laufen.
+
+### Umbau nach der Abnahme (2026-11-24)
+
+- Vorschläge erscheinen im Chat als **Karte** mit *Freigeben*, *Verwerfen* und *Änderungen
+  anfordern*. Die Abläufe dahinter sind unverändert (Abschluss ohne KI, Weitermachen über die
+  Warteschlange).
+- **Rückfragen** stehen hervorgehoben im Chat; die nächste Nachricht im Eingabefeld ist die
+  Antwort (die Rückfrage gilt dann als beantwortet, der Agent bekommt „Antwort auf deine
+  Rückfrage #n“).
+- **Meldungen** aus Chats gelten gleich als gesehen – die Tool-Karte zeigt den Aufruf schon.
+- Aufgaben haben eine **Herkunft** (`chat`, später `workflow`). Postfach-Seite und Zähler zeigen
+  nur Workflow-Einträge; die Seite ist bis Phase 4 in der Navigation ausgegraut.
+- Für den Agenten heißt es nicht mehr „liegt im Postfach“, sondern „wartet auf Freigabe“.
+- Context Window: Auswahl zeigt „Standard (… Tokens)“ und „Lang (… Tokens)“. Die Größen kommen aus
+  dem Prompt-Budget je Stufe (`tokenPrices.maxPromptTokens` bzw. `…longContext.maxPromptTokens`)
+  plus maximaler Ausgabe; fehlt das, die allgemeine Obergrenze des Modells.
+
+Festlegungen dazu (Vorschlag): Schreibt David bei offenem **Vorschlag** in den Chat, bleibt der
+Vorschlag offen (nur Rückfragen werden durch eine Nachricht beantwortet). Geprüft in der
+Simulation und im Browser; `npm test`: 32 Tests.
+
+### Nachprüfung am Firmenrechner (kurz)
+
+1. Neuer Chat, Kommentar an TEST-1 anlegen lassen → Karte „Vorschlag #… · Freigabe zum Abschluss“
+   im Chat, Chat-Marke „wartet auf dich“, Eingabefeld-Hinweis „Vorschlag oben freigeben …“.
+   **Freigeben** in der Karte → Ergebnis in der Karte, Kommentar in Jira, Chat „erledigt“.
+2. Wie 1, dann in der Karte **Änderungen anfordern** → neuer Vorschlag als neue Karte; diese
+   **verwerfen** → Chat „abgebrochen“.
+3. Kommentar anlegen und danach Ticket prüfen lassen → „Freigabe zum Weitermachen“, Freigeben in
+   der Karte → der Agent macht darunter weiter.
+4. Rückfrage provozieren (neue Klasse, „frag mich nach dem Paket“) → Rückfrage hervorgehoben,
+   Eingabefeld „Deine Antwort auf die Rückfrage“ → im Eingabefeld antworten → Agent macht weiter.
+5. Postfach in der Navigation ist ausgegraut.
+6. Modellleiste: Context Window zeigt Größen. **Foto** der Auswahl bei einem Modell mit „Lang“
+   (stimmen die Zahlen ungefähr mit dem, was Copilot sonst angibt?).
 
 ### Bekannte Lücken nach Schritt 3
 

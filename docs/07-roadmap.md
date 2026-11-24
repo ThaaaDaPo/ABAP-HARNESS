@@ -71,6 +71,9 @@ mit „Rückgängig". Reihenfolge: Klassen, Interfaces, Reports, Funktionsbauste
 ## Phase 4 – Zeitsteuerung und Workflows
 
 Gespeicherte Abläufe mit Zeitplan. Läuft nur, wenn der Rechner an und die SAP-Anmeldung gültig ist.
+Dazu das **Postfach** (E-52): Freigaben, Rückfragen und Meldungen aus Workflows, die ohne David
+laufen. Gebaut und getestet ist es seit Phase 1, Schritt 3; es zeigt nur Aufgaben mit Herkunft
+`workflow` und ist bis dahin in der Navigation ausgegraut.
 
 ## Phase 5 – Orchestrator und parallele Läufe
 

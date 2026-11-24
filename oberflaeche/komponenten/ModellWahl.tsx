@@ -74,13 +74,12 @@ export function ModellWahl({ modelle, wahl, aendere, agentArbeitet }: Eigenschaf
           Context Window
           {modell.langerKontext ? (
             <select value={wahl.kontext} onChange={(e) => aendere({ ...wahl, kontext: e.target.value as Wahl["kontext"] })}>
-              <option value="standard">Standard</option>
-              <option value="lang">Lang</option>
+              <option value="standard">Standard ({tokens(modell.kontextStandard)})</option>
+              <option value="lang">Lang ({tokens(modell.kontextLang)})</option>
             </select>
           ) : (
-            <span className="modell-info">Standard</span>
+            <span className="modell-info">{tokens(modell.kontextStandard)}</span>
           )}
-          <span className="modell-info">max. {tokens(modell.kontextFenster)}</span>
         </label>
       )}
 

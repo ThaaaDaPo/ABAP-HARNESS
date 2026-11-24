@@ -1,6 +1,8 @@
 // Zeigt den Verlauf eines Chats: Nachrichten, Tool-Aufrufe, Fehler und den Text, den der Agent gerade schreibt.
+// Vorschläge erscheinen als Karte zum Freigeben, Rückfragen als hervorgehobene Frage (E-52).
 import { useEffect, useRef } from "react";
-import type { AufgabenStatus, Ereignis } from "../../gemeinsam/typen.ts";
+import type { AufgabenStatus, Ereignis, PostfachArt, PostfachEintrag } from "../../gemeinsam/typen.ts";
+import { PostfachKarte, type PostfachAktionen } from "./PostfachKarte.tsx";
 import { ToolAufruf, type ToolAufrufDaten } from "./ToolAufruf.tsx";
 
 /** Was im Verlauf als eigener Block erscheint */
@@ -8,7 +10,7 @@ type Block =
   | { art: "nutzer"; text: string }
   | { art: "agent"; text: string }
   | { art: "tool"; aufruf: ToolAufrufDaten }
-  | { art: "postfach"; text: string }
+  | { art: "postfach"; nr: number; eintragsArt: PostfachArt }
   | { art: "postfach_aktion"; text: string; details?: string }
   | { art: "modell"; text: string }
   | { art: "fehler"; text: string };
@@ -39,7 +41,7 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
         break;
       }
       case "postfach":
-        bloecke.push({ art: "postfach", text: postfachText(ereignis) });
+        bloecke.push({ art: "postfach", nr: ereignis.postfachNr, eintragsArt: ereignis.eintragsArt });
         break;
       case "postfach_aktion":
         bloecke.push({ art: "postfach_aktion", text: ereignis.text, details: ereignis.details });
@@ -57,23 +59,11 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
   return bloecke;
 }
 
-function postfachText(ereignis: Extract<Ereignis, { art: "postfach" }>): string {
-  const nr = ereignis.postfachNr;
-  switch (ereignis.eintragsArt) {
-    case "freigabe":
-      return `Vorschlag #${nr} liegt im Postfach und wartet auf Freigabe (${ereignis.toolName})`;
-    case "rueckfrage":
-      return `Rückfrage #${nr} liegt im Postfach`;
-    case "meldung":
-      return `Meldung #${nr} im Postfach: ${ereignis.toolName} wurde ausgeführt`;
-  }
-}
-
 /** Hinweis unter dem Verlauf, solange der Chat nicht einfach auf eine Nachricht wartet */
 const statusHinweise: Partial<Record<AufgabenStatus, string>> = {
   arbeitet: "Agent arbeitet …",
   eingereiht: "Eingereiht – der Agent macht hier weiter, sobald er mit seiner aktuellen Aufgabe fertig ist.",
-  wartet: "Wartet aufs Postfach.",
+  wartet: "Wartet auf dich.",
   erledigt: "Aufgabe erledigt.",
   abgebrochen: "Aufgabe abgebrochen.",
 };
@@ -83,10 +73,14 @@ interface Eigenschaften {
   /** Text, den der Agent gerade schreibt (noch nicht fertig) */
   laufenderText: string;
   status: AufgabenStatus;
-  zeigePostfach: () => void;
+  /** Vorschläge und Rückfragen dieses Chats, mit aktuellem Stand */
+  eintraege: PostfachEintrag[];
+  aktionen: (eintrag: PostfachEintrag) => PostfachAktionen;
+  /** Nummer des Eintrags, für den gerade eine Aktion läuft */
+  beschaeftigt: number | null;
 }
 
-export function Verlauf({ ereignisse, laufenderText, status, zeigePostfach }: Eigenschaften) {
+export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen, beschaeftigt }: Eigenschaften) {
   const ende = useRef<HTMLDivElement>(null);
 
   // Bei neuen Inhalten nach unten scrollen
@@ -108,12 +102,13 @@ export function Verlauf({ ereignisse, laufenderText, status, zeigePostfach }: Ei
             return <div key={index} className="nachricht agent">{block.text}</div>;
           case "tool":
             return <ToolAufruf key={index} aufruf={block.aufruf} />;
-          case "postfach":
-            return (
-              <button key={index} className="postfach-hinweis" onClick={zeigePostfach} title="Im Postfach ansehen">
-                {block.text}
-              </button>
-            );
+          case "postfach": {
+            const eintrag = eintraege.find((e) => e.nr === block.nr);
+            // Meldungen zeigt schon die Tool-Karte darüber; im Chat braucht es dafür nichts Eigenes.
+            if (!eintrag || block.eintragsArt === "meldung") return null;
+            if (eintrag.art === "rueckfrage") return <Rueckfrage key={index} eintrag={eintrag} />;
+            return <PostfachKarte key={index} eintrag={eintrag} aktionen={aktionen(eintrag)} beschaeftigt={beschaeftigt === eintrag.nr} imChat />;
+          }
           case "postfach_aktion":
             return (
               <div key={index} className="postfach-aktion">
@@ -131,6 +126,21 @@ export function Verlauf({ ereignisse, laufenderText, status, zeigePostfach }: Ei
       {laufenderText && <div className="nachricht agent schreibt">{laufenderText}</div>}
       {statusHinweise[status] && !laufenderText && <div className="denkt">{statusHinweise[status]}</div>}
       <div ref={ende} />
+    </div>
+  );
+}
+
+/** Rückfrage des Agenten. Beantwortet wird sie im normalen Eingabefeld unten. */
+function Rueckfrage({ eintrag }: { eintrag: PostfachEintrag }) {
+  const frage = String((eintrag.argumente as { frage?: string })?.frage ?? "");
+  const offen = eintrag.status === "offen";
+  return (
+    <div className={offen ? "rueckfrage offen" : "rueckfrage"}>
+      <div className="rueckfrage-kopf">Rückfrage #{eintrag.nr}</div>
+      <div>{frage}</div>
+      <div className="hinweis">
+        {offen ? "Antworte unten im Eingabefeld." : eintrag.status === "verworfen" ? "Verworfen." : "Beantwortet."}
+      </div>
     </div>
   );
 }

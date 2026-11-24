@@ -13,7 +13,7 @@ interface Eigenschaften {
 /** Kurzer Text für alles außer "bereit" (das ist der Normalfall und bekommt keine Marke). */
 const marken: Partial<Record<AufgabenStatus, string>> = {
   eingereiht: "eingereiht",
-  wartet: "Postfach",
+  wartet: "wartet auf dich",
   erledigt: "erledigt",
   abgebrochen: "abgebrochen",
 };

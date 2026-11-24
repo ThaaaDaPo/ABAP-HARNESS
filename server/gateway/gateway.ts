@@ -75,7 +75,7 @@ export class ToolGateway {
         return {
           ausfuehren: false,
           grund:
-            `Nicht ausgeführt: Der Aufruf liegt als Vorschlag #${nr} im Postfach und wartet auf Freigabe durch den Nutzer. ` +
+            `Nicht ausgeführt: Der Aufruf ist als Vorschlag #${nr} abgelegt und wartet auf Freigabe durch den Nutzer. ` +
             `Wiederhole ihn nicht – nach der Freigabe führt die Plattform ihn selbst aus. ` +
             `Ist deine Aufgabe damit erledigt, schließe mit einer kurzen Zusammenfassung ab und nenne Vorschlag #${nr}. ` +
             `Brauchst du das Ergebnis, um weiterzumachen, erledige erst alles, was nicht davon abhängt, ` +

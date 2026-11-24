@@ -13,7 +13,8 @@ interface Eintrag {
 const eintraege: Eintrag[] = [
   { name: "chat", titel: "Chat" },
   { name: "mcp", titel: "MCP-Server" },
-  { name: "postfach", titel: "Postfach" },
+  // Das Postfach ist für Workflows, die ohne David laufen (E-52). Freigaben aus Chats gibt er im Chat.
+  { name: "postfach", titel: "Postfach", kommtIn: "Phase 4 (Workflows)" },
   { name: "agenten", titel: "Agenten", kommtIn: "Schritt 4" },
   { name: "einrichtung", titel: "Einrichtung", kommtIn: "Schritt 4" },
 ];

@@ -82,6 +82,9 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
   ergaenzeSpalte(db, "aufgaben", "modell", "TEXT NOT NULL DEFAULT ''");
   ergaenzeSpalte(db, "aufgaben", "denkaufwand", "TEXT NOT NULL DEFAULT ''");
   ergaenzeSpalte(db, "aufgaben", "kontext", "TEXT NOT NULL DEFAULT 'standard'");
+  // Woher die Aufgabe kommt: "chat" (David ist dabei) oder später "workflow" (läuft ohne ihn).
+  // Freigaben aus Chats werden im Chat erledigt, nur die aus Workflows im Postfach (E-52).
+  ergaenzeSpalte(db, "aufgaben", "herkunft", "TEXT NOT NULL DEFAULT 'chat'");
 
   return db;
 }

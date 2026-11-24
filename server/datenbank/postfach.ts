@@ -56,10 +56,12 @@ const auswahl = `SELECT p.*, a.titel AS aufgabe_titel FROM postfach p JOIN aufga
 
 /** Legt den Eintrag ab und gibt seine Nummer zurück. */
 export function legeAb(db: Datenbank, eintrag: NeuerEintrag): number {
+  // Meldungen aus einem Chat hat David schon live gesehen – sie gelten gleich als zur Kenntnis genommen.
+  const status = eintrag.art === "meldung" && kommtAusChat(db, eintrag.aufgabeId) ? "zur_kenntnis" : "offen";
   const ergebnis = db
     .prepare(
       `INSERT INTO postfach (aufgabe_id, art, server, tool, argumente, ergebnis, status, erstellt_am)
-       VALUES (?, ?, ?, ?, ?, ?, 'offen', ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       eintrag.aufgabeId,
@@ -68,17 +70,40 @@ export function legeAb(db: Datenbank, eintrag: NeuerEintrag): number {
       eintrag.tool,
       JSON.stringify(eintrag.argumente ?? null),
       eintrag.ergebnis ?? null,
+      status,
       new Date().toISOString(),
     );
   return Number(ergebnis.lastInsertRowid);
 }
 
-/** Alle Einträge: offene zuerst, darin die ältesten oben; danach die erledigten, neueste oben. */
+function kommtAusChat(db: Datenbank, aufgabeId: string): boolean {
+  const zeile = db.prepare(`SELECT herkunft FROM aufgaben WHERE id = ?`).get(aufgabeId) as { herkunft: string } | undefined;
+  return zeile?.herkunft !== "workflow";
+}
+
+/** Offene zuerst, darin die ältesten oben; danach die erledigten, neueste oben. */
+const reihenfolge = `ORDER BY CASE WHEN p.${offenSql} THEN 0 ELSE 1 END, CASE WHEN p.${offenSql} THEN p.nr ELSE -p.nr END`;
+
 export function holeAlleEintraege(db: Datenbank): PostfachEintrag[] {
-  const zeilen = db
-    .prepare(`${auswahl} ORDER BY CASE WHEN p.${offenSql} THEN 0 ELSE 1 END, CASE WHEN p.${offenSql} THEN p.nr ELSE -p.nr END`)
-    .all() as unknown as PostfachZeile[];
-  return zeilen.map(ausZeile);
+  return (db.prepare(`${auswahl} ${reihenfolge}`).all() as unknown as PostfachZeile[]).map(ausZeile);
+}
+
+/** Einträge aus Workflows – nur die gehören ins Postfach (E-52). */
+export function holeWorkflowEintraege(db: Datenbank): PostfachEintrag[] {
+  return (db.prepare(`${auswahl} WHERE a.herkunft = 'workflow' ${reihenfolge}`).all() as unknown as PostfachZeile[]).map(ausZeile);
+}
+
+/** Einträge eines Chats, in der Reihenfolge, in der sie entstanden sind. */
+export function holeEintraegeDerAufgabe(db: Datenbank, aufgabeId: string): PostfachEintrag[] {
+  return (db.prepare(`${auswahl} WHERE p.aufgabe_id = ? ORDER BY p.nr`).all(aufgabeId) as unknown as PostfachZeile[]).map(ausZeile);
+}
+
+/** Offene Rückfragen der Aufgabe. Im Chat beantwortet David sie im normalen Eingabefeld. */
+export function offeneRueckfragen(db: Datenbank, aufgabeId: string): number[] {
+  const zeilen = db.prepare(`SELECT nr FROM postfach WHERE aufgabe_id = ? AND art = 'rueckfrage' AND ${offenSql} ORDER BY nr`).all(aufgabeId) as {
+    nr: number;
+  }[];
+  return zeilen.map((z) => z.nr);
 }
 
 export function holeEintrag(db: Datenbank, nr: number): PostfachEintrag | null {
@@ -86,8 +111,13 @@ export function holeEintrag(db: Datenbank, nr: number): PostfachEintrag | null {
   return zeile ? ausZeile(zeile) : null;
 }
 
+/** Offene Einträge aus Workflows (Zähler in der Navigation) */
 export function zaehleOffene(db: Datenbank): number {
-  return (db.prepare(`SELECT COUNT(*) AS anzahl FROM postfach WHERE ${offenSql}`).get() as { anzahl: number }).anzahl;
+  return (
+    db.prepare(`SELECT COUNT(*) AS anzahl FROM postfach p JOIN aufgaben a ON a.id = p.aufgabe_id WHERE a.herkunft = 'workflow' AND p.${offenSql}`).get() as {
+      anzahl: number;
+    }
+  ).anzahl;
 }
 
 /** Offene Freigaben und Rückfragen der Aufgabe – solange es welche gibt, wartet die Aufgabe. */

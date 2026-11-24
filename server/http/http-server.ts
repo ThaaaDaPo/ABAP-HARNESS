@@ -32,7 +32,7 @@ export async function erstelleHttpServer(einstellungen: Einstellungen, db: Daten
     antwort.json(await chat.modelle());
   });
 
-  app.use("/api/aufgaben", routenAufgaben(db, chat));
+  app.use("/api/aufgaben", routenAufgaben(db, chat, postfach));
   app.use("/api/mcp", routenMcp(db, chat));
   app.use("/api/postfach", routenPostfach(postfach));
 

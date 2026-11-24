@@ -39,10 +39,12 @@ export interface ModellInfo {
   /** Mögliche Stufen für den Thinking Effort. Leer = nicht einstellbar */
   denkStufen: string[];
   standardDenkStufe: string | null;
-  /** Größe des Context Windows in Tokens, falls bekannt */
-  kontextFenster: number | null;
+  /** Größe des Context Windows in Tokens (Standard), falls bekannt */
+  kontextStandard: number | null;
   /** Das Modell bietet zusätzlich einen langen Kontext an */
   langerKontext: boolean;
+  /** Größe des langen Context Windows in Tokens, falls bekannt */
+  kontextLang: number | null;
   /** Kostenfaktor gegenüber dem Basismodell, falls bekannt */
   multiplikator: number | null;
 }
@@ -72,6 +74,8 @@ export type GespeichertesEreignis = Ereignis & { nr: number; zeitpunkt: string }
 export interface AufgabeMitVerlauf {
   aufgabe: Aufgabe;
   ereignisse: GespeichertesEreignis[];
+  /** Vorschläge und Rückfragen des Chats – im Chat freigegeben bzw. beantwortet (E-52) */
+  postfach: PostfachEintrag[];
 }
 
 // ---------------------------------------------------------------------------------------------

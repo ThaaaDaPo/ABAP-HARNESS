@@ -34,7 +34,7 @@ export function Anwendung() {
     <div className="anwendung">
       <Navigation aktiv={seite} waehle={setSeite} status={status} offenImPostfach={offenImPostfach} />
       <main className="inhalt">
-        {seite === "chat" && <ChatSeite gewaehlteId={chatId} waehle={setChatId} zeigePostfach={() => setSeite("postfach")} />}
+        {seite === "chat" && <ChatSeite gewaehlteId={chatId} waehle={setChatId} />}
         {seite === "mcp" && <McpSeite />}
         {seite === "postfach" && <PostfachSeite zeigeChat={zeigeChat} />}
       </main>

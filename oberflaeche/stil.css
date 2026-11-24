@@ -207,21 +207,23 @@ button:disabled { cursor: default; }
 .eingabe textarea:focus { outline: 2px solid var(--akzent-hell); border-color: var(--akzent); }
 .fehlerleiste { margin: 0 24px 8px; padding: 8px 12px; background: var(--fehler-hell); color: var(--fehler); border-radius: var(--radius); }
 
-/* Postfach-Hinweis im Chat (klickbar: führt ins Postfach) */
-.postfach-hinweis {
+/* Vorschlag als Karte und Rückfrage im Chat */
+.postfach-karte.im-chat { align-self: flex-start; max-width: 760px; width: 100%; }
+.rueckfrage {
   align-self: flex-start;
   max-width: 760px;
-  padding: 6px 12px;
-  border: none;
-  border-left: 3px solid var(--warnung);
-  background: #fff7ed;
-  color: var(--warnung);
-  font-size: 13px;
-  text-align: left;
-  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--rand);
+  background: var(--flaeche);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  white-space: pre-wrap;
 }
-.postfach-hinweis:hover { background: #ffedd5; }
-/* Was David im Postfach getan hat */
+.rueckfrage.offen { border-left: 4px solid var(--akzent); background: var(--akzent-hell); }
+.rueckfrage-kopf { font-size: 12px; font-weight: 600; color: var(--akzent); }
+/* Was David an einem Vorschlag getan hat */
 .postfach-aktion {
   align-self: flex-start;
   max-width: 760px;

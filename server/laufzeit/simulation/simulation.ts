@@ -15,14 +15,24 @@ type ToolSchritt = Extract<DrehbuchSchritt, { tool: string }>;
 
 /** Zwei Modelle zum Ausprobieren der Modellwahl: eins ohne, eins mit Einstellmöglichkeiten. */
 const simulierteModelle: ModellInfo[] = [
-  { id: "sim-schnell", name: "Simulation schnell", denkStufen: [], standardDenkStufe: null, kontextFenster: 128000, langerKontext: false, multiplikator: 0 },
+  {
+    id: "sim-schnell",
+    name: "Simulation schnell",
+    denkStufen: [],
+    standardDenkStufe: null,
+    kontextStandard: 128000,
+    langerKontext: false,
+    kontextLang: null,
+    multiplikator: 0,
+  },
   {
     id: "sim-gruendlich",
     name: "Simulation gründlich",
     denkStufen: ["low", "medium", "high"],
     standardDenkStufe: "medium",
-    kontextFenster: 200000,
+    kontextStandard: 200000,
     langerKontext: true,
+    kontextLang: 1000000,
     multiplikator: 1,
   },
 ];

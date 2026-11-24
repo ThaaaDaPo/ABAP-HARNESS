@@ -121,3 +121,43 @@ test("Freigabe wird abgelehnt, wenn das Tool inzwischen verboten ist", async () 
   await assert.rejects(postfach.freigeben(1), /inzwischen verboten/);
   assert.equal(postfach.alle()[0].status, "offen");
 });
+
+test("Im Chat: Die nächste Nachricht beantwortet eine offene Rückfrage", async () => {
+  const { chat, postfach, gesendet, status } = aufbauen((text, sitzung) => {
+    if (text === "Mach was") sitzung.plattformTools.find((t) => t.name === "rueckfrage_stellen")!.fuehreAus({ frage: "Welches Paket?" });
+  });
+  const { id } = await chat.neueAufgabe();
+  chat.nimmNachrichtAn(id, "Mach was");
+  await warteBis(() => status(id) === "wartet");
+
+  chat.nimmNachrichtAn(id, "$TMP");
+  await warteBis(() => gesendet.length === 2 && status(id) === "bereit");
+  assert.equal(gesendet[1], "Antwort auf deine Rückfrage #1:\n$TMP");
+  assert.deepEqual([postfach.fuerAufgabe(id)[0].status, postfach.fuerAufgabe(id)[0].antwort], ["beantwortet", "$TMP"]);
+});
+
+test("Chat-Einträge gehören nicht ins Postfach, Meldungen aus Chats gelten als gesehen", async () => {
+  const { db, chat, postfach, status } = aufbauen((_text, { gateway }) => {
+    gateway.vorAufruf({ server: "jira", tool: "seite_anlegen" }, { bereich: "ABAP", titel: "x", inhalt: "x" });
+    gateway.nachAufruf({ server: "jira", tool: "ticket_verschieben" }, {}, "verschoben");
+  });
+  setzeRegel(db, "standard", "jira", "ticket_verschieben", "melden");
+  const { id } = await chat.neueAufgabe();
+  chat.nimmNachrichtAn(id, "los");
+  await warteBis(() => status(id) === "wartet");
+
+  assert.deepEqual(postfach.fuerWorkflows(), []);
+  assert.equal(postfach.anzahlOffen(), 0);
+  assert.deepEqual(
+    postfach.fuerAufgabe(id).map((e) => [e.art, e.status]),
+    [
+      ["freigabe", "offen"],
+      ["meldung", "zur_kenntnis"],
+    ],
+  );
+
+  // Dieselbe Aufgabe als Workflow (kommt in Phase 4): dann landet sie im Postfach
+  db.prepare(`UPDATE aufgaben SET herkunft = 'workflow' WHERE id = ?`).run(id);
+  assert.deepEqual(postfach.fuerWorkflows().map((e) => e.nr), [1, 2]);
+  assert.equal(postfach.anzahlOffen(), 1);
+});

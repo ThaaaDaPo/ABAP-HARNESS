@@ -24,7 +24,7 @@ const umgebungsRegeln = [
   "Regeln dieser Umgebung:",
   "- Shell-Befehle und Internetzugriff sind technisch gesperrt. Versuche sie nicht und suche keine Umwege.",
   "- Dateien kannst du nur im Arbeitsverzeichnis lesen und schreiben.",
-  "- Manche Tool-Aufrufe brauchen eine Freigabe. Sie werden dann nicht ausgeführt, sondern als Vorschlag ins Postfach gelegt; " +
+  "- Manche Tool-Aufrufe brauchen eine Freigabe. Sie werden dann nicht ausgeführt, sondern als Vorschlag abgelegt, den der Nutzer freigibt; " +
     "nach der Freigabe führt die Plattform sie selbst aus. Wiederhole sie nicht. Ist die Aufgabe damit erledigt, schließe ab. " +
     "Brauchst du das Ergebnis zum Weitermachen, rufe auf_freigabe_warten auf und beende deine Antwort.",
   // E-47: nur bei wirklich wichtigen Fragen, aber nicht so selten, dass das Ergebnis leidet.
@@ -176,15 +176,29 @@ export class CopilotLaufzeit implements AgentenLaufzeit {
   }
 }
 
+/**
+ * Größe der Context Windows. Das SDK nennt je Stufe das Budget für den Prompt; das ganze Fenster
+ * ist dieses Budget plus die maximale Ausgabe. Fehlen die Angaben, gilt die allgemeine Obergrenze.
+ * Modelle mit langem Kontext haben dafür eigene Angaben (tokenPrices.longContext).
+ */
+function kontextGroessen(modell: ModelInfo): Pick<ModellInfo, "kontextStandard" | "langerKontext" | "kontextLang"> {
+  const preise = modell.billing?.tokenPrices;
+  const ausgabe = modell.capabilities?.limits?.max_output_tokens ?? 0;
+  const fenster = (prompt: number | undefined) => (prompt ? prompt + ausgabe : null);
+  return {
+    kontextStandard: fenster(preise?.maxPromptTokens) ?? modell.capabilities?.limits?.max_context_window_tokens ?? null,
+    langerKontext: !!preise?.longContext,
+    kontextLang: fenster(preise?.longContext?.maxPromptTokens),
+  };
+}
+
 function alsModellInfo(modell: ModelInfo): ModellInfo {
   return {
     id: modell.id,
     name: modell.name,
     denkStufen: modell.supportedReasoningEfforts ?? [],
     standardDenkStufe: modell.defaultReasoningEffort ?? null,
-    kontextFenster: modell.capabilities?.limits?.max_context_window_tokens ?? null,
-    // Modelle mit langem Kontext haben dafür eigene Preise (SDK: tokenPrices.longContext).
-    langerKontext: !!modell.billing?.tokenPrices?.longContext,
+    ...kontextGroessen(modell),
     multiplikator: modell.billing?.multiplier ?? null,
   };
 }

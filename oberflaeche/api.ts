@@ -29,6 +29,8 @@ export const legeAufgabeAn = () => anfrage<Aufgabe>("/aufgaben", { method: "POST
 
 export const holeAufgabe = (id: string) => anfrage<AufgabeMitVerlauf>(`/aufgaben/${id}`);
 
+export const holePostfachDerAufgabe = (id: string) => anfrage<PostfachEintrag[]>(`/aufgaben/${id}/postfach`);
+
 export const loescheAufgabe = (id: string) => anfrage(`/aufgaben/${id}`, { method: "DELETE" });
 
 export const holeModelle = () => anfrage<ModellInfo[]>("/modelle");

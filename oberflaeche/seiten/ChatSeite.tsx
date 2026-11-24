@@ -1,10 +1,12 @@
 // Chat-Seite: links die Chats, rechts der gewählte Chat mit Live-Verlauf.
+// Vorschläge gibt David hier direkt frei, Rückfragen beantwortet er im Eingabefeld (E-52).
 import { useCallback, useEffect, useState } from "react";
-import type { Aufgabe, AufgabenStatus, Ereignis, ModellInfo, ModellWahl as Wahl } from "../../gemeinsam/typen.ts";
+import type { Aufgabe, AufgabenStatus, Ereignis, ModellInfo, PostfachEintrag, ModellWahl as Wahl } from "../../gemeinsam/typen.ts";
 import * as api from "../api.ts";
 import { ChatListe } from "../komponenten/ChatListe.tsx";
 import { Eingabefeld } from "../komponenten/Eingabefeld.tsx";
 import { ModellWahl } from "../komponenten/ModellWahl.tsx";
+import type { PostfachAktionen } from "../komponenten/PostfachKarte.tsx";
 import { Verlauf } from "../komponenten/Verlauf.tsx";
 import { useLiveEreignisse } from "../live/useLiveEreignisse.ts";
 import { useUebersicht } from "../live/useUebersicht.ts";
@@ -12,16 +14,18 @@ import { useUebersicht } from "../live/useUebersicht.ts";
 interface Eigenschaften {
   gewaehlteId: string | null;
   waehle: (id: string | null) => void;
-  zeigePostfach: () => void;
 }
 
-export function ChatSeite({ gewaehlteId, waehle, zeigePostfach }: Eigenschaften) {
+export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
   const [aufgaben, setAufgaben] = useState<Aufgabe[]>([]);
   const [ereignisse, setEreignisse] = useState<Ereignis[]>([]);
   const [laufenderText, setLaufenderText] = useState("");
   const [status, setStatus] = useState<AufgabenStatus>("bereit");
   const [fehler, setFehler] = useState<string | null>(null);
   const [modelle, setModelle] = useState<ModellInfo[]>([]);
+  /** Vorschläge und Rückfragen des gewählten Chats */
+  const [eintraege, setEintraege] = useState<PostfachEintrag[]>([]);
+  const [beschaeftigt, setBeschaeftigt] = useState<number | null>(null);
 
   // Die Modellliste ändert sich nicht während der Sitzung; einmal laden reicht.
   useEffect(() => {
@@ -39,20 +43,29 @@ export function ChatSeite({ gewaehlteId, waehle, zeigePostfach }: Eigenschaften)
   // Beim Wechsel des Chats den gespeicherten Verlauf laden
   useEffect(() => {
     setEreignisse([]);
+    setEintraege([]);
     setLaufenderText("");
     setFehler(null);
     if (!gewaehlteId) return;
     api
       .holeAufgabe(gewaehlteId)
-      .then(({ aufgabe, ereignisse }) => {
+      .then(({ aufgabe, ereignisse, postfach }) => {
         setEreignisse(ereignisse);
+        setEintraege(postfach);
         setStatus(aufgabe.status);
       })
       .catch((e) => setFehler(e.message));
   }, [gewaehlteId]);
 
+  const ladeEintraege = useCallback(() => {
+    if (!gewaehlteId) return;
+    api.holePostfachDerAufgabe(gewaehlteId).then(setEintraege).catch((e) => setFehler(e.message));
+  }, [gewaehlteId]);
+
   // Live-Ereignisse in die Anzeige übernehmen
   useLiveEreignisse(gewaehlteId, (ereignis) => {
+    // Neue Vorschläge, Freigaben und Statuswechsel (z. B. Rückfrage beantwortet) ändern die Karten
+    if (ereignis.art === "postfach" || ereignis.art === "postfach_aktion" || ereignis.art === "status") ladeEintraege();
     switch (ereignis.art) {
       case "agent_schreibt":
         setLaufenderText((bisher) => bisher + ereignis.textTeil);
@@ -102,7 +115,34 @@ export function ChatSeite({ gewaehlteId, waehle, zeigePostfach }: Eigenschaften)
     }
   }
 
+  /** Aktion an einem Vorschlag im Chat; danach zeigen die Karten den neuen Stand. */
+  async function handle(nr: number, aktion: () => Promise<unknown>) {
+    setBeschaeftigt(nr);
+    setFehler(null);
+    try {
+      await aktion();
+    } catch (e) {
+      setFehler((e as Error).message);
+    } finally {
+      setBeschaeftigt(null);
+      ladeEintraege();
+    }
+  }
+
+  const aktionen = (eintrag: PostfachEintrag): PostfachAktionen => ({
+    freigeben: () => handle(eintrag.nr, () => api.freigeben(eintrag.nr)),
+    verwerfen: () => handle(eintrag.nr, () => api.verwerfen(eintrag.nr)),
+    zurKenntnis: () => handle(eintrag.nr, () => api.zurKenntnis(eintrag.nr)),
+    antworten: (text) => handle(eintrag.nr, () => api.antworten(eintrag.nr, text)),
+  });
+
   const aktuell = aufgaben.find((a) => a.id === gewaehlteId) ?? null;
+  const offen = (art: PostfachEintrag["art"]) => eintraege.some((e) => e.art === art && (e.status === "offen" || e.status === "fehlgeschlagen"));
+  const hinweisEingabe = offen("rueckfrage")
+    ? "Deine Antwort auf die Rückfrage"
+    : offen("freigabe")
+      ? "Vorschlag oben freigeben oder verwerfen – oder schreib dem Agenten"
+      : undefined;
 
   async function sende(text: string) {
     if (!gewaehlteId) return;
@@ -124,9 +164,16 @@ export function ChatSeite({ gewaehlteId, waehle, zeigePostfach }: Eigenschaften)
             {aktuell && (
               <ModellWahl modelle={modelle} wahl={aktuell.modellWahl} aendere={aendereModell} agentArbeitet={status === "arbeitet"} />
             )}
-            <Verlauf ereignisse={ereignisse} laufenderText={laufenderText} status={status} zeigePostfach={zeigePostfach} />
+            <Verlauf
+              ereignisse={ereignisse}
+              laufenderText={laufenderText}
+              status={status}
+              eintraege={eintraege}
+              aktionen={aktionen}
+              beschaeftigt={beschaeftigt}
+            />
             {fehler && <div className="fehlerleiste">{fehler}</div>}
-            <Eingabefeld status={status} sende={sende} brecheAb={() => api.brecheAb(gewaehlteId)} />
+            <Eingabefeld status={status} hinweis={hinweisEingabe} sende={sende} brecheAb={() => api.brecheAb(gewaehlteId)} />
           </>
         ) : (
           <div className="leer mitte">Wähle links einen Chat oder lege einen neuen an.</div>

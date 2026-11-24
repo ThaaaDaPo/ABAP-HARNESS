@@ -2,12 +2,13 @@
 import { Router } from "express";
 import type { AufgabeMitVerlauf } from "../../gemeinsam/typen.ts";
 import type { ChatDienst } from "../chat/chat-dienst.ts";
+import type { PostfachDienst } from "../postfach/postfach-dienst.ts";
 import { abonniere } from "../chat/live-verteiler.ts";
 import * as aufgaben from "../datenbank/aufgaben.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { holeEreignisse } from "../datenbank/ereignisse.ts";
 
-export function routenAufgaben(db: Datenbank, chat: ChatDienst): Router {
+export function routenAufgaben(db: Datenbank, chat: ChatDienst, postfach: PostfachDienst): Router {
   const router = Router();
 
   // Alle Aufgaben, neueste zuerst
@@ -47,8 +48,14 @@ export function routenAufgaben(db: Datenbank, chat: ChatDienst): Router {
     const ergebnis: AufgabeMitVerlauf = {
       aufgabe: aufgaben.oeffentlich(aufgabe),
       ereignisse: holeEreignisse(db, aufgabe.id),
+      postfach: postfach.fuerAufgabe(aufgabe.id),
     };
     antwort.json(ergebnis);
+  });
+
+  // Vorschläge und Rückfragen des Chats (zum Neuladen nach Änderungen)
+  router.get("/:id/postfach", (anfrage, antwort) => {
+    antwort.json(postfach.fuerAufgabe(anfrage.params.id));
   });
 
   // Nachricht an den Agenten

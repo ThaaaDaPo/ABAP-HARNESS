@@ -9,7 +9,7 @@ import * as aufgaben from "../datenbank/aufgaben.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { sollGespeichertWerden, speichereEreignis } from "../datenbank/ereignisse.ts";
 import { holeAlleServer } from "../datenbank/mcp-server.ts";
-import { hatOffeneFreigabeOderRueckfrage } from "../datenbank/postfach.ts";
+import { hatOffeneFreigabeOderRueckfrage, offeneRueckfragen, schliesseAb } from "../datenbank/postfach.ts";
 import * as warteschlange from "../datenbank/warteschlange.ts";
 import { standardAgentId, ToolGateway } from "../gateway/gateway.ts";
 import type { Einstellungen } from "../einstellungen.ts";
@@ -114,9 +114,21 @@ export class ChatDienst {
       aufgaben.setzeTitel(this.db, aufgabeId, text.replace(/\s+/g, " ").trim().slice(0, 60));
     }
     this.melde(aufgabeId, { art: "nutzer_nachricht", text });
-    warteschlange.reiheEin(this.db, aufgabeId, text, false);
+    warteschlange.reiheEin(this.db, aufgabeId, this.mitRueckfrageBezug(aufgabeId, text), false);
     this.setzeStatus(aufgabeId, "eingereiht");
     this.arbeiteWeiter();
+  }
+
+  /**
+   * Hat der Agent im Chat eine Rückfrage gestellt, ist Davids nächste Nachricht die Antwort darauf.
+   * Die Rückfrage gilt damit als beantwortet, und der Agent erfährt, worauf sich die Nachricht bezieht.
+   */
+  private mitRueckfrageBezug(aufgabeId: string, text: string): string {
+    const offen = offeneRueckfragen(this.db, aufgabeId);
+    if (offen.length === 0) return text;
+    for (const nr of offen) schliesseAb(this.db, nr, { status: "beantwortet", antwort: text });
+    const nummern = offen.map((nr) => `#${nr}`).join(", ");
+    return `Antwort auf deine Rückfrage ${nummern}:\n${text}`;
   }
 
   /**

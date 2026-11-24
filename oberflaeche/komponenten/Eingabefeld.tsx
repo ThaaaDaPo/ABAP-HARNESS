@@ -5,6 +5,8 @@ import type { AufgabenStatus } from "../../gemeinsam/typen.ts";
 
 interface Eigenschaften {
   status: AufgabenStatus;
+  /** Platzhalter, wenn der Chat auf eine Freigabe oder Antwort wartet */
+  hinweis?: string;
   sende: (text: string) => void;
   brecheAb: () => void;
 }
@@ -12,10 +14,9 @@ interface Eigenschaften {
 const platzhalter: Partial<Record<AufgabenStatus, string>> = {
   arbeitet: "Der Agent arbeitet …",
   eingereiht: "Eingereiht – der Agent arbeitet gerade an etwas anderem",
-  wartet: "Wartet aufs Postfach. Du kannst trotzdem schreiben.",
 };
 
-export function Eingabefeld({ status, sende, brecheAb }: Eigenschaften) {
+export function Eingabefeld({ status, hinweis, sende, brecheAb }: Eigenschaften) {
   const [text, setText] = useState("");
   const beschaeftigt = status === "arbeitet" || status === "eingereiht";
 
@@ -38,7 +39,7 @@ export function Eingabefeld({ status, sende, brecheAb }: Eigenschaften) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={beiTaste}
-        placeholder={platzhalter[status] ?? "Nachricht an den Agenten"}
+        placeholder={platzhalter[status] ?? hinweis ?? "Nachricht an den Agenten"}
         rows={3}
       />
       {beschaeftigt ? (

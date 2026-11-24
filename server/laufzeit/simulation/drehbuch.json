@@ -38,7 +38,7 @@
         }
       },
       {
-        "text": "Der überarbeitete Vorschlag liegt im Postfach."
+        "text": "Der überarbeitete Vorschlag wartet auf deine Freigabe."
       }
     ]
   },
@@ -65,7 +65,7 @@
     ]
   },
   {
-    "beschreibung": "Rückfrage: der Agent legt eine Frage ins Postfach und hört auf",
+    "beschreibung": "Rückfrage: der Agent stellt eine Frage und hört auf",
     "wennEnthaelt": [
       "rückfrage",
       "rueckfrage",
@@ -82,7 +82,7 @@
         }
       },
       {
-        "text": "Die Rückfrage liegt im Postfach. Ich mache weiter, sobald du geantwortet hast."
+        "text": "Ich mache weiter, sobald du geantwortet hast."
       }
     ]
   },
@@ -129,7 +129,7 @@
         }
       },
       {
-        "text": "Ticket **ABAP-123** steht jetzt auf *Review*. Die Änderung ist im Postfach gemeldet."
+        "text": "Ticket **ABAP-123** steht jetzt auf *Review*. Die Änderung ist gemeldet."
       }
     ]
   },
@@ -152,7 +152,7 @@
         }
       },
       {
-        "text": "Die Seite ist nicht angelegt, sondern liegt als Vorschlag im Postfach. Gibst du ihn frei, legt die Plattform sie an – damit ist die Aufgabe erledigt."
+        "text": "Die Seite ist noch nicht angelegt, sondern wartet als Vorschlag auf deine Freigabe. Gibst du ihn frei, legt die Plattform sie an – damit ist die Aufgabe erledigt."
       }
     ]
   },

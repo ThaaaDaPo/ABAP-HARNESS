@@ -8,7 +8,8 @@ export interface PostfachAktionen {
   verwerfen: () => void;
   zurKenntnis: () => void;
   antworten: (text: string) => void;
-  zeigeChat: () => void;
+  /** Nur auf der Postfach-Seite */
+  zeigeChat?: () => void;
 }
 
 interface Eigenschaften {
@@ -16,6 +17,8 @@ interface Eigenschaften {
   aktionen: PostfachAktionen;
   /** Eine Aktion für diesen Eintrag läuft gerade (Freigeben kann dauern) */
   beschaeftigt: boolean;
+  /** Im Chat: ohne Verweis auf den Chat, und Antworten geht über das normale Eingabefeld */
+  imChat?: boolean;
 }
 
 const statusTexte: Record<PostfachStatus, string> = {
@@ -34,7 +37,7 @@ function artText(eintrag: PostfachEintrag): string {
   return eintrag.weiterNachFreigabe ? "Freigabe zum Weitermachen" : "Freigabe zum Abschluss";
 }
 
-export function PostfachKarte({ eintrag, aktionen, beschaeftigt }: Eigenschaften) {
+export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false }: Eigenschaften) {
   const offen = eintrag.status === "offen" || eintrag.status === "fehlgeschlagen";
   const [antwortOffen, setAntwortOffen] = useState(false);
   const [text, setText] = useState("");
@@ -55,17 +58,19 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt }: Eigenschaften
   const antwortKnopf = eintrag.art === "freigabe" && offen ? "Änderungen anfordern" : "Antworten";
 
   return (
-    <article className={offen ? "postfach-karte offen" : "postfach-karte"}>
+    <article className={`postfach-karte${offen ? " offen" : ""}${imChat ? " im-chat" : ""}`}>
       <header className="karten-kopf">
-        <span className="karten-nr">#{eintrag.nr}</span>
+        <span className="karten-nr">{eintrag.art === "freigabe" ? "Vorschlag " : ""}#{eintrag.nr}</span>
         <span className={`karten-art ${eintrag.art}`}>{artText(eintrag)}</span>
         <span className={`karten-status ${eintrag.status}`}>{statusTexte[eintrag.status]}</span>
         <span className="karten-zeit">{new Date(eintrag.erstelltAm).toLocaleString("de-DE")}</span>
       </header>
 
-      <button className="karten-chat" onClick={aktionen.zeigeChat} title="Zum Chat">
-        Chat: {eintrag.aufgabeTitel}
-      </button>
+      {aktionen.zeigeChat && (
+        <button className="karten-chat" onClick={aktionen.zeigeChat} title="Zum Chat">
+          Chat: {eintrag.aufgabeTitel}
+        </button>
+      )}
 
       {eintrag.art === "rueckfrage" ? (
         <p className="karten-frage">{String((eintrag.argumente as { frage?: string })?.frage ?? "")}</p>
@@ -127,7 +132,7 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt }: Eigenschaften
           </button>
         </div>
       )}
-      {!offen && !antwortOffen && (
+      {!offen && !antwortOffen && !imChat && (
         <div className="knopfreihe">
           <button className="knopf" onClick={() => setAntwortOffen(true)}>
             Antworten

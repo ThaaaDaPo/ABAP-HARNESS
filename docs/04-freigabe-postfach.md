@@ -1,6 +1,9 @@
 # 04 – Freigaben und Postfach
 
 Status: **Grundzüge bestätigt durch E-43 bis E-48 (2026-11-24), umgesetzt in Phase 1, Schritt 3.**
+**Wo freigegeben wird (E-52):** Kommt der Vorschlag aus einem Chat, gibt David ihn im Chat frei
+(Karte im Verlauf), und Rückfragen beantwortet er im Eingabefeld. Das Postfach selbst ist für
+Workflows, die ohne ihn laufen, und kommt mit Phase 4. Die Aktionen unten gelten für beide Orte.
 Was noch Vorschlag ist, steht in [08-phase-1](08-phase-1.md) unter „Festlegungen in Schritt 3“.
 
 ## Problem

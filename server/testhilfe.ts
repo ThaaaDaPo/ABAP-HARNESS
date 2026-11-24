@@ -24,8 +24,8 @@ const aufrufer = new McpAufrufer();
 after(() => aufrufer.schliesseAlle());
 
 export const testModelle: ModellInfo[] = [
-  { id: "klein", name: "Klein", denkStufen: [], standardDenkStufe: null, kontextFenster: 1000, langerKontext: false, multiplikator: null },
-  { id: "gross", name: "Groß", denkStufen: ["low", "high"], standardDenkStufe: "low", kontextFenster: 2000, langerKontext: true, multiplikator: null },
+  { id: "klein", name: "Klein", denkStufen: [], standardDenkStufe: null, kontextStandard: 1000, langerKontext: false, kontextLang: null, multiplikator: null },
+  { id: "gross", name: "Groß", denkStufen: ["low", "high"], standardDenkStufe: "low", kontextStandard: 2000, langerKontext: true, kontextLang: 9000, multiplikator: null },
 ];
 
 export function aufbauen(verhalten: Verhalten = () => {}) {

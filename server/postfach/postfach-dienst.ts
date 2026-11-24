@@ -1,4 +1,5 @@
-// Was Davids Aktionen im Postfach bewirken.
+// Was Davids Aktionen an Vorschlägen und Rückfragen bewirken – egal ob er sie im Chat erledigt
+// (Aufgaben aus dem Chat) oder im Postfach (Aufgaben aus Workflows, E-52).
 //
 // Freigabe zum Abschluss (E-44): Die Aufgabe ist fertig, es fehlt nur noch der Aufruf.
 //   freigeben         → die Plattform führt ihn aus, ohne KI; die Aufgabe ist erledigt
@@ -34,6 +35,16 @@ export class PostfachDienst {
 
   alle(): PostfachEintrag[] {
     return postfach.holeAlleEintraege(this.db);
+  }
+
+  /** Was ins Postfach gehört: Einträge aus Workflows, die ohne David laufen. */
+  fuerWorkflows(): PostfachEintrag[] {
+    return postfach.holeWorkflowEintraege(this.db);
+  }
+
+  /** Was im Chat angezeigt und dort freigegeben wird. */
+  fuerAufgabe(aufgabeId: string): PostfachEintrag[] {
+    return postfach.holeEintraegeDerAufgabe(this.db, aufgabeId);
   }
 
   anzahlOffen(): number {

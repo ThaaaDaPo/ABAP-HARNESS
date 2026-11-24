@@ -1,11 +1,13 @@
-// HTTP-Schnittstelle für das Postfach. Jede Aktion liefert die vollständige, aktuelle Liste zurück.
+// HTTP-Schnittstelle für Vorschläge und Rückfragen. Die Aktionen gelten für Einträge aus Chats wie aus
+// Workflows; die Liste unter GET / (Postfach-Seite) enthält nur die aus Workflows (E-52).
+// Jede Aktion liefert diese Liste zurück; der Chat lädt seine Einträge selbst neu.
 import { Router, type Response } from "express";
 import { Fehler } from "../fehler.ts";
 import type { PostfachDienst } from "../postfach/postfach-dienst.ts";
 
 export function routenPostfach(dienst: PostfachDienst): Router {
   const router = Router();
-  const liste = (antwort: Response) => antwort.json(dienst.alle());
+  const liste = (antwort: Response) => antwort.json(dienst.fuerWorkflows());
   const nummer = (roh: string) => {
     const nr = Number(roh);
     if (!Number.isInteger(nr)) throw new Fehler(400, "Ungültige Nummer");

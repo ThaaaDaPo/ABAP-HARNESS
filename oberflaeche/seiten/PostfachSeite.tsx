@@ -1,5 +1,6 @@
-// Postfach-Seite: alle Einträge (E-43), offene zuerst. Vorerst ohne Filter und ohne
-// Darstellung je Typ – die kommt, wenn die Tool-Namen der echten Server bekannt sind.
+// Postfach-Seite: Freigaben, Rückfragen und Meldungen aus Workflows, die ohne David laufen (E-52),
+// offene zuerst. Freigaben aus Chats erledigt David im Chat. Bis es Workflows gibt (Phase 4), ist die
+// Seite in der Navigation ausgegraut.
 import { useCallback, useEffect, useState } from "react";
 import type { PostfachEintrag } from "../../gemeinsam/typen.ts";
 import * as api from "../api.ts";
@@ -36,7 +37,8 @@ export function PostfachSeite({ zeigeChat }: { zeigeChat: (aufgabeId: string) =>
     <div className="detail postfach-seite">
       <h2>Postfach</h2>
       <p className="hinweis">
-        {anzahlOffen === 0 ? "Nichts offen." : `${anzahlOffen} offen.`} Freigaben, Rückfragen und Meldungen deiner Agenten.
+        {anzahlOffen === 0 ? "Nichts offen." : `${anzahlOffen} offen.`} Freigaben, Rückfragen und Meldungen aus Workflows.
+        Was in einem Chat entsteht, erledigst du direkt im Chat.
       </p>
       {fehler && <div className="fehlerleiste">{fehler}</div>}
       {eintraege.length === 0 && <p className="leer">Noch keine Einträge.</p>}
