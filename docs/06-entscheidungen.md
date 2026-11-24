@@ -46,6 +46,15 @@
 | E-40 | 2026-11-13 | Davids privater GitHub-Login wird **nicht** für Copilot-Tests genutzt. Auf dem Privatrechner wird nur gegen die simulierte Laufzeit getestet; echtes Copilot läuft ausschließlich auf dem Firmenrechner | Antwort K1 |
 | E-41 | 2026-11-13 | Code-Vorgaben: sauber nach Themen-Ordnern gegliedert (z. B. `mcp/` mit Unterordner je Server), Datei- und Ordnernamen möglichst deutsch, lesbar und nicht zu kompliziert | Vorgabe David |
 | E-42 | 2026-11-13 | Technischer Aufbau Phase 1: ein `package.json` für alles (ein `npm install`); Server-TypeScript läuft ohne Bau-Schritt direkt in Node (Typen werden entfernt); Oberfläche wird von Vite im Server ausgeliefert (ein Startbefehl); Express für HTTP; Live-Anzeige über Server-Sent Events; Server nur an 127.0.0.1 | Claude, im Sinne von E-41 |
+| E-43 | 2026-11-24 | Postfach zeigt zunächst alle Einträge (offene zuerst); die Darstellung je Typ (Confluence-Vorschau, Jira-Statuswechsel) kommt später | Antwort Schritt 3, Punkt 1 |
+| E-44 | 2026-11-24 | **Freigabe zum Abschluss**: Die Aufgabe ist fertig und wartet auf die finale Freigabe (z. B. Confluence-Seite anlegen). *Freigeben* führt den Aufruf ohne KI aus, die Aufgabe ist erledigt (spart Tokens). *Verwerfen* schließt die Aufgabe als abgebrochen, ohne KI. *Änderungen anfordern* setzt den Agenten mit dem Kontext der Aufgabe fort | Antwort Schritt 3, Punkt 2a |
+| E-45 | 2026-11-24 | **Freigabe zum Weitermachen**: Braucht der Agent das Ergebnis, pausiert er die Aufgabe und kann eine andere übernehmen. Nach der Freigabe wird die Aufgabe in eine Warteschlange gestellt und fortgesetzt, sobald der Agent frei ist – ohne Kontextverlust | Antwort Schritt 3, Punkt 2b |
+| E-46 | 2026-11-24 | Wiederaufnahme nach Postfach-Aktionen setzt die Sitzung des Chats fort (Kontext bleibt erhalten) | Antwort Schritt 3, Punkt 3 |
+| E-47 | 2026-11-24 | Rückfragen des Agenten landen im Postfach. Nur bei wirklich wichtigen Fragen, aber nicht so selten, dass das Ergebnis leidet | Antwort Schritt 3, Punkt 4 |
+| E-48 | 2026-11-24 | Schritt 3 wird mit Simulation und Stellvertretern getestet, danach Transfer zur Abnahme | Antwort Schritt 3, Punkt 5 |
+| E-49 | 2026-11-24 | Chats lassen sich löschen | Wunsch David vor dem Test von Schritt 3 |
+| E-50 | 2026-11-24 | „Neuer Chat“ räumt Chats ohne Inhalt automatisch weg | Wunsch David vor dem Test von Schritt 3 |
+| E-51 | 2026-11-24 | Modell je Chat wählbar, mit Thinking Effort und Context Window (ergänzt E-34: dort Modell je Agent) | Wunsch David vor dem Test von Schritt 3 |
 
 ## Erkenntnisse aus Phase 0 (Privatrechner, 2026-11-13)
 

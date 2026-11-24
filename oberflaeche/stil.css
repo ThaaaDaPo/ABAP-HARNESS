@@ -74,7 +74,12 @@ button:disabled { cursor: default; }
   overflow-y: auto;
 }
 .chat-liste .knopf { margin-bottom: 8px; }
-.chat-eintrag {
+.chat-eintrag { display: flex; align-items: center; border-radius: var(--radius); }
+.chat-eintrag:hover { background: var(--hintergrund); }
+.chat-eintrag.aktiv { background: var(--akzent-hell); }
+.chat-auswahl {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -82,11 +87,44 @@ button:disabled { cursor: default; }
   background: none;
   border: none;
   padding: 8px 10px;
-  border-radius: var(--radius);
   color: var(--text);
 }
-.chat-eintrag:hover { background: var(--hintergrund); }
-.chat-eintrag.aktiv { background: var(--akzent-hell); }
+/* Löschen erscheint erst beim Überfahren, damit die Liste ruhig bleibt */
+.chat-loeschen {
+  visibility: hidden;
+  background: none;
+  border: none;
+  color: var(--text-leise);
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.chat-eintrag:hover .chat-loeschen, .chat-loeschen:focus { visibility: visible; }
+.chat-loeschen:hover { color: var(--fehler); background: var(--fehler-hell); }
+
+/* Modellwahl über dem Chat */
+.modell-wahl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--rand);
+  background: var(--flaeche);
+  font-size: 13px;
+}
+.modell-wahl label { display: flex; align-items: center; gap: 6px; color: var(--text-leise); }
+.modell-wahl select {
+  font: inherit;
+  color: var(--text);
+  padding: 4px 8px;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  background: var(--flaeche);
+}
+.modell-info { color: var(--text-leise); }
+.modell-hinweis { align-self: flex-start; font-size: 12px; color: var(--text-leise); }
 .chat-titel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arbeitet-punkt {
   width: 8px;
@@ -136,6 +174,7 @@ button:disabled { cursor: default; }
 .tool-zustand.laeuft { color: var(--akzent); }
 .tool-zustand.ok { color: var(--ok); }
 .tool-zustand.fehlgeschlagen { color: var(--fehler); }
+.tool-zustand.angehalten { color: var(--warnung); }
 .tool-details { padding: 0 12px 10px; }
 .tool-ueberschrift { color: var(--text-leise); margin-top: 8px; }
 .tool-details pre {
@@ -168,16 +207,96 @@ button:disabled { cursor: default; }
 .eingabe textarea:focus { outline: 2px solid var(--akzent-hell); border-color: var(--akzent); }
 .fehlerleiste { margin: 0 24px 8px; padding: 8px 12px; background: var(--fehler-hell); color: var(--fehler); border-radius: var(--radius); }
 
-/* Postfach-Hinweis im Chat */
+/* Postfach-Hinweis im Chat (klickbar: führt ins Postfach) */
 .postfach-hinweis {
   align-self: flex-start;
   max-width: 760px;
   padding: 6px 12px;
+  border: none;
   border-left: 3px solid var(--warnung);
   background: #fff7ed;
   color: var(--warnung);
   font-size: 13px;
+  text-align: left;
   border-radius: 0 var(--radius) var(--radius) 0;
+}
+.postfach-hinweis:hover { background: #ffedd5; }
+/* Was David im Postfach getan hat */
+.postfach-aktion {
+  align-self: flex-start;
+  max-width: 760px;
+  padding: 6px 12px;
+  border-left: 3px solid var(--ok);
+  background: #f0fdf4;
+  color: var(--ok);
+  font-size: 13px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.postfach-aktion pre { margin: 6px 0 0; color: var(--text); white-space: pre-wrap; word-break: break-word; font-size: 12px; }
+
+/* Status in der Chat-Liste */
+.status-marke { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--hintergrund); color: var(--text-leise); white-space: nowrap; }
+.status-marke.wartet { background: #fff7ed; color: var(--warnung); }
+.status-marke.eingereiht { background: var(--akzent-hell); color: var(--akzent); }
+.status-marke.erledigt { background: #ecfdf5; color: var(--ok); }
+
+/* Zähler offener Einträge in der Navigation */
+.zaehler {
+  float: right;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--warnung);
+  color: white;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Postfach-Seite */
+.postfach-seite { max-width: 900px; }
+.postfach-karte {
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.postfach-karte.offen { border-left: 4px solid var(--warnung); }
+.postfach-karte pre {
+  margin: 0;
+  padding: 8px;
+  background: var(--hintergrund);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+.karten-kopf { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
+.karten-nr { font-weight: 700; }
+.karten-art { font-weight: 600; }
+.karten-art.rueckfrage { color: var(--akzent); }
+.karten-art.freigabe { color: var(--warnung); }
+.karten-status { font-size: 12px; padding: 1px 6px; border-radius: 4px; background: var(--hintergrund); color: var(--text-leise); }
+.karten-status.offen { background: #fff7ed; color: var(--warnung); }
+.karten-status.fehlgeschlagen { background: var(--fehler-hell); color: var(--fehler); }
+.karten-status.freigegeben { background: #ecfdf5; color: var(--ok); }
+.karten-zeit { margin-left: auto; font-size: 12px; color: var(--text-leise); }
+.karten-chat { align-self: flex-start; background: none; border: none; padding: 0; color: var(--akzent); font-size: 13px; }
+.karten-chat:hover { text-decoration: underline; }
+.karten-frage { margin: 0; font-size: 16px; white-space: pre-wrap; }
+.karten-antwort { margin: 0; white-space: pre-wrap; }
+.karten-eingabe { display: flex; gap: 8px; align-items: flex-start; }
+.karten-eingabe textarea {
+  flex: 1;
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  resize: vertical;
 }
 
 /* Seiten mit Liste links und Details rechts (MCP-Server) */

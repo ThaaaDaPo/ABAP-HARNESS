@@ -1,6 +1,6 @@
 # 08 – Phase 1: Plattformkern (Umfang)
 
-Status: **gestartet 2026-11-13. Schritt 1 abgenommen. Schritt 2 (MCP-Server, Tool-Gateway) gebaut, Abnahme auf dem Firmenrechner steht aus.**
+Status: **gestartet 2026-11-13. Schritt 1 und Schritt 2 (MCP-Server, Tool-Gateway) abgenommen. Schritt 3 (Postfach, Warteschlange, Wiederaufnahme) gebaut, Abnahme auf dem Firmenrechner steht aus.**
 
 ## Stand Schritt 1 (2026-11-13)
 
@@ -132,23 +132,189 @@ Vorher: `npm install`, `einstellungen.json` aus Schritt 1 mit `"modus": "copilot
    das nicht kann (das Tool wird ihm nicht angeboten).
 6. Auf der Seite MCP-Server bei Jira `ticket_lesen` auf **Verbieten** stellen, im selben Chat
    noch einmal Punkt 2 → wird abgelehnt. Danach wieder auf „Standard" stellen.
-7. **Echte Server**: „Server eintragen" für den Jira/Confluence-MCP und den SAP-MCP, mit dem
-   Startbefehl, den Copilot-Kommandozeile bzw. Eclipse heute benutzen (Schlüssel z. B. `jira2`
-   und `sap2`, solange die Stellvertreter noch da sind). Beim SAP-MCP kann Edge für das Cookie
-   aufgehen. → Tool-Liste erscheint.
+7. **Echte Server**: zuerst die Stellvertreter löschen (sonst nimmt das Modell gern deren
+   Tools, siehe Ergebnis unten), dann „Server eintragen" für den Jira/Confluence-MCP und den
+   SAP-MCP, mit dem Startbefehl aus Eclipse (Schlüssel z. B. `atlassian` und `sap`). Argumente
+   je eine Zeile. Beim SAP-MCP kann Edge für das Cookie aufgehen. → Tool-Liste erscheint.
 8. Lesende Tools auf **Erlauben**, schreibende beim SAP-MCP auf **Verbieten** (V-06). Im Chat
    ein echtes Ticket lesen lassen.
 
 Bitte fotografieren: Tool-Listen der echten Server (Punkt 7 – die Tool-Namen brauchen wir für
 die Stellvertreter und spätere Voreinstellungen) und bei Fehlern Terminal und Browser.
 
+### Ergebnis der Abnahme (2026-11-13, erste Runde)
+
+- Echter Atlassian-MCP eingetragen wie in Eclipse (`node.exe` mit `--use-system-ca` und
+  Skriptpfad, `env` leer): verbindet sich, Tools werden ausgelesen.
+- Solange der Jira-Stellvertreter daneben eingetragen war, rief der Agent dessen Tool auf
+  (Argument `schluessel` statt des Parameters des echten Servers). Nach dem Umstellen laufen
+  beide eingetragenen MCP-Server (Angabe von David). **Lehre:** Stellvertreter und echte Server
+  nicht gleichzeitig eintragen – das Modell wählt zwischen ähnlichen Tools, und die deutschen
+  Namen der Stellvertreter passen besser zum deutschen Auftrag.
+- Noch offen nach der ersten Runde: Punkte 1–6 und 8, Foto der Tool-Listen der echten Server.
+
+Zweite Runde (2026-11-24): Punkte 1–6 und 8 laut David **alles in Ordnung**, mit echtem
+Copilot und eingetragenem echten Atlassian- und SAP-MCP. **Schritt 2 ist damit abgenommen.**
+Damit gelten auch die Annahmen zu `onPreToolUse` (Ablehnung kommt beim Agenten an),
+`serverName` = Schlüssel aus der App, `excludedTools` und `onPostToolUse` für MCP-Tools als
+bestätigt. Nicht einzeln zurückgemeldet:
+
+- Tool-Listen der echten Server (Namen, welche SAP-Tools schreiben) – fehlen weiter, werden
+  für Stellvertreter und Voreinstellungen gebraucht.
+- Verhalten bei eigenen Umgebungsvariablen (PATH ersetzt oder ergänzt) und ob MCP-Server aus
+  der Copilot-Kommandozeile in SDK-Sitzungen auftauchen.
+
 ### Bekannte Lücken nach Schritt 2
 
-- Postfach nur als Ablage: keine Anzeige, kein Freigeben/Verwerfen → Schritt 3.
+- ~~Postfach nur als Ablage~~ → erledigt in Schritt 3.
 - Regel *verbieten* auf *erlauben* zurückgestellt: Das Tool wird erst angeboten, wenn die
   Sitzung neu aufgebaut wird. Das passiert automatisch bei der nächsten Nachricht, sofern der
   Agent gerade nicht arbeitet.
 - MCP-Server über HTTP werden noch nicht unterstützt.
+
+## Stand Schritt 3 (2026-11-24)
+
+Umgesetzt nach Davids Antworten (E-43 bis E-48). Gebaut:
+
+- **Seite „Postfach“** mit allen Einträgen, offene zuerst, Zähler der offenen in der
+  Navigation. Jede Karte zeigt Art, Status, Chat (anklickbar), Tool mit Argumenten, Ergebnis
+  und Davids Antwort. Unter den Knöpfen steht, was passiert.
+- **Zwei Arten von Freigaben** ([postfach-dienst.ts](../server/postfach/postfach-dienst.ts)):
+  - *Freigabe zum Abschluss* (E-44): *Freigeben* führt den gespeicherten Aufruf über den
+    eigenen MCP-Client aus ([mcp-aufrufer.ts](../server/mcp/mcp-aufrufer.ts)), ohne KI, und
+    die Aufgabe ist erledigt. *Verwerfen* bricht sie ab, ebenfalls ohne KI.
+    *Änderungen anfordern* setzt den Agenten in seiner Sitzung fort.
+  - *Freigabe zum Weitermachen* (E-45): Der Agent ruft das Plattform-Tool
+    `auf_freigabe_warten` auf und hört auf. Nach der Freigabe wird die Aufgabe mit dem
+    Ergebnis in die Warteschlange gestellt. Wartet sie auf mehrere Vorschläge, geht es erst
+    weiter, wenn alle erledigt sind, und der Agent bekommt alle Ergebnisse in einer Nachricht.
+  - Schlägt die Ausführung fehl, bleibt der Eintrag offen („Erneut freigeben“), ohne KI.
+- **Rückfragen** (E-47): Plattform-Tool `rueckfrage_stellen`; die Antwort im Postfach setzt den
+  Agenten fort. Im Auftrag steht, wann er fragen soll: nur wenn das Ergebnis wesentlich davon
+  abhängt, mehrere Fragen bündeln, bei Kleinigkeiten eine begründete Annahme treffen und nennen.
+- **Meldungen**: *Zur Kenntnis genommen* oder *Antworten*. Antworten geht bei jedem Eintrag,
+  auch bei erledigten.
+- **Warteschlange** ([warteschlange.ts](../server/datenbank/warteschlange.ts)): Der Agent
+  arbeitet immer nur an einer Aufgabe. Chat-Nachrichten und Fortsetzungen aus dem Postfach
+  werden eingereiht und nacheinander abgearbeitet. Die Warteschlange liegt in der Datenbank
+  und übersteht einen Neustart.
+- **Neue Aufgabenstatus**: eingereiht, wartet (aufs Postfach), erledigt, abgebrochen – in der
+  Chat-Liste als Marke, im Chat als Hinweis. Postfach-Aktionen erscheinen im Chat-Verlauf.
+- Bestehende Datenbanken bekommen die neuen Postfach-Spalten beim Start nachgerüstet.
+- Simulation: neue Stichwörter *verlinken* (Freigabe zum Weitermachen), *Rückfrage* bzw.
+  *neue Klasse*; *Doku* ist jetzt die Freigabe zum Abschluss.
+
+Auf dem Privatrechner geprüft (nur Simulation): alle Abläufe über die Schnittstelle
+durchgespielt (Abschluss freigeben, Änderung anfordern → neuer Vorschlag → verwerfen,
+Weitermachen nach Freigabe, Rückfrage beantworten, zwei Chats nacheinander, Meldung zur
+Kenntnis), Oberfläche im Browser ohne Fehler, Nachrüstung an der Datenbank aus Schritt 2.
+
+**Nachträge vor dem Test** (Wünsche von David, E-49 bis E-51):
+
+- **Chat löschen**: × am Chat in der Liste (erscheint beim Überfahren). Löscht Verlauf, Postfach-
+  Einträge, Warteschlange und die gespeicherte Copilot-Sitzung (`deleteSession`). Solange der
+  Agent am Chat arbeitet, geht es nicht – erst abbrechen.
+- **„Neuer Chat“ räumt auf**: Chats ohne eine einzige Nachricht werden dabei gelöscht.
+- **Modellwahl je Chat**: Leiste über dem Chat mit Modell (aus `listModels`, mit Kostenfaktor),
+  Thinking Effort (nur bei Modellen, die ihn anbieten) und Context Window (Größe in Tokens;
+  „Lang“ nur bei Modellen mit langem Kontext). Gilt ab der nächsten Nachricht: Die Sitzung wird
+  mit der neuen Wahl fortgesetzt, der Verlauf bleibt. Ohne Wahl gilt `modell` aus
+  `einstellungen.json`. Im Chat steht klein, welches Modell geantwortet hat (bei Wechsel).
+
+Auch das in der Simulation und im Browser geprüft. `npm test`: 30 Tests.
+
+### Festlegungen in Schritt 3 (Vorschlag)
+
+- **Wer entscheidet, ob Abschluss oder Weitermachen?** Der Agent: Ruft er nach dem Vorschlag
+  `auf_freigabe_warten` auf, ist es eine Freigabe zum Weitermachen, sonst eine zum Abschluss.
+  Er weiß als Einziger, ob er das Ergebnis noch braucht.
+- **Ein Agent, eine Sache zur Zeit**: Auch Chat-Nachrichten warten, wenn der Agent gerade in
+  einem anderen Chat arbeitet (bisher liefen Chats parallel).
+- **Verwerfen** bricht die Aufgabe auch bei der Freigabe zum Weitermachen und bei Rückfragen ab.
+  Soll der Agent einen anderen Weg suchen, ist *Änderungen anfordern* bzw. *Antworten* gemeint.
+- **Vorschläge nicht direkt bearbeiten**: Statt die Argumente zu ändern, fordert David
+  Änderungen an, und der Agent legt neu vor.
+- **Inzwischen verbotene Tools** werden auch bei der Freigabe nicht ausgeführt.
+- Schreibt David in einen Chat, der aufs Postfach wartet, geht die Nachricht sofort an den
+  Agenten; die offenen Einträge bleiben bestehen.
+
+### Annahmen, die erst am Firmenrechner geprüft werden können
+
+- Eigene Tools mit `defineTool` (Parameter als JSON-Schema, `defer: "never"`) werden dem
+  Agenten angeboten, und er ruft `auf_freigabe_warten` und `rueckfrage_stellen` sinnvoll auf.
+- Der eigene MCP-Client kann Tools des echten Atlassian-MCP **aufrufen** (in Schritt 2 hat er
+  sie nur ausgelesen). Beim SAP-MCP öffnet die erste Freigabe ggf. Edge fürs Cookie.
+- `resumeSession` setzt nach einer Postfach-Aktion mit Kontext fort, auch nach einem Neustart
+  der App.
+- `listModels` liefert bei der Business-Lizenz Einzelmodelle (privat war die Liste leer), mit
+  Thinking-Effort-Stufen und Context-Window-Größe. „Lang“ wird angeboten, wenn das SDK für das
+  Modell Long-Context-Preise meldet – ob das zuverlässig ist, ist offen.
+- `resumeSession` übernimmt ein anderes Modell, `reasoningEffort` und `contextTier`.
+  Unklar: Bleibt ein Chat beim zuletzt gewählten Modell, wenn man auf „Standard (automatisch)“
+  zurückstellt? (Ohne Modellangabe wird keins mitgegeben.)
+- `deleteSession` löscht die Copilot-Sitzung eines gelöschten Chats.
+
+### Abnahme Schritt 3 auf dem Firmenrechner
+
+**Vorbereitung**
+
+- ZIP entpacken, `npm install`, `einstellungen.json` mit `"modus": "copilot"` behalten. Die
+  Datenbank aus Schritt 2 bleibt, sie wird beim Start nachgerüstet.
+- `npm start`: Im Terminal keine Fehler; in der Navigation ist **Postfach** anklickbar.
+- Seite MCP-Server, Atlassian-MCP: Lesende Tools auf **Erlauben**. **Ein** schreibendes Tool,
+  das harmlos ist, auf **Freigabe** – am besten „Kommentar anlegen“. Dazu ein Testticket
+  aussuchen, an dem Kommentare nicht stören (im Folgenden `TEST-1`).
+
+**A. Chats und Modellwahl** (kurz, wenig Credits)
+
+1. Dreimal „Neuer Chat“ → in der Liste steht nur **ein** leerer neuer Chat.
+2. Einen alten Chat überfahren, × → Rückfrage bestätigen → Chat ist weg.
+3. Modellleiste im neuen Chat: Liste der Modelle aufklappen → **Foto**. Ein Modell mit
+   Thinking Effort wählen → Stufen aufklappen → **Foto**. Context Window: Größe steht da, bei
+   manchen Modellen „Lang“ wählbar?
+4. Modell X mit Thinking Effort „hoch“ wählen, „Was ist 2+2?“ → Antwort kommt, darüber
+   klein „Modell: X“.
+5. Im selben Chat Modell Y wählen, „Und 3+3?“ → „Modell: Y“; die Antwort zeigt, dass der Agent
+   den Verlauf noch kennt (ggf. „Was hatte ich zuerst gefragt?“).
+6. Zurück auf „Standard (automatisch)“, noch eine Frage → welches Modell steht jetzt da?
+
+**B. Postfach mit echtem Copilot**
+
+7. Neuer Chat: „Lege an Ticket TEST-1 einen Kommentar ‚Test Schritt 3‘ an.“ → Tool-Karte
+   „nicht ausgeführt“, orange „Vorschlag #… wartet auf Freigabe“, Chat-Marke „Postfach“, Zähler
+   in der Navigation. Der Agent wiederholt den Aufruf **nicht** und ruft **kein**
+   `auf_freigabe_warten` auf (Freigabe zum Abschluss).
+8. Postfach: Karte „Freigabe zum Abschluss“ → **Freigeben** → Ergebnis erscheint, Kommentar ist
+   in Jira, Chat „erledigt“, grüner Vermerk im Chat. Der Agent tut danach **nichts** mehr.
+9. Neuer Chat wie 7 → im Postfach „Text bitte auf Englisch“ als **Änderungen anfordern** →
+   der Agent arbeitet im selben Chat weiter und legt einen neuen Vorschlag vor. Diesen
+   **verwerfen** → Chat „abgebrochen“, in Jira kein Kommentar.
+10. Neuer Chat: „Lege an TEST-1 einen Kommentar ‚Test Weitermachen‘ an und lies danach das
+    Ticket, um zu prüfen, dass er da ist.“ → Der Agent ruft `auf_freigabe_warten` auf, die
+    Karte heißt „Freigabe zum Weitermachen“, Chat-Marke „Postfach“.
+11. **App beenden und neu starten.** Dann Vorschlag aus 10 freigeben → Chat „eingereiht“ →
+    „arbeitet“; der Agent liest das Ticket und bestätigt den Kommentar (Kontext nach Neustart).
+12. Neuer Chat: „Lege eine neue ABAP-Klasse für den Kundenexport an. Frag mich vorher nach
+    dem Paket.“ → Rückfrage im Postfach (Agent hört auf). Antworten „$TMP“ → der Agent macht
+    mit der Antwort weiter. (Anlegen kann er noch nicht – es geht nur um die Rückfrage.)
+13. Warteschlange: In Chat A „Fasse die letzten 10 Tickets im Projekt … zusammen“ (dauert
+    etwas), sofort in Chat B „Was ist 2+2?“ → B zeigt „eingereiht“ und antwortet erst, wenn A
+    fertig ist.
+14. Eine Meldung im Postfach (falls aus Schritt 2 eine Regel „Melden“ besteht) → **Zur Kenntnis
+    genommen** → Zähler sinkt.
+15. Chat aus 8 löschen → im Postfach sind seine Einträge weg.
+
+**Bitte zurückmelden** (Foto oder Text, je Nummer ok / nicht ok): A1–6, B7–15. Fotos:
+Modellliste und Thinking-Effort-Stufen (3), Postfach mit offenen Einträgen, bei Fehlern Terminal
+und Browser. Weiter offen aus Schritt 2: die Tool-Namen der echten Server.
+
+### Bekannte Lücken nach Schritt 3
+
+- Darstellung je Typ (Confluence-Vorschau, Jira-Statuswechsel) fehlt; Argumente stehen als JSON.
+- Postfach ohne Filter und Suche.
+- Keine Übergabenotiz (V-10, Weg 2): Wiederaufnahme nur über die gespeicherte Sitzung.
+- Änderungsmeldungen mit Vorher/Nachher und „Rückgängig“ (E-31) kommen mit ADT in Phase 3.
+- Abbrechen hinterlässt weiterhin keinen Hinweis im Verlauf.
 
 ## Ziel
 

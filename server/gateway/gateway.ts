@@ -59,8 +59,9 @@ export class ToolGateway {
   }
 
   /**
-   * Läuft vor dem Aufruf. Bei "freigabe" wird hier der Vorschlag ins Postfach gelegt;
-   * der Agent erfährt aus dem Grund, dass er nicht warten, sondern weiterarbeiten soll.
+   * Läuft vor dem Aufruf. Bei "freigabe" wird hier der Vorschlag ins Postfach gelegt.
+   * Der Agent erfährt aus dem Grund, wie es weitergeht: Ist die Aufgabe damit fertig, schließt
+   * er ab (Freigabe zum Abschluss, E-44). Braucht er das Ergebnis, pausiert er (E-45).
    */
   vorAufruf(adresse: ToolAdresse, argumente: unknown): Entscheidung {
     const name = laufzeitName(adresse);
@@ -75,7 +76,10 @@ export class ToolGateway {
           ausfuehren: false,
           grund:
             `Nicht ausgeführt: Der Aufruf liegt als Vorschlag #${nr} im Postfach und wartet auf Freigabe durch den Nutzer. ` +
-            `Wiederhole ihn nicht. Arbeite an dem weiter, was nicht davon abhängt, und sage dem Nutzer, dass Vorschlag #${nr} auf Freigabe wartet.`,
+            `Wiederhole ihn nicht – nach der Freigabe führt die Plattform ihn selbst aus. ` +
+            `Ist deine Aufgabe damit erledigt, schließe mit einer kurzen Zusammenfassung ab und nenne Vorschlag #${nr}. ` +
+            `Brauchst du das Ergebnis, um weiterzumachen, erledige erst alles, was nicht davon abhängt, ` +
+            `rufe dann auf_freigabe_warten mit vorschlag ${nr} auf und beende deine Antwort.`,
         };
       }
 

@@ -1,71 +1,258 @@
 [
   {
-    "beschreibung": "Ticket verschieben: Regel 'melden' beim Jira-Stellvertreter",
-    "wennEnthaelt": ["verschieb"],
+    "beschreibung": "Fortsetzung nach Freigabe zum Weitermachen: Ergebnis ist da, der Agent macht weiter",
+    "wennEnthaelt": [
+      "wurde freigegeben und ausgeführt"
+    ],
     "schritte": [
-      { "text": "Ich setze das Ticket auf Review." },
-      { "tool": "jira-ticket_verschieben", "argumente": { "schluessel": "ABAP-123", "status": "Review" } },
-      { "text": "Ticket **ABAP-123** steht jetzt auf *Review*. Die Änderung ist im Postfach gemeldet." }
+      {
+        "text": "Danke, die Seite ist angelegt. Ich setze das Ticket auf Review und verweise dort auf die Seite."
+      },
+      {
+        "tool": "jira-ticket_verschieben",
+        "argumente": {
+          "schluessel": "ABAP-123",
+          "status": "Review"
+        }
+      },
+      {
+        "text": "Erledigt: Die Doku-Seite steht, **ABAP-123** ist auf *Review*."
+      }
     ]
   },
   {
-    "beschreibung": "Confluence-Seite anlegen: Regel 'freigabe' beim Jira-Stellvertreter",
-    "wennEnthaelt": ["confluence", "doku"],
+    "beschreibung": "Fortsetzung nach Änderungswunsch: der Agent legt einen überarbeiteten Vorschlag vor",
+    "wennEnthaelt": [
+      "änderungswunsch zu vorschlag"
+    ],
     "schritte": [
-      { "text": "Ich lege eine Doku-Seite für `ZCL_KUNDEN_SERVICE` an." },
+      {
+        "text": "Verstanden, ich überarbeite die Seite."
+      },
       {
         "tool": "jira-seite_anlegen",
-        "argumente": { "bereich": "ABAP", "titel": "ZCL_KUNDEN_SERVICE", "inhalt": "Liest Kundenstammdaten über die Methode GET_KUNDE." }
+        "argumente": {
+          "bereich": "ABAP",
+          "titel": "ZCL_KUNDEN_SERVICE",
+          "inhalt": "Liest Kundenstammdaten über GET_KUNDE.\n\nBeispiel:\nDATA(kunde) = zcl_kunden_service=>get_kunde( '4711' )."
+        }
       },
-      { "text": "Die Seite ist nicht angelegt, sondern liegt als Vorschlag im Postfach und wartet auf deine Freigabe." }
+      {
+        "text": "Der überarbeitete Vorschlag liegt im Postfach."
+      }
+    ]
+  },
+  {
+    "beschreibung": "Fortsetzung nach Antwort auf eine Rückfrage",
+    "wennEnthaelt": [
+      "antwort auf deine rückfrage"
+    ],
+    "schritte": [
+      {
+        "text": "Danke, damit kann ich weitermachen. Ich lege die Klasse wie besprochen an (in der Simulation passiert dabei nichts)."
+      }
+    ]
+  },
+  {
+    "beschreibung": "Fortsetzung nach einer Rückmeldung zu einer Meldung oder einem erledigten Eintrag",
+    "wennEnthaelt": [
+      "rückmeldung des nutzers"
+    ],
+    "schritte": [
+      {
+        "text": "Danke für die Rückmeldung, ich habe sie berücksichtigt."
+      }
+    ]
+  },
+  {
+    "beschreibung": "Rückfrage: der Agent legt eine Frage ins Postfach und hört auf",
+    "wennEnthaelt": [
+      "rückfrage",
+      "rueckfrage",
+      "neue klasse"
+    ],
+    "schritte": [
+      {
+        "text": "Bevor ich die Klasse anlege, brauche ich eine Angabe von dir."
+      },
+      {
+        "tool": "rueckfrage_stellen",
+        "argumente": {
+          "frage": "In welches Paket soll die neue Klasse ZCL_KUNDEN_EXPORT? Nur $TMP ist für Änderungen freigegeben – reicht das, oder soll ich einen Vorschlag für ein Kundenpaket machen?"
+        }
+      },
+      {
+        "text": "Die Rückfrage liegt im Postfach. Ich mache weiter, sobald du geantwortet hast."
+      }
+    ]
+  },
+  {
+    "beschreibung": "Freigabe zum Weitermachen: der Agent braucht die Seite, um sie im Ticket zu verlinken",
+    "wennEnthaelt": [
+      "verlink"
+    ],
+    "schritte": [
+      {
+        "text": "Ich lege die Doku-Seite an und verlinke sie danach im Ticket."
+      },
+      {
+        "tool": "jira-seite_anlegen",
+        "argumente": {
+          "bereich": "ABAP",
+          "titel": "ZCL_KUNDEN_SERVICE",
+          "inhalt": "Liest Kundenstammdaten über die Methode GET_KUNDE."
+        }
+      },
+      {
+        "tool": "auf_freigabe_warten",
+        "argumente": {}
+      },
+      {
+        "text": "Zum Verlinken brauche ich die angelegte Seite. Die Aufgabe ist pausiert, bis du den Vorschlag freigibst."
+      }
+    ]
+  },
+  {
+    "beschreibung": "Ticket verschieben: Regel 'melden' beim Jira-Stellvertreter",
+    "wennEnthaelt": [
+      "verschieb"
+    ],
+    "schritte": [
+      {
+        "text": "Ich setze das Ticket auf Review."
+      },
+      {
+        "tool": "jira-ticket_verschieben",
+        "argumente": {
+          "schluessel": "ABAP-123",
+          "status": "Review"
+        }
+      },
+      {
+        "text": "Ticket **ABAP-123** steht jetzt auf *Review*. Die Änderung ist im Postfach gemeldet."
+      }
+    ]
+  },
+  {
+    "beschreibung": "Confluence-Seite anlegen: Regel 'freigabe', Freigabe zum Abschluss (Aufgabe ist danach erledigt)",
+    "wennEnthaelt": [
+      "confluence",
+      "doku"
+    ],
+    "schritte": [
+      {
+        "text": "Ich lege eine Doku-Seite für `ZCL_KUNDEN_SERVICE` an."
+      },
+      {
+        "tool": "jira-seite_anlegen",
+        "argumente": {
+          "bereich": "ABAP",
+          "titel": "ZCL_KUNDEN_SERVICE",
+          "inhalt": "Liest Kundenstammdaten über die Methode GET_KUNDE."
+        }
+      },
+      {
+        "text": "Die Seite ist nicht angelegt, sondern liegt als Vorschlag im Postfach. Gibst du ihn frei, legt die Plattform sie an – damit ist die Aufgabe erledigt."
+      }
     ]
   },
   {
     "beschreibung": "Quelltext ändern über den SAP-MCP: Regel 'verbieten' beim SAP-Stellvertreter",
-    "wennEnthaelt": ["ändern", "aendern"],
+    "wennEnthaelt": [
+      "ändern",
+      "aendern"
+    ],
     "schritte": [
-      { "tool": "sap-objekt_aendern", "argumente": { "name": "ZCL_KUNDEN_SERVICE", "quelltext": "CLASS zcl_kunden_service ..." } },
-      { "text": "Ändern über den SAP-MCP ist für mich gesperrt." }
+      {
+        "tool": "sap-objekt_aendern",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE",
+          "quelltext": "CLASS zcl_kunden_service ..."
+        }
+      },
+      {
+        "text": "Ändern über den SAP-MCP ist für mich gesperrt."
+      }
     ]
   },
   {
     "beschreibung": "Simuliert einen fehlschlagenden Tool-Aufruf",
-    "wennEnthaelt": ["fehler"],
+    "wennEnthaelt": [
+      "fehler"
+    ],
     "schritte": [
-      { "tool": "sap-objekt_lesen", "argumente": { "name": "ZGIBT_ES_NICHT" } },
-      { "text": "Das Objekt gibt es nicht. Ich brauche einen anderen Namen." }
+      {
+        "tool": "sap-objekt_lesen",
+        "argumente": {
+          "name": "ZGIBT_ES_NICHT"
+        }
+      },
+      {
+        "text": "Das Objekt gibt es nicht. Ich brauche einen anderen Namen."
+      }
     ]
   },
   {
     "beschreibung": "Simuliert, dass der Agent ein Jira-Ticket liest",
-    "wennEnthaelt": ["ticket", "jira"],
+    "wennEnthaelt": [
+      "ticket",
+      "jira"
+    ],
     "schritte": [
-      { "text": "Ich schaue mir das Ticket an." },
-      { "tool": "jira-ticket_lesen", "argumente": { "schluessel": "ABAP-123" } },
-      { "text": "Ticket **ABAP-123** gelesen: In `ZCL_KUNDEN_SERVICE` soll die Methode `GET_KUNDE` zusätzlich die Kundengruppe liefern." }
+      {
+        "text": "Ich schaue mir das Ticket an."
+      },
+      {
+        "tool": "jira-ticket_lesen",
+        "argumente": {
+          "schluessel": "ABAP-123"
+        }
+      },
+      {
+        "text": "Ticket **ABAP-123** gelesen: In `ZCL_KUNDEN_SERVICE` soll die Methode `GET_KUNDE` zusätzlich die Kundengruppe liefern."
+      }
     ]
   },
   {
     "beschreibung": "Simuliert, dass der Agent ABAP-Quelltext liest",
-    "wennEnthaelt": ["klasse", "quelltext", "abap"],
+    "wennEnthaelt": [
+      "klasse",
+      "quelltext",
+      "abap"
+    ],
     "schritte": [
-      { "tool": "sap-objekt_lesen", "argumente": { "name": "ZCL_KUNDEN_SERVICE" } },
-      { "text": "Die Klasse `ZCL_KUNDEN_SERVICE` hat eine öffentliche Methode `GET_KUNDE`, die einen Kunden über die Kundennummer liest." }
+      {
+        "tool": "sap-objekt_lesen",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE"
+        }
+      },
+      {
+        "text": "Die Klasse `ZCL_KUNDEN_SERVICE` hat eine öffentliche Methode `GET_KUNDE`, die einen Kunden über die Kundennummer liest."
+      }
     ]
   },
   {
     "beschreibung": "Antwortet langsam, um Abbrechen zu testen",
-    "wennEnthaelt": ["langsam"],
+    "wennEnthaelt": [
+      "langsam"
+    ],
     "schritte": [
-      { "warten": 8000 },
-      { "text": "Fertig nach acht Sekunden." }
+      {
+        "warten": 8000
+      },
+      {
+        "text": "Fertig nach acht Sekunden."
+      }
     ]
   },
   {
     "beschreibung": "Standardantwort, wenn nichts anderes passt",
     "wennEnthaelt": [],
     "schritte": [
-      { "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell. Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *ändern* oder *langsam*." }
+      {
+        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (gewählt: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern* oder *langsam*."
+      }
     ]
   }
 ]

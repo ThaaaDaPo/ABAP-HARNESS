@@ -1,17 +1,26 @@
 // Eingabe unten im Chat. Enter schickt ab, Umschalt+Enter macht eine neue Zeile.
+// Solange der Agent an diesem Chat arbeitet oder er eingereiht ist, gibt es statt Senden „Abbrechen“.
 import { useState, type KeyboardEvent } from "react";
+import type { AufgabenStatus } from "../../gemeinsam/typen.ts";
 
 interface Eigenschaften {
-  arbeitet: boolean;
+  status: AufgabenStatus;
   sende: (text: string) => void;
   brecheAb: () => void;
 }
 
-export function Eingabefeld({ arbeitet, sende, brecheAb }: Eigenschaften) {
+const platzhalter: Partial<Record<AufgabenStatus, string>> = {
+  arbeitet: "Der Agent arbeitet …",
+  eingereiht: "Eingereiht – der Agent arbeitet gerade an etwas anderem",
+  wartet: "Wartet aufs Postfach. Du kannst trotzdem schreiben.",
+};
+
+export function Eingabefeld({ status, sende, brecheAb }: Eigenschaften) {
   const [text, setText] = useState("");
+  const beschaeftigt = status === "arbeitet" || status === "eingereiht";
 
   function abschicken() {
-    if (!text.trim() || arbeitet) return;
+    if (!text.trim() || beschaeftigt) return;
     sende(text.trim());
     setText("");
   }
@@ -29,11 +38,11 @@ export function Eingabefeld({ arbeitet, sende, brecheAb }: Eigenschaften) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={beiTaste}
-        placeholder={arbeitet ? "Der Agent arbeitet …" : "Nachricht an den Agenten"}
+        placeholder={platzhalter[status] ?? "Nachricht an den Agenten"}
         rows={3}
       />
-      {arbeitet ? (
-        <button className="knopf" onClick={brecheAb}>
+      {beschaeftigt ? (
+        <button className="knopf" onClick={brecheAb} title={status === "eingereiht" ? "Aus der Warteschlange nehmen" : undefined}>
           Abbrechen
         </button>
       ) : (

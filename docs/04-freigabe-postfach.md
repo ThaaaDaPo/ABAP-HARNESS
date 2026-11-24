@@ -1,6 +1,7 @@
-# 04 – Freigaben und Postfach (Vorschlag)
+# 04 – Freigaben und Postfach
 
-Status: **Vorschlag von Claude, noch nicht bestätigt.**
+Status: **Grundzüge bestätigt durch E-43 bis E-48 (2026-11-24), umgesetzt in Phase 1, Schritt 3.**
+Was noch Vorschlag ist, steht in [08-phase-1](08-phase-1.md) unter „Festlegungen in Schritt 3“.
 
 ## Problem
 
@@ -20,7 +21,19 @@ Tool-Gateway Folgendes:
    `wartet auf Freigabe`, und der Scheduler startet die nächste Aufgabe.
 
 Bei Freigabe führt **die Plattform** den gespeicherten Aufruf aus – nicht der Agent noch einmal.
-Dadurch wird exakt das ausgeführt, was David gesehen (oder bearbeitet) hat.
+Dadurch wird exakt das ausgeführt, was David gesehen hat.
+
+## Zwei Arten von Freigaben (E-44, E-45)
+
+| | Freigabe zum Abschluss | Freigabe zum Weitermachen |
+|---|---|---|
+| Wann | Die Aufgabe ist mit dem Aufruf fertig (z. B. Confluence-Seite anlegen) | Der Agent braucht das Ergebnis, um weiterzumachen |
+| Agent | schließt ab | ruft `auf_freigabe_warten` auf und hört auf; kann eine andere Aufgabe übernehmen |
+| Freigeben | Plattform führt aus, **ohne KI**; Aufgabe erledigt | Plattform führt aus; Aufgabe kommt mit dem Ergebnis in die Warteschlange und läuft mit Kontext weiter, sobald der Agent frei ist |
+| Verwerfen | Aufgabe abgebrochen, ohne KI | ebenso |
+| Änderungen anfordern | Agent überarbeitet mit Kontext und legt neu vor | ebenso |
+
+Ein Agent arbeitet immer nur an einer Aufgabe; alles andere wartet in seiner Warteschlange.
 
 ## Aktionen im Postfach
 

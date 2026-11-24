@@ -15,9 +15,26 @@ export function routenAufgaben(db: Datenbank, chat: ChatDienst): Router {
     antwort.json(aufgaben.holeAlleAufgaben(db).map(aufgaben.oeffentlich));
   });
 
-  // Neue Aufgabe anlegen
-  router.post("/", (_anfrage, antwort) => {
-    antwort.status(201).json(aufgaben.oeffentlich(chat.neueAufgabe()));
+  // Neue Aufgabe anlegen (leere Chats werden dabei weggeräumt)
+  router.post("/", async (_anfrage, antwort) => {
+    antwort.status(201).json(aufgaben.oeffentlich(await chat.neueAufgabe()));
+  });
+
+  // Chat löschen, mit Verlauf und Postfach-Einträgen
+  router.delete("/:id", async (anfrage, antwort) => {
+    await chat.loescheAufgabe(anfrage.params.id);
+    antwort.json({ geloescht: true });
+  });
+
+  // Modell, Thinking Effort und Kontext des Chats
+  router.put("/:id/modell", async (anfrage, antwort) => {
+    const roh = anfrage.body ?? {};
+    const wahl = {
+      modell: String(roh.modell ?? ""),
+      denkaufwand: String(roh.denkaufwand ?? ""),
+      kontext: roh.kontext === "lang" ? ("lang" as const) : ("standard" as const),
+    };
+    antwort.json(aufgaben.oeffentlich(await chat.setzeModellWahl(anfrage.params.id, wahl)));
   });
 
   // Eine Aufgabe mit ihrem bisherigen Verlauf

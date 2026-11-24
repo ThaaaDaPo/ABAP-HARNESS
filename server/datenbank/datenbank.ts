@@ -49,8 +49,8 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
       PRIMARY KEY (agent_id, server, tool)
     );
 
-    -- Postfach: Vorschläge, die auf Freigabe warten, und Meldungen über ausgeführte Aufrufe.
-    -- Anzeige und Aktionen kommen in Schritt 3; das Gateway legt hier schon ab.
+    -- Postfach: Vorschläge, die auf Freigabe warten, Meldungen über ausgeführte Aufrufe und
+    -- Rückfragen des Agenten. Weitere Spalten werden unten nachgerüstet.
     CREATE TABLE IF NOT EXISTS postfach (
       nr          INTEGER PRIMARY KEY AUTOINCREMENT,
       aufgabe_id  TEXT NOT NULL REFERENCES aufgaben(id),
@@ -62,10 +62,31 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
       status      TEXT NOT NULL,
       erstellt_am TEXT NOT NULL
     );
+
+    -- Arbeit, die auf den Agenten wartet: Nachrichten aus dem Chat und Fortsetzungen nach
+    -- Postfach-Aktionen. Liegt in der Datenbank, damit nach einem Neustart nichts verloren geht.
+    CREATE TABLE IF NOT EXISTS warteschlange (
+      nr           INTEGER PRIMARY KEY AUTOINCREMENT,
+      aufgabe_id   TEXT NOT NULL REFERENCES aufgaben(id),
+      text         TEXT NOT NULL,
+      aus_postfach INTEGER NOT NULL,
+      erstellt_am  TEXT NOT NULL
+    );
   `);
 
-  // Nach einem Neustart arbeitet kein Agent mehr – Aufgaben, die beim Beenden liefen, sind wieder bereit.
-  db.exec(`UPDATE aufgaben SET status = 'bereit' WHERE status = 'arbeitet'`);
+  // Seit Schritt 3. Bestehende Datenbanken (Firmenrechner) bekommen die Spalten nachgerüstet.
+  ergaenzeSpalte(db, "postfach", "weiter_nach_freigabe", "INTEGER NOT NULL DEFAULT 0");
+  ergaenzeSpalte(db, "postfach", "antwort", "TEXT");
+  ergaenzeSpalte(db, "postfach", "erledigt_am", "TEXT");
+  // Modellwahl je Chat (seit Schritt 3)
+  ergaenzeSpalte(db, "aufgaben", "modell", "TEXT NOT NULL DEFAULT ''");
+  ergaenzeSpalte(db, "aufgaben", "denkaufwand", "TEXT NOT NULL DEFAULT ''");
+  ergaenzeSpalte(db, "aufgaben", "kontext", "TEXT NOT NULL DEFAULT 'standard'");
 
   return db;
+}
+
+function ergaenzeSpalte(db: Datenbank, tabelle: string, spalte: string, definition: string): void {
+  const spalten = db.prepare(`PRAGMA table_info(${tabelle})`).all() as { name: string }[];
+  if (!spalten.some((s) => s.name === spalte)) db.exec(`ALTER TABLE ${tabelle} ADD COLUMN ${spalte} ${definition}`);
 }

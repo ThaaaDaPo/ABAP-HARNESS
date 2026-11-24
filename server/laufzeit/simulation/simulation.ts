@@ -1,36 +1,49 @@
 // Simulierte Laufzeit: spielt das Drehbuch ab statt ein echtes Modell zu fragen.
 // Damit lässt sich die ganze App ohne Copilot entwickeln und testen.
 // Tool-Aufrufe aus dem Drehbuch gehen wie bei Copilot durch das Tool-Gateway und werden,
-// wenn es sie erlaubt, wirklich beim eingetragenen MCP-Server ausgeführt.
+// wenn es sie erlaubt, wirklich beim eingetragenen MCP-Server ausgeführt. Die Plattform-Tools
+// (Rückfrage, auf Freigabe warten) laufen ebenfalls echt.
 import { randomUUID } from "node:crypto";
-import type { McpServerDaten } from "../../../gemeinsam/typen.ts";
-import type { ToolAdresse } from "../../gateway/gateway.ts";
-import { startAngaben } from "../../mcp/mcp-dienst.ts";
-import { McpVerbindung, type AufrufErgebnis } from "../../mcp/mcp-verbindung.ts";
+import type { ModellInfo } from "../../../gemeinsam/typen.ts";
+import type { McpAufrufer } from "../../mcp/mcp-aufrufer.ts";
 import type { AgentenLaufzeit, AgentenSitzung, EreignisEmpfaenger, SitzungsEinstellungen } from "../laufzeit.ts";
 import { findeSchritte, type DrehbuchSchritt } from "./drehbuch.ts";
 
 const pause = (ms: number) => new Promise((fertig) => setTimeout(fertig, ms));
 
 type ToolSchritt = Extract<DrehbuchSchritt, { tool: string }>;
-type McpAufruf = (server: McpServerDaten, tool: string, argumente: unknown) => Promise<AufrufErgebnis>;
+
+/** Zwei Modelle zum Ausprobieren der Modellwahl: eins ohne, eins mit Einstellmöglichkeiten. */
+const simulierteModelle: ModellInfo[] = [
+  { id: "sim-schnell", name: "Simulation schnell", denkStufen: [], standardDenkStufe: null, kontextFenster: 128000, langerKontext: false, multiplikator: 0 },
+  {
+    id: "sim-gruendlich",
+    name: "Simulation gründlich",
+    denkStufen: ["low", "medium", "high"],
+    standardDenkStufe: "medium",
+    kontextFenster: 200000,
+    langerKontext: true,
+    multiplikator: 1,
+  },
+];
 
 class SimulationsSitzung implements AgentenSitzung {
   readonly id: string;
   private einstellungen: SitzungsEinstellungen;
   private empfaenger: EreignisEmpfaenger;
-  private rufeMcpAuf: McpAufruf;
+  private aufrufer: McpAufrufer;
   private abgebrochen = false;
 
-  constructor(id: string, einstellungen: SitzungsEinstellungen, empfaenger: EreignisEmpfaenger, rufeMcpAuf: McpAufruf) {
+  constructor(id: string, einstellungen: SitzungsEinstellungen, empfaenger: EreignisEmpfaenger, aufrufer: McpAufrufer) {
     this.id = id;
     this.einstellungen = einstellungen;
     this.empfaenger = empfaenger;
-    this.rufeMcpAuf = rufeMcpAuf;
+    this.aufrufer = aufrufer;
   }
 
   async sende(text: string): Promise<void> {
     this.abgebrochen = false;
+    this.empfaenger({ art: "modell", modell: this.einstellungen.modell || "sim-automatisch" });
     for (const schritt of findeSchritte(text)) {
       if (this.abgebrochen) return;
 
@@ -43,14 +56,26 @@ class SimulationsSitzung implements AgentenSitzung {
         const { erfolgreich, ergebnis } = await this.fuehreAus(schritt);
         this.empfaenger({ art: "tool_ende", aufrufId, erfolgreich, ergebnis });
       } else {
-        await this.schreibe(schritt.text.replace("{eingabe}", text));
+        await this.schreibe(schritt.text.replace("{eingabe}", text).replace("{modell}", this.modellText()));
       }
     }
   }
 
+  /** Damit man in der Simulation sieht, dass die Modellwahl des Chats ankommt. */
+  private modellText(): string {
+    const { modell, denkaufwand, kontext } = this.einstellungen;
+    return [modell || "automatisch", denkaufwand && `Thinking Effort ${denkaufwand}`, kontext === "lang" && "langer Kontext"]
+      .filter(Boolean)
+      .join(", ");
+  }
+
   /** Fragt das Gateway und ruft das Tool beim MCP-Server auf, wenn es erlaubt ist. */
   private async fuehreAus(schritt: ToolSchritt): Promise<{ erfolgreich: boolean; ergebnis: string }> {
-    const { gateway, mcpServer } = this.einstellungen;
+    const { gateway, mcpServer, plattformTools } = this.einstellungen;
+
+    const plattformTool = plattformTools.find((t) => t.name === schritt.tool);
+    if (plattformTool) return { erfolgreich: true, ergebnis: plattformTool.fuehreAus(schritt.argumente ?? {}) };
+
     const adresse = gateway.zerlege(schritt.tool);
 
     // Kein MCP-Tool eines eingetragenen Servers: das Ergebnis steht im Drehbuch.
@@ -62,7 +87,7 @@ class SimulationsSitzung implements AgentenSitzung {
     try {
       const server = mcpServer.find((s) => s.schluessel === adresse.server);
       if (!server) throw new Error(`Server ${adresse.server} war beim Start der Sitzung nicht eingetragen.`);
-      const antwort = await this.rufeMcpAuf(server, adresse.tool, schritt.argumente);
+      const antwort = await this.aufrufer.rufeAuf(server, adresse.tool, schritt.argumente);
       if (!antwort.fehler) gateway.nachAufruf(adresse, schritt.argumente, antwort.text);
       return { erfolgreich: !antwort.fehler, ergebnis: antwort.text };
     } catch (fehler) {
@@ -95,42 +120,26 @@ class SimulationsSitzung implements AgentenSitzung {
 
 export class SimulationsLaufzeit implements AgentenLaufzeit {
   readonly name = "simulation";
-  /**
-   * Offene Verbindungen zu MCP-Servern, damit nicht jeder Aufruf einen neuen Prozess startet.
-   * Schlüssel ist der Startbefehl: Ändert David ihn, wird ein neuer Prozess gestartet.
-   */
-  private verbindungen = new Map<string, Promise<McpVerbindung>>();
+  private aufrufer: McpAufrufer;
+
+  constructor(aufrufer: McpAufrufer) {
+    this.aufrufer = aufrufer;
+  }
 
   async starte(einstellungen: SitzungsEinstellungen, empfaenger: EreignisEmpfaenger): Promise<AgentenSitzung> {
-    return new SimulationsSitzung(randomUUID(), einstellungen, empfaenger, this.rufeMcpAuf);
+    return new SimulationsSitzung(randomUUID(), einstellungen, empfaenger, this.aufrufer);
   }
 
   async setzeFort(sitzungId: string, einstellungen: SitzungsEinstellungen, empfaenger: EreignisEmpfaenger): Promise<AgentenSitzung> {
-    return new SimulationsSitzung(sitzungId, einstellungen, empfaenger, this.rufeMcpAuf);
+    return new SimulationsSitzung(sitzungId, einstellungen, empfaenger, this.aufrufer);
   }
 
-  private rufeMcpAuf: McpAufruf = async (server, tool, argumente) => {
-    const angaben = startAngaben(server);
-    const schluessel = JSON.stringify(angaben);
-    let verbindung = this.verbindungen.get(schluessel);
-    if (!verbindung) {
-      verbindung = McpVerbindung.oeffne(angaben);
-      this.verbindungen.set(schluessel, verbindung);
-    }
-    try {
-      return await (await verbindung).rufeAuf(tool, argumente);
-    } catch (fehler) {
-      // Kaputte Verbindung vergessen, beim nächsten Aufruf wird neu gestartet.
-      this.verbindungen.delete(schluessel);
-      verbindung.then((v) => v.schliesse()).catch(() => {});
-      throw fehler;
-    }
-  };
+  async loescheSitzung(): Promise<void> {}
 
-  async beenden(): Promise<void> {
-    for (const verbindung of this.verbindungen.values()) {
-      await verbindung.then((v) => v.schliesse()).catch(() => {});
-    }
-    this.verbindungen.clear();
+  async modelle(): Promise<ModellInfo[]> {
+    return simulierteModelle;
   }
+
+  // Die MCP-Verbindungen gehören dem Aufrufer und werden beim Herunterfahren dort geschlossen.
+  async beenden(): Promise<void> {}
 }

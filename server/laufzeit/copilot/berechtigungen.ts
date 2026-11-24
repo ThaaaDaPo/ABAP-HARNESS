@@ -83,7 +83,7 @@ export function erstelleBerechtigungsPruefung(workspaceOrdner: string, gateway: 
           : abgelehnt(`Das Tool ${anfrage.serverName}-${anfrage.toolName} ist ohne Freigabe nicht erlaubt.`);
 
       case "custom-tool":
-        // Eigene Tools der App (bisher keine) sind erlaubt.
+        // Eigene Tools der App (Rückfrage, auf Freigabe warten) sind erlaubt.
         return erlaubt;
 
       default:

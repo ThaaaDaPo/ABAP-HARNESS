@@ -1,4 +1,4 @@
-// Linke Leiste: Seiten der App und Modus-Anzeige.
+// Linke Leiste: Seiten der App, Zahl der offenen Postfach-Einträge und Modus-Anzeige.
 import type { StatusAntwort } from "../../gemeinsam/typen.ts";
 
 export type SeitenName = "chat" | "mcp" | "postfach" | "agenten" | "einrichtung";
@@ -13,7 +13,7 @@ interface Eintrag {
 const eintraege: Eintrag[] = [
   { name: "chat", titel: "Chat" },
   { name: "mcp", titel: "MCP-Server" },
-  { name: "postfach", titel: "Postfach", kommtIn: "Schritt 3" },
+  { name: "postfach", titel: "Postfach" },
   { name: "agenten", titel: "Agenten", kommtIn: "Schritt 4" },
   { name: "einrichtung", titel: "Einrichtung", kommtIn: "Schritt 4" },
 ];
@@ -22,9 +22,10 @@ interface Eigenschaften {
   aktiv: SeitenName;
   waehle: (seite: SeitenName) => void;
   status: StatusAntwort | null;
+  offenImPostfach: number;
 }
 
-export function Navigation({ aktiv, waehle, status }: Eigenschaften) {
+export function Navigation({ aktiv, waehle, status, offenImPostfach }: Eigenschaften) {
   return (
     <nav className="navigation">
       <div className="marke">ABAP-HARNESS</div>
@@ -38,6 +39,7 @@ export function Navigation({ aktiv, waehle, status }: Eigenschaften) {
           onClick={() => waehle(eintrag.name)}
         >
           {eintrag.titel}
+          {eintrag.name === "postfach" && offenImPostfach > 0 && <span className="zaehler">{offenImPostfach}</span>}
         </button>
       ))}
 

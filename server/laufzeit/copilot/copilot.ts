@@ -1,7 +1,16 @@
 // Echte Laufzeit über das GitHub Copilot SDK.
 // Kann auf dem Privatrechner nicht getestet werden (kein Copilot erlaubt) – Vorlage war das
 // Prüfpaket (pruefpaket/src/schritte-copilot.js), das auf dem Firmenrechner erfolgreich lief.
-import { CopilotClient, type CopilotSession, type MCPServerConfig, type SessionConfig } from "@github/copilot-sdk";
+import {
+  CopilotClient,
+  defineTool,
+  type CopilotSession,
+  type MCPServerConfig,
+  type ModelInfo,
+  type SessionConfig,
+  type Tool,
+} from "@github/copilot-sdk";
+import type { ModellInfo } from "../../../gemeinsam/typen.ts";
 import { laufzeitName } from "../../gateway/gateway.ts";
 import { startAngaben } from "../../mcp/mcp-dienst.ts";
 import type { AgentenLaufzeit, AgentenSitzung, EreignisEmpfaenger, SitzungsEinstellungen } from "../laufzeit.ts";
@@ -15,8 +24,14 @@ const umgebungsRegeln = [
   "Regeln dieser Umgebung:",
   "- Shell-Befehle und Internetzugriff sind technisch gesperrt. Versuche sie nicht und suche keine Umwege.",
   "- Dateien kannst du nur im Arbeitsverzeichnis lesen und schreiben.",
-  "- Manche Tool-Aufrufe brauchen eine Freigabe. Sie werden dann nicht ausgeführt, sondern als Vorschlag ins Postfach gelegt. " +
-    "Wiederhole sie nicht, arbeite mit dem weiter, was nicht davon abhängt, und nenne dem Nutzer die Nummer des Vorschlags.",
+  "- Manche Tool-Aufrufe brauchen eine Freigabe. Sie werden dann nicht ausgeführt, sondern als Vorschlag ins Postfach gelegt; " +
+    "nach der Freigabe führt die Plattform sie selbst aus. Wiederhole sie nicht. Ist die Aufgabe damit erledigt, schließe ab. " +
+    "Brauchst du das Ergebnis zum Weitermachen, rufe auf_freigabe_warten auf und beende deine Antwort.",
+  // E-47: nur bei wirklich wichtigen Fragen, aber nicht so selten, dass das Ergebnis leidet.
+  "- Rückfragen: Fehlt dir eine Information oder Entscheidung, die das Ergebnis wesentlich verändert und die du nicht " +
+    "selbst klären kannst, rufe rueckfrage_stellen auf und beende danach deine Antwort. Bündle mehrere Fragen in einer Rückfrage. " +
+    "Für Kleinigkeiten triff eine begründete Annahme und nenne sie im Ergebnis. Rate aber nicht, wenn das Ergebnis an der Frage hängt – " +
+    "lieber einmal fragen als eine falsche Lösung abliefern.",
   "- Wird eine Aktion abgelehnt, nimm das hin und sage dem Nutzer, was du nicht tun konntest.",
 ].join("\n");
 
@@ -39,15 +54,34 @@ function mcpKonfiguration(einstellungen: SitzungsEinstellungen): Record<string, 
   return konfiguration;
 }
 
+/** Die eigenen Tools der App (Postfach) in der Form des SDK. */
+function plattformTools(einstellungen: SitzungsEinstellungen): Tool<any>[] {
+  return einstellungen.plattformTools.map((tool) =>
+    defineTool(tool.name, {
+      description: tool.beschreibung,
+      parameters: tool.parameter,
+      handler: async (argumente) => tool.fuehreAus(argumente),
+      // Immer anbieten, nicht erst über die Tool-Suche: Der Agent soll sie ohne Umweg kennen.
+      defer: "never",
+    }),
+  );
+}
+
 function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionConfig {
   const { gateway } = einstellungen;
   // Verbotene Tools gar nicht erst anbieten; abgelehnt werden sie trotzdem, falls doch aufgerufen.
   const verboten = gateway.verboteneTools(einstellungen.mcpServer).map((adresse) => `mcp:${laufzeitName(adresse)}`);
   return {
+    // Ohne Modell wählt Copilot automatisch (so am Firmenrechner erprobt). Offen: ob ein fortgesetzter
+    // Chat nach dem Zurückstellen auf „automatisch“ beim zuletzt gewählten Modell bleibt.
     ...(einstellungen.modell ? { model: einstellungen.modell } : {}),
+    ...(einstellungen.denkaufwand ? { reasoningEffort: einstellungen.denkaufwand } : {}),
+    // "default" ausdrücklich (laut SDK erlaubt), damit ein Chat beim Zurückstellen nicht lang bleibt.
+    contextTier: einstellungen.kontext === "lang" ? "long_context" : "default",
     workingDirectory: einstellungen.workspaceOrdner,
     systemMessage: { mode: "append", content: `${einstellungen.auftrag}\n\n${umgebungsRegeln}` },
     streaming: true,
+    tools: plattformTools(einstellungen),
     mcpServers: mcpKonfiguration(einstellungen),
     excludedTools: [...shellWerkzeuge, ...verboten],
     hooks: erstelleGatewayHooks(gateway),
@@ -124,8 +158,33 @@ export class CopilotLaufzeit implements AgentenLaufzeit {
     return new CopilotSitzung(sitzung, empfaenger);
   }
 
+  async loescheSitzung(sitzungId: string): Promise<void> {
+    const client = await this.holeClient();
+    // Gibt es die Sitzung nicht (mehr), ist das Ziel auch erreicht.
+    await client.deleteSession(sitzungId).catch(() => {});
+  }
+
+  async modelle(): Promise<ModellInfo[]> {
+    const client = await this.holeClient();
+    const liste = await client.listModels();
+    return liste.filter((m) => m.policy?.state !== "disabled").map(alsModellInfo);
+  }
+
   async beenden(): Promise<void> {
     await this.client?.stop();
     this.client = null;
   }
+}
+
+function alsModellInfo(modell: ModelInfo): ModellInfo {
+  return {
+    id: modell.id,
+    name: modell.name,
+    denkStufen: modell.supportedReasoningEfforts ?? [],
+    standardDenkStufe: modell.defaultReasoningEffort ?? null,
+    kontextFenster: modell.capabilities?.limits?.max_context_window_tokens ?? null,
+    // Modelle mit langem Kontext haben dafür eigene Preise (SDK: tokenPrices.longContext).
+    langerKontext: !!modell.billing?.tokenPrices?.longContext,
+    multiplikator: modell.billing?.multiplier ?? null,
+  };
 }

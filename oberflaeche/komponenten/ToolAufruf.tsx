@@ -10,6 +10,10 @@ export interface ToolAufrufDaten {
 
 function zustand(aufruf: ToolAufrufDaten) {
   if (!aufruf.ende) return { text: "läuft …", klasse: "laeuft" };
+  // Vom Tool-Gateway angehalten (Freigabe nötig oder verboten) – kein Fehler des Tools selbst
+  if (!aufruf.ende.erfolgreich && aufruf.ende.ergebnis.startsWith("Nicht ausgeführt")) {
+    return { text: "nicht ausgeführt", klasse: "angehalten" };
+  }
   return aufruf.ende.erfolgreich ? { text: "erledigt", klasse: "ok" } : { text: "fehlgeschlagen", klasse: "fehlgeschlagen" };
 }
 

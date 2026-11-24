@@ -3,8 +3,9 @@
 KI-Plattform mit Harness für die ABAP-Entwicklung: Agenten über das GitHub Copilot SDK anlegen,
 verwalten und betreiben.
 
-Stand: **Phase 1, Schritt 2** – Chat mit einem Agenten, Live-Ansicht, Simulation,
-Copilot-Anbindung, MCP-Server und Tool-Gateway mit Regeln je Tool. Planung und Entscheidungen
+Stand: **Phase 1, Schritt 3** – Chat mit einem Agenten, Live-Ansicht, Simulation,
+Copilot-Anbindung, MCP-Server und Tool-Gateway mit Regeln je Tool, Postfach mit Freigaben,
+Rückfragen und Meldungen, Warteschlange und Wiederaufnahme, Modellwahl je Chat. Planung und Entscheidungen
 stehen in [docs/](docs/).
 
 ## Starten
@@ -56,7 +57,7 @@ werden.
 |---|---|
 | `npm start` | App starten |
 | `npm run entwickeln` | wie `start`, startet bei Änderungen am Server neu |
-| `npm test` | prüft Tool-Gateway, MCP-Client und Berechtigungsregeln |
+| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach und Warteschlange |
 | `npm run typpruefung` | TypeScript-Prüfung von Server und Oberfläche |
 
 ## Ordner
@@ -65,14 +66,15 @@ werden.
 server/                 Backend (Node, TypeScript – wird ohne Bau-Schritt direkt ausgeführt)
   start.ts              Einstieg
   einstellungen.ts      liest einstellungen.json
-  datenbank/            SQLite: Aufgaben, Ereignisse, MCP-Server, Regeln, Postfach
+  datenbank/            SQLite: Aufgaben, Ereignisse, MCP-Server, Regeln, Postfach, Warteschlange
   laufzeit/             Agenten-Laufzeit, austauschbar
     laufzeit.ts         die gemeinsame Schnittstelle
     copilot/            echtes Copilot SDK, Berechtigungsregeln, Gateway-Hooks
     simulation/         Drehbuch statt Modell
   gateway/              Tool-Gateway: entscheidet je Aufruf nach der Regel des Tools
-  mcp/                  MCP-Server verwalten, eigener kleiner MCP-Client, Stellvertreter eintragen
-  chat/                 Ablauf Nachricht → Agent → Anzeige, Live-Verteilung
+  mcp/                  MCP-Server verwalten, eigener kleiner MCP-Client, Aufrufe ohne Agent, Stellvertreter
+  postfach/             Aktionen im Postfach (freigeben, verwerfen, antworten), Plattform-Tools des Agenten
+  chat/                 Ablauf Nachricht → Warteschlange → Agent → Anzeige, Live-Verteilung
   http/                 HTTP-Server und Routen
 oberflaeche/            React-Oberfläche
   seiten/               ganze Seiten

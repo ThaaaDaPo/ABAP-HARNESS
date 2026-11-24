@@ -30,6 +30,11 @@ export function uebersetze(ereignis: SessionEvent): Ereignis | null {
         ergebnis: ereignis.data.result?.content ?? ereignis.data.error?.message ?? "",
       };
 
+    // Zeigt, welches Modell wirklich geantwortet hat – wichtig bei automatischer Auswahl.
+    case "assistant.usage":
+      if (ereignis.data.parentToolCallId) return null;
+      return { art: "modell", modell: ereignis.data.model };
+
     case "session.error":
       return { art: "fehler", meldung: ereignis.data.message };
 

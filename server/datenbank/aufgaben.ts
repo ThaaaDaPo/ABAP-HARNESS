@@ -1,6 +1,6 @@
-// Aufgaben lesen und schreiben.
+// Aufgaben lesen, schreiben und löschen.
 import { randomUUID } from "node:crypto";
-import type { Aufgabe, AufgabenStatus } from "../../gemeinsam/typen.ts";
+import type { Aufgabe, AufgabenStatus, ModellWahl } from "../../gemeinsam/typen.ts";
 import type { Datenbank } from "./datenbank.ts";
 
 interface AufgabenZeile {
@@ -9,6 +9,9 @@ interface AufgabenZeile {
   status: AufgabenStatus;
   sitzung_id: string | null;
   erstellt_am: string;
+  modell: string;
+  denkaufwand: string;
+  kontext: ModellWahl["kontext"];
 }
 
 export interface AufgabeIntern extends Aufgabe {
@@ -23,6 +26,7 @@ function ausZeile(zeile: AufgabenZeile): AufgabeIntern {
     status: zeile.status,
     sitzungId: zeile.sitzung_id,
     erstelltAm: zeile.erstellt_am,
+    modellWahl: { modell: zeile.modell, denkaufwand: zeile.denkaufwand, kontext: zeile.kontext },
   };
 }
 
@@ -33,21 +37,13 @@ export function oeffentlich(aufgabe: AufgabeIntern): Aufgabe {
 }
 
 export function legeAufgabeAn(db: Datenbank, titel: string): AufgabeIntern {
-  const aufgabe: AufgabeIntern = {
-    id: randomUUID(),
+  const id = randomUUID();
+  db.prepare(`INSERT INTO aufgaben (id, titel, status, sitzung_id, erstellt_am) VALUES (?, ?, 'bereit', NULL, ?)`).run(
+    id,
     titel,
-    status: "bereit",
-    sitzungId: null,
-    erstelltAm: new Date().toISOString(),
-  };
-  db.prepare(`INSERT INTO aufgaben (id, titel, status, sitzung_id, erstellt_am) VALUES (?, ?, ?, ?, ?)`).run(
-    aufgabe.id,
-    aufgabe.titel,
-    aufgabe.status,
-    aufgabe.sitzungId,
-    aufgabe.erstelltAm,
+    new Date().toISOString(),
   );
-  return aufgabe;
+  return holeAufgabe(db, id)!;
 }
 
 export function holeAufgabe(db: Datenbank, id: string): AufgabeIntern | null {
@@ -60,6 +56,19 @@ export function holeAlleAufgaben(db: Datenbank): AufgabeIntern[] {
   return zeilen.map(ausZeile);
 }
 
+/** Chats ohne eine einzige Nachricht, die gerade auf nichts warten – die räumt „Neuer Chat“ weg. */
+export function holeLeereAufgaben(db: Datenbank): string[] {
+  const zeilen = db
+    .prepare(
+      `SELECT a.id FROM aufgaben a
+       WHERE a.status = 'bereit'
+         AND NOT EXISTS (SELECT 1 FROM ereignisse e WHERE e.aufgabe_id = a.id)
+         AND NOT EXISTS (SELECT 1 FROM warteschlange w WHERE w.aufgabe_id = a.id)`,
+    )
+    .all() as { id: string }[];
+  return zeilen.map((z) => z.id);
+}
+
 export function setzeStatus(db: Datenbank, id: string, status: AufgabenStatus): void {
   db.prepare(`UPDATE aufgaben SET status = ? WHERE id = ?`).run(status, id);
 }
@@ -70,4 +79,21 @@ export function setzeTitel(db: Datenbank, id: string, titel: string): void {
 
 export function setzeSitzungId(db: Datenbank, id: string, sitzungId: string): void {
   db.prepare(`UPDATE aufgaben SET sitzung_id = ? WHERE id = ?`).run(sitzungId, id);
+}
+
+export function setzeModellWahl(db: Datenbank, id: string, wahl: ModellWahl): void {
+  db.prepare(`UPDATE aufgaben SET modell = ?, denkaufwand = ?, kontext = ? WHERE id = ?`).run(
+    wahl.modell,
+    wahl.denkaufwand,
+    wahl.kontext,
+    id,
+  );
+}
+
+/** Löscht die Aufgabe mit Verlauf, Postfach-Einträgen und Warteschlange. */
+export function loescheAufgabe(db: Datenbank, id: string): void {
+  for (const tabelle of ["ereignisse", "postfach", "warteschlange"]) {
+    db.prepare(`DELETE FROM ${tabelle} WHERE aufgabe_id = ?`).run(id);
+  }
+  db.prepare(`DELETE FROM aufgaben WHERE id = ?`).run(id);
 }
