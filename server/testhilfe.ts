@@ -10,7 +10,7 @@ import type { ModellInfo } from "../gemeinsam/typen.ts";
 import { ChatDienst } from "./chat/chat-dienst.ts";
 import { holeAufgabe } from "./datenbank/aufgaben.ts";
 import { oeffneDatenbank } from "./datenbank/datenbank.ts";
-import { legeServerAn } from "./datenbank/mcp-server.ts";
+import { holeServer, legeServerAn } from "./datenbank/mcp-server.ts";
 import { setzeRegel, standardTool } from "./datenbank/tool-regeln.ts";
 import type { Einstellungen } from "./einstellungen.ts";
 import type { AgentenLaufzeit, SitzungsEinstellungen } from "./laufzeit/laufzeit.ts";
@@ -28,9 +28,12 @@ export const testModelle: ModellInfo[] = [
   { id: "gross", name: "Groß", denkStufen: ["low", "high"], standardDenkStufe: "low", kontextStandard: 2000, langerKontext: true, kontextLang: 9000, multiplikator: null },
 ];
 
-export function aufbauen(verhalten: Verhalten = () => {}) {
-  const db = oeffneDatenbank(fs.mkdtempSync(path.join(os.tmpdir(), "harness-test-")));
-  legeServerAn(db, {
+/**
+ * `ordner`: dieselbe Datenbank noch einmal öffnen – so lässt sich ein Neustart der App nachstellen.
+ */
+export function aufbauen(verhalten: Verhalten = () => {}, ordner = fs.mkdtempSync(path.join(os.tmpdir(), "harness-test-"))) {
+  const db = oeffneDatenbank(ordner);
+  if (!holeServer(db, "jira")) legeServerAn(db, {
     schluessel: "jira",
     name: "Jira (Stellvertreter)",
     befehl: process.execPath,
@@ -46,6 +49,8 @@ export function aufbauen(verhalten: Verhalten = () => {}) {
   const sitzungsStarts: SitzungsEinstellungen[] = [];
   /** Gelöschte Sitzungen */
   const geloescht: string[] = [];
+  /** Wie oft ein Lauf abgebrochen wurde */
+  let abbrueche = 0;
   let zaehler = 0;
 
   const laufzeit: AgentenLaufzeit = {
@@ -64,7 +69,7 @@ export function aufbauen(verhalten: Verhalten = () => {}) {
         gesendet.push(text);
         await verhalten(text, einstellungen);
       },
-      abbrechen: async () => {},
+      abbrechen: async () => void abbrueche++,
       trennen: async () => {},
     };
   }
@@ -73,7 +78,7 @@ export function aufbauen(verhalten: Verhalten = () => {}) {
   const chat = new ChatDienst(db, laufzeit, einstellungen);
   const postfach = new PostfachDienst(db, chat, aufrufer);
   const status = (id: string) => holeAufgabe(db, id)?.status;
-  return { db, chat, postfach, gesendet, sitzungsStarts, geloescht, status };
+  return { db, ordner, chat, postfach, gesendet, sitzungsStarts, geloescht, status, abbrueche: () => abbrueche };
 }
 
 /** Wartet, bis die Bedingung erfüllt ist (die Läufe laufen im Hintergrund). */

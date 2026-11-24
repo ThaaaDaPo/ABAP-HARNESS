@@ -141,7 +141,7 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
   const hinweisEingabe = offen("rueckfrage")
     ? "Deine Antwort auf die Rückfrage"
     : offen("freigabe")
-      ? "Vorschlag oben freigeben oder verwerfen – oder schreib dem Agenten"
+      ? "Änderungswunsch zum Vorschlag – oder oben freigeben bzw. verwerfen"
       : undefined;
 
   async function sende(text: string) {

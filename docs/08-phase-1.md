@@ -1,6 +1,6 @@
 # 08 – Phase 1: Plattformkern (Umfang)
 
-Status: **gestartet 2026-11-13. Schritte 1 bis 3 abgenommen. Nach der Abnahme von Schritt 3 umgebaut (Freigaben im Chat, E-52) – kurze Nachprüfung steht aus. Danach Schritt 4.**
+Status: **gestartet 2026-11-13. Schritte 1 bis 3 abgenommen. Nach der Abnahme von Schritt 3 umgebaut (Freigaben im Chat, Agent wartet auf David, E-52/E-54) – kurze Nachprüfung steht aus. Danach Schritt 4.**
 
 ## Stand Schritt 1 (2026-11-13)
 
@@ -338,24 +338,67 @@ Rückmeldungen:
   dem Prompt-Budget je Stufe (`tokenPrices.maxPromptTokens` bzw. `…longContext.maxPromptTokens`)
   plus maximaler Ausgabe; fehlt das, die allgemeine Obergrenze des Modells.
 
-Festlegungen dazu (Vorschlag): Schreibt David bei offenem **Vorschlag** in den Chat, bleibt der
-Vorschlag offen (nur Rückfragen werden durch eine Nachricht beantwortet). Geprüft in der
-Simulation und im Browser; `npm test`: 32 Tests.
+Geprüft in der Simulation und im Browser; `npm test`: 32 Tests.
+
+### Zweiter Umbau: Der Agent wartet im Chat auf David (E-54)
+
+Rückmeldung nach dem Test: Der Ablauf „Tool schlägt fehl → Karte → `auf_freigabe_warten` → Text“
+wirkt unschön. Gewünscht: Karte sofort, dann nichts, bis David etwas tut. Umgesetzt:
+
+- Im Chat wartet der Hook `onPreToolUse` im Gateway, bis David entschieden hat
+  ([gateway.ts](../server/gateway/gateway.ts), [entscheidungen.ts](../server/postfach/entscheidungen.ts)).
+  *Freigeben*: der Hook lässt durch, Copilot führt das Tool selbst aus, der Agent bekommt das
+  echte Ergebnis; es steht auch in der Karte. *Verwerfen*: Ablehnung, der Lauf wird sofort
+  angehalten, Chat „abgebrochen“. **Eine Nachricht im Eingabefeld** ist der Änderungswunsch –
+  der wartende Aufruf wird mit dem Wunsch abgelehnt, der Agent ruft das Tool angepasst erneut auf.
+- Zweite Sperre: Die Berechtigungsprüfung lässt ein Tool mit Regel *Freigabe* nur durch, wenn es
+  gerade freigegeben wurde – je Freigabe genau einmal. Sollte Copilot das Warten im Hook doch
+  irgendwann abbrechen, wird so trotzdem nichts ohne Freigabe ausgeführt.
+- `rueckfrage_stellen` wartet im Chat ebenfalls und liefert die Antwort als Ergebnis.
+  `auf_freigabe_warten` gibt es im Chat nicht mehr (nur noch für Workflows).
+- Solange der Agent in einem Chat wartet, ist er für andere Chats frei. Nach der Entscheidung
+  geht der wartende Aufruf weiter, sobald der Agent wieder frei ist (vor der Warteschlange).
+- Im Verlauf erscheinen der Tool-Aufruf und die Vorschlagskarte als **eine** Karte; der Aufruf
+  von `rueckfrage_stellen` wird nicht extra gezeigt. Die Karte hat nur *Freigeben* und
+  *Verwerfen*; das Eingabefeld sagt „Änderungswunsch zum Vorschlag …“.
+- Wird ein Chat gelöscht, während der Agent darin wartet, gilt der Vorschlag als verworfen.
+- Nach einem **Neustart** der App wartet niemand mehr: Dann führt *Freigeben* den Aufruf selbst
+  aus und setzt den Agenten mit dem Ergebnis fort (wie im ersten Umbau).
+- Folge für E-44: Nach dem Freigeben schreibt der Agent im Chat noch kurz etwas (ein kleiner
+  Modellaufruf). Im Auftrag steht, dass ein kurzer Satz genügt. Für Workflows bleibt es ohne KI.
+
+Annahmen, die erst am Firmenrechner geprüft werden können:
+
+- `onPreToolUse` darf beliebig lange warten (das SDK nennt keine Zeitgrenze). Falls doch eine
+  greift: Was sieht man im Chat? (Ausgeführt wird dann wegen der zweiten Sperre nichts.)
+- Ein eigenes Tool (`rueckfrage_stellen`) darf ebenso lange auf das Ergebnis warten.
+- Die `toolCallId` im Hook ist dieselbe wie im Ereignis `tool.execution_start` – sonst steht unter
+  der Vorschlagskarte zusätzlich die normale Tool-Karte (nur ein Schönheitsfehler).
+- `session.abort()` direkt nach der Ablehnung beim Verwerfen beendet den Lauf, ohne dass der
+  Agent noch etwas schreibt.
+
+Geprüft in der Simulation und im Browser; `npm test`: 38 Tests.
 
 ### Nachprüfung am Firmenrechner (kurz)
 
-1. Neuer Chat, Kommentar an TEST-1 anlegen lassen → Karte „Vorschlag #… · Freigabe zum Abschluss“
-   im Chat, Chat-Marke „wartet auf dich“, Eingabefeld-Hinweis „Vorschlag oben freigeben …“.
-   **Freigeben** in der Karte → Ergebnis in der Karte, Kommentar in Jira, Chat „erledigt“.
-2. Wie 1, dann in der Karte **Änderungen anfordern** → neuer Vorschlag als neue Karte; diese
-   **verwerfen** → Chat „abgebrochen“.
-3. Kommentar anlegen und danach Ticket prüfen lassen → „Freigabe zum Weitermachen“, Freigeben in
-   der Karte → der Agent macht darunter weiter.
-4. Rückfrage provozieren (neue Klasse, „frag mich nach dem Paket“) → Rückfrage hervorgehoben,
-   Eingabefeld „Deine Antwort auf die Rückfrage“ → im Eingabefeld antworten → Agent macht weiter.
-5. Postfach in der Navigation ist ausgegraut.
-6. Modellleiste: Context Window zeigt Größen. **Foto** der Auswahl bei einem Modell mit „Lang“
-   (stimmen die Zahlen ungefähr mit dem, was Copilot sonst angibt?).
+Vorbereitung wie bei der Abnahme: harmloses schreibendes Atlassian-Tool auf **Freigabe**, Testticket
+`TEST-1`.
+
+1. Neuer Chat: „Lege an TEST-1 einen Kommentar ‚Nachprüfung‘ an.“ → **sofort** die Karte
+   „Vorschlag #… · Freigabe nötig“, **keine** fehlgeschlagene Tool-Karte, kein
+   `auf_freigabe_warten`, kein Text danach. Chat-Marke „wartet auf dich“.
+2. **Eine Minute warten** (prüft, ob Copilot das Warten abbricht), dann **Freigeben** → Ergebnis in
+   der Karte, Kommentar in Jira, der Agent schreibt kurz, dass es erledigt ist.
+3. Wie 1, dann ins Eingabefeld „Bitte auf Englisch“ → Karte „Änderung angefordert“, der Agent
+   legt sofort eine neue Karte mit englischem Text vor. Diese **verwerfen** → Chat
+   „abgebrochen“, der Agent schreibt nichts mehr, in Jira kein Kommentar.
+4. „Lege eine neue ABAP-Klasse an, frag mich vorher nach dem Paket.“ → Rückfrage erscheint, kein
+   Text danach. Antwort im Eingabefeld → der Agent macht mit der Antwort weiter.
+5. Wie 1; während die Karte wartet, in einem **anderen** Chat „Was ist 2+2?“ → kommt sofort.
+   Danach im ersten Chat freigeben → geht weiter.
+6. Wie 1, **App neu starten**, dann freigeben → Kommentar in Jira, der Agent macht weiter.
+7. Postfach in der Navigation ausgegraut; Context Window zeigt Größen – **Foto** bei einem Modell
+   mit „Lang“.
 
 ### Bekannte Lücken nach Schritt 3
 

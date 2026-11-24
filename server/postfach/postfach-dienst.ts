@@ -1,6 +1,10 @@
 // Was Davids Aktionen an Vorschlägen und Rückfragen bewirken – egal ob er sie im Chat erledigt
 // (Aufgaben aus dem Chat) oder im Postfach (Aufgaben aus Workflows, E-52).
 //
+// Im Chat wartet der Agent mitten im Tool-Aufruf auf David (E-54): Dann geht die Entscheidung
+// direkt an den wartenden Aufruf (ChatDienst.entscheide). Alles Folgende gilt, wenn niemand wartet –
+// bei Workflows immer, im Chat nur, wenn die App inzwischen neu gestartet wurde.
+//
 // Freigabe zum Abschluss (E-44): Die Aufgabe ist fertig, es fehlt nur noch der Aufruf.
 //   freigeben         → die Plattform führt ihn aus, ohne KI; die Aufgabe ist erledigt
 //   verwerfen         → nicht ausgeführt, die Aufgabe ist abgebrochen, ohne KI
@@ -13,6 +17,7 @@
 import type { PostfachEintrag } from "../../gemeinsam/typen.ts";
 import type { ChatDienst } from "../chat/chat-dienst.ts";
 import { meldeUebersicht } from "../chat/live-verteiler.ts";
+import { holeAufgabe } from "../datenbank/aufgaben.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { holeServer } from "../datenbank/mcp-server.ts";
 import * as postfach from "../datenbank/postfach.ts";
@@ -64,6 +69,9 @@ export class PostfachDienst {
       throw new Fehler(409, `Das Tool ${laufzeitName(eintrag)} ist inzwischen verboten. Bitte verwerfen oder die Regel ändern.`);
     }
 
+    // Der Agent wartet im Chat: Das Tool läuft dort ganz normal weiter.
+    if (this.chat.entscheide(nr, { art: "freigegeben" })) return;
+
     this.inAusfuehrung.add(nr);
     let text: string;
     let fehlgeschlagen: boolean;
@@ -87,7 +95,9 @@ export class PostfachDienst {
     }
 
     postfach.schliesseAb(this.db, nr, { status: "freigegeben", ergebnis: text });
-    if (eintrag.weiterNachFreigabe) {
+    // Aus einem Chat (nach einem Neustart): Der Agent hat auf das Ergebnis gewartet, also weiter.
+    const ausChat = holeAufgabe(this.db, eintrag.aufgabeId)?.herkunft === "chat";
+    if (eintrag.weiterNachFreigabe || ausChat) {
       this.hinweis(eintrag, `Vorschlag #${nr} freigegeben und ausgeführt. Der Agent macht weiter, sobald er frei ist.`, text);
       this.chat.setzeFortAusPostfach(
         eintrag.aufgabeId,
@@ -102,6 +112,7 @@ export class PostfachDienst {
   /** Nicht ausführen und die Aufgabe abbrechen – ohne KI. */
   verwerfen(nr: number): void {
     const eintrag = this.holeOffenen(nr, ["freigabe", "rueckfrage"]);
+    if (this.chat.entscheide(nr, { art: "verworfen" })) return;
     postfach.schliesseAb(this.db, nr, { status: "verworfen" });
     const was = eintrag.art === "freigabe" ? "Vorschlag" : "Rückfrage";
     this.hinweis(eintrag, `${was} #${nr} verworfen. Aufgabe abgebrochen.`);
@@ -124,6 +135,7 @@ export class PostfachDienst {
     if (!eintrag) throw new Fehler(404, `Eintrag #${nr} nicht gefunden.`);
     if (this.inAusfuehrung.has(nr)) throw new Fehler(409, `Vorschlag #${nr} wird gerade ausgeführt.`);
     const offen = postfach.offeneStatus.includes(eintrag.status);
+    if (offen && this.chat.entscheide(nr, { art: "antwort", text })) return;
     const name = eintrag.art === "rueckfrage" ? "" : ` (${laufzeitName(eintrag)})`;
 
     let anAgent: string;

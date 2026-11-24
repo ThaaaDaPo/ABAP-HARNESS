@@ -1,22 +1,163 @@
-// Prüft Postfach-Aktionen, Wiederaufnahme und Warteschlange (E-44 bis E-47).
-// Statt eines Modells läuft eine kleine Test-Laufzeit; freigegebene Aufrufe gehen an den echten
-// Jira-Stellvertreter-Prozess. Läuft ohne Copilot: npm test
+// Prüft Freigaben, Rückfragen, Wiederaufnahme und Warteschlange.
+// Im Chat wartet der Agent mitten im Tool-Aufruf auf David (E-54); ohne David (Workflow) wird der
+// Vorschlag abgelegt und der Agent arbeitet weiter (E-44, E-45).
+// Statt eines Modells läuft eine kleine Test-Laufzeit; Aufrufe ohne wartenden Agenten gehen an den
+// echten Jira-Stellvertreter-Prozess. Läuft ohne Copilot: npm test
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { ChatDienst } from "../chat/chat-dienst.ts";
+import type { Datenbank } from "../datenbank/datenbank.ts";
 import { holeEintrag } from "../datenbank/postfach.ts";
 import { setzeRegel } from "../datenbank/tool-regeln.ts";
 import { aufbauen, warteBis, type Verhalten } from "../testhilfe.ts";
 
-/** Der Agent will eine Confluence-Seite anlegen; das Gateway legt den Vorschlag ab. */
-const seiteVorschlagen: Verhalten = (text, { gateway }) => {
-  if (/seite/i.test(text)) gateway.vorAufruf({ server: "jira", tool: "seite_anlegen" }, { bereich: "ABAP", titel: "Doku", inhalt: "x" });
-};
+const seite = { server: "jira", tool: "seite_anlegen" };
 
-test("Freigabe zum Abschluss: Plattform führt aus, ohne KI; Aufgabe erledigt", async () => {
-  const { chat, postfach, gesendet, status } = aufbauen(seiteVorschlagen);
+/** Wie Copilot: fragt das Gateway, prüft die zweite Sperre, „führt aus“ und meldet das Ergebnis. */
+const seiteAnlegen =
+  (merke: string[] = []): Verhalten =>
+  async (text, { gateway }) => {
+    if (!/seite/i.test(text)) return;
+    const entscheidung = await gateway.vorAufruf(seite, { bereich: "ABAP", titel: "Doku", inhalt: "x" }, "aufruf-1");
+    if (!entscheidung.ausfuehren) {
+      merke.push(entscheidung.grund);
+      return;
+    }
+    assert.equal(gateway.darfAusfuehren(seite), true);
+    assert.equal(gateway.darfAusfuehren(seite), false, "eine Freigabe gilt für genau einen Aufruf");
+    gateway.nachAufruf(seite, {}, "Seite angelegt.", "aufruf-1");
+    merke.push("ausgeführt");
+  };
+
+// ---------------------------------------------------------------------------------------------
+// Im Chat: Der Agent wartet auf David (E-54)
+// ---------------------------------------------------------------------------------------------
+
+test("Chat: Der Aufruf wartet, nach dem Freigeben läuft das Tool und der Agent hat das Ergebnis", async () => {
+  const merke: string[] = [];
+  const { chat, postfach, gesendet, status } = aufbauen(seiteAnlegen(merke));
   const { id } = await chat.neueAufgabe();
   chat.nimmNachrichtAn(id, "Lege die Seite an");
   await warteBis(() => status(id) === "wartet");
+  assert.deepEqual(merke, [], "das Tool ist noch nicht gelaufen und nicht fehlgeschlagen");
+
+  await postfach.freigeben(1);
+  await warteBis(() => status(id) === "bereit");
+  assert.deepEqual(merke, ["ausgeführt"]);
+  assert.deepEqual([postfach.fuerAufgabe(id)[0].status, postfach.fuerAufgabe(id)[0].ergebnis], ["freigegeben", "Seite angelegt."]);
+  assert.equal(gesendet.length, 1, "keine zusätzliche Nachricht an den Agenten");
+});
+
+test("Chat: Eine Nachricht, während der Agent wartet, ist der Änderungswunsch", async () => {
+  const merke: string[] = [];
+  const { chat, postfach, gesendet, status } = aufbauen(seiteAnlegen(merke));
+  const { id } = await chat.neueAufgabe();
+  chat.nimmNachrichtAn(id, "Lege die Seite an");
+  await warteBis(() => status(id) === "wartet");
+
+  chat.nimmNachrichtAn(id, "Bitte auf Englisch");
+  await warteBis(() => status(id) === "bereit");
+  assert.match(merke[0], /nicht freigegeben und wünscht Änderungen:\nBitte auf Englisch/);
+  assert.deepEqual([postfach.fuerAufgabe(id)[0].status, postfach.fuerAufgabe(id)[0].antwort], ["aenderung_angefordert", "Bitte auf Englisch"]);
+  assert.equal(gesendet.length, 1, "geht an den wartenden Aufruf, nicht als neue Nachricht");
+});
+
+test("Chat: Verwerfen lehnt ab, hält den Lauf an und bricht die Aufgabe ab", async () => {
+  const merke: string[] = [];
+  const { chat, postfach, status, abbrueche } = aufbauen(seiteAnlegen(merke));
+  const { id } = await chat.neueAufgabe();
+  chat.nimmNachrichtAn(id, "Lege die Seite an");
+  await warteBis(() => status(id) === "wartet");
+
+  postfach.verwerfen(1);
+  await warteBis(() => status(id) === "abgebrochen");
+  assert.match(merke[0], /verworfen/);
+  assert.equal(abbrueche(), 1);
+});
+
+test("Chat: Rückfrage wartet auf die Antwort im Eingabefeld und liefert sie als Ergebnis", async () => {
+  let ergebnis = "";
+  const { chat, postfach, gesendet, status } = aufbauen(async (text, sitzung) => {
+    if (text !== "Mach was") return;
+    const werkzeug = sitzung.plattformTools.find((t) => t.name === "rueckfrage_stellen")!;
+    ergebnis = await werkzeug.fuehreAus({ frage: "Welches Paket?" });
+  });
+  const { id } = await chat.neueAufgabe();
+  chat.nimmNachrichtAn(id, "Mach was");
+  await warteBis(() => status(id) === "wartet");
+
+  chat.nimmNachrichtAn(id, "$TMP");
+  await warteBis(() => status(id) === "bereit");
+  assert.equal(ergebnis, "Antwort des Nutzers:\n$TMP");
+  assert.deepEqual([postfach.fuerAufgabe(id)[0].status, postfach.fuerAufgabe(id)[0].antwort], ["beantwortet", "$TMP"]);
+  assert.equal(gesendet.length, 1);
+});
+
+test("Chat: Im Chat gibt es kein auf_freigabe_warten – der Aufruf wartet selbst", async () => {
+  let namen: string[] = [];
+  const { chat, status } = aufbauen((_text, sitzung) => void (namen = sitzung.plattformTools.map((t) => t.name)));
+  const { id } = await chat.neueAufgabe();
+  chat.nimmNachrichtAn(id, "hallo");
+  await warteBis(() => status(id) === "bereit");
+  assert.deepEqual(namen, ["rueckfrage_stellen"]);
+});
+
+test("Chat: Während der Agent wartet, laufen andere Chats; danach geht es der Reihe nach weiter", async () => {
+  const merke: string[] = [];
+  let loslassen = () => {};
+  const { chat, postfach, gesendet, status } = aufbauen(async (text, sitzung) => {
+    if (text === "lang") return new Promise<void>((r) => (loslassen = r));
+    await seiteAnlegen(merke)(text, sitzung);
+  });
+  const a = (await chat.neueAufgabe()).id;
+  chat.nimmNachrichtAn(a, "Lege die Seite an");
+  await warteBis(() => status(a) === "wartet");
+
+  const b = (await chat.neueAufgabe()).id;
+  chat.nimmNachrichtAn(b, "lang");
+  await warteBis(() => status(b) === "arbeitet" && gesendet.length === 2);
+
+  // A wird freigegeben, während der Agent an B arbeitet: A ist eingereiht, bis B fertig ist
+  await postfach.freigeben(1);
+  assert.equal(status(a), "eingereiht");
+  assert.deepEqual(merke, []);
+
+  loslassen();
+  await warteBis(() => status(a) === "bereit" && status(b) === "bereit");
+  assert.deepEqual(merke, ["ausgeführt"]);
+  assert.deepEqual(gesendet, ["Lege die Seite an", "lang"]);
+});
+
+test("Chat nach einem Neustart: Freigeben führt den Aufruf selbst aus und setzt den Agenten fort", async () => {
+  const erster = aufbauen(seiteAnlegen());
+  const { id } = await erster.chat.neueAufgabe();
+  erster.chat.nimmNachrichtAn(id, "Lege die Seite an");
+  await warteBis(() => erster.status(id) === "wartet");
+
+  // Neue App-Instanz auf derselben Datenbank: Niemand wartet mehr auf den Vorschlag
+  const zweiter = aufbauen(() => {}, erster.ordner);
+  await zweiter.postfach.freigeben(1);
+  await warteBis(() => zweiter.gesendet.length === 1 && zweiter.status(id) === "bereit");
+  assert.match(zweiter.gesendet[0], /Vorschlag #1 \(jira-seite_anlegen\) wurde freigegeben und ausgeführt. Ergebnis:\nSeite \d+ „Doku“/);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Ohne David (Workflow, ab Phase 4): Vorschlag ablegen, weiterarbeiten (E-44, E-45, E-47)
+// ---------------------------------------------------------------------------------------------
+
+/** Legt eine Aufgabe als Workflow an (bis Phase 4 gibt es dafür noch keinen eigenen Weg). */
+async function neuerWorkflow(chat: ChatDienst, db: Datenbank): Promise<string> {
+  const { id } = await chat.neueAufgabe();
+  db.prepare(`UPDATE aufgaben SET herkunft = 'workflow' WHERE id = ?`).run(id);
+  return id;
+}
+
+test("Workflow: Freigabe zum Abschluss – Plattform führt aus, ohne KI; Aufgabe erledigt", async () => {
+  const { db, chat, postfach, gesendet, status } = aufbauen(seiteAnlegen());
+  const id = await neuerWorkflow(chat, db);
+  chat.nimmNachrichtAn(id, "Lege die Seite an");
+  await warteBis(() => status(id) === "wartet");
+  assert.deepEqual(postfach.fuerWorkflows().map((e) => e.nr), [1]);
 
   await postfach.freigeben(1);
   const eintrag = postfach.alle()[0];
@@ -27,9 +168,9 @@ test("Freigabe zum Abschluss: Plattform führt aus, ohne KI; Aufgabe erledigt", 
   await assert.rejects(postfach.freigeben(1), /schon erledigt/);
 });
 
-test("Verwerfen: nicht ausgeführt, Aufgabe abgebrochen, ohne KI", async () => {
-  const { chat, postfach, gesendet, status } = aufbauen(seiteVorschlagen);
-  const { id } = await chat.neueAufgabe();
+test("Workflow: Verwerfen – nicht ausgeführt, Aufgabe abgebrochen, ohne KI", async () => {
+  const { db, chat, postfach, gesendet, status } = aufbauen(seiteAnlegen());
+  const id = await neuerWorkflow(chat, db);
   chat.nimmNachrichtAn(id, "Lege die Seite an");
   await warteBis(() => status(id) === "wartet");
 
@@ -39,9 +180,9 @@ test("Verwerfen: nicht ausgeführt, Aufgabe abgebrochen, ohne KI", async () => {
   assert.equal(gesendet.length, 1);
 });
 
-test("Änderungen anfordern: Agent macht in derselben Aufgabe weiter und legt neu vor", async () => {
-  const { chat, postfach, gesendet, status } = aufbauen(seiteVorschlagen);
-  const { id } = await chat.neueAufgabe();
+test("Workflow: Änderungen anfordern – Agent macht in derselben Aufgabe weiter und legt neu vor", async () => {
+  const { db, chat, postfach, gesendet, status } = aufbauen(seiteAnlegen());
+  const id = await neuerWorkflow(chat, db);
   chat.nimmNachrichtAn(id, "Lege die Seite an");
   await warteBis(() => status(id) === "wartet");
 
@@ -52,22 +193,20 @@ test("Änderungen anfordern: Agent macht in derselben Aufgabe weiter und legt ne
   assert.equal(postfach.alle().find((e) => e.nr === 2)?.status, "offen", "neuer Vorschlag liegt vor");
 });
 
-test("Freigabe zum Weitermachen: Aufgabe pausiert und geht nach der Freigabe mit dem Ergebnis weiter", async () => {
-  const { db, chat, postfach, gesendet, status } = aufbauen((text, sitzung) => {
+test("Workflow: Freigabe zum Weitermachen – pausiert und geht nach allen Freigaben mit den Ergebnissen weiter", async () => {
+  const { db, chat, postfach, gesendet, status } = aufbauen(async (text, sitzung) => {
     if (!text.includes("Seiten")) return;
-    // Zwei Vorschläge, und der Agent braucht beide Ergebnisse
-    sitzung.gateway.vorAufruf({ server: "jira", tool: "seite_anlegen" }, { bereich: "ABAP", titel: "Eins", inhalt: "x" });
-    sitzung.gateway.vorAufruf({ server: "jira", tool: "seite_anlegen" }, { bereich: "ABAP", titel: "Zwei", inhalt: "x" });
-    const werkzeug = (name: string) => sitzung.plattformTools.find((t) => t.name === name)!;
-    assert.match(werkzeug("auf_freigabe_warten").fuehreAus({ vorschlag: 1 }), /pausiert, bis Vorschlag #1/);
-    assert.match(werkzeug("auf_freigabe_warten").fuehreAus({}), /pausiert, bis Vorschlag #2/);
+    await sitzung.gateway.vorAufruf(seite, { bereich: "ABAP", titel: "Eins", inhalt: "x" });
+    await sitzung.gateway.vorAufruf(seite, { bereich: "ABAP", titel: "Zwei", inhalt: "x" });
+    const werkzeug = sitzung.plattformTools.find((t) => t.name === "auf_freigabe_warten")!;
+    assert.match(await werkzeug.fuehreAus({ vorschlag: 1 }), /pausiert, bis Vorschlag #1/);
+    assert.match(await werkzeug.fuehreAus({}), /pausiert, bis Vorschlag #2/);
   });
-  const { id } = await chat.neueAufgabe();
+  const id = await neuerWorkflow(chat, db);
   chat.nimmNachrichtAn(id, "Lege zwei Seiten an und verlinke sie");
   await warteBis(() => status(id) === "wartet");
   assert.equal(holeEintrag(db, 1)?.weiterNachFreigabe, true);
 
-  // Erst nach der zweiten Freigabe geht es weiter – mit beiden Ergebnissen in einer Nachricht
   await postfach.freigeben(1);
   assert.equal(status(id), "wartet");
   await postfach.freigeben(2);
@@ -76,19 +215,27 @@ test("Freigabe zum Weitermachen: Aufgabe pausiert und geht nach der Freigabe mit
   await warteBis(() => status(id) === "bereit");
 });
 
-test("Rückfrage: landet im Postfach, Antwort setzt den Agenten fort", async () => {
-  const { chat, postfach, gesendet, status } = aufbauen((text, sitzung) => {
-    if (text === "Mach was") sitzung.plattformTools.find((t) => t.name === "rueckfrage_stellen")!.fuehreAus({ frage: "Welches Paket?" });
+test("Workflow: Rückfrage – Agent hört auf, die Antwort im Postfach setzt ihn fort", async () => {
+  const { db, chat, postfach, gesendet, status } = aufbauen(async (text, sitzung) => {
+    if (text === "Mach was") await sitzung.plattformTools.find((t) => t.name === "rueckfrage_stellen")!.fuehreAus({ frage: "Welches Paket?" });
   });
-  const { id } = await chat.neueAufgabe();
+  const id = await neuerWorkflow(chat, db);
   chat.nimmNachrichtAn(id, "Mach was");
   await warteBis(() => status(id) === "wartet");
-  const eintrag = postfach.alle()[0];
-  assert.deepEqual([eintrag.art, eintrag.argumente], ["rueckfrage", { frage: "Welches Paket?" }]);
 
   postfach.antworten(1, "$TMP");
   await warteBis(() => gesendet.length === 2 && status(id) === "bereit");
   assert.equal(gesendet[1], "Antwort auf deine Rückfrage #1:\n$TMP");
+});
+
+test("Freigabe wird abgelehnt, wenn das Tool inzwischen verboten ist", async () => {
+  const { db, chat, postfach, status } = aufbauen(seiteAnlegen());
+  const { id } = await chat.neueAufgabe();
+  chat.nimmNachrichtAn(id, "Lege die Seite an");
+  await warteBis(() => status(id) === "wartet");
+  setzeRegel(db, "standard", "jira", "seite_anlegen", "verbieten");
+  await assert.rejects(postfach.freigeben(1), /inzwischen verboten/);
+  assert.equal(postfach.alle()[0].status, "offen");
 });
 
 test("Warteschlange: Der Agent arbeitet nacheinander, nicht gleichzeitig", async () => {
@@ -104,7 +251,6 @@ test("Warteschlange: Der Agent arbeitet nacheinander, nicht gleichzeitig", async
   await warteBis(() => gesendet.length === 1);
   assert.equal(status(a), "arbeitet");
   assert.equal(status(b), "eingereiht");
-  assert.deepEqual(gesendet, ["lang"]);
   assert.throws(() => chat.nimmNachrichtAn(b, "noch was"), /noch beschäftigt/);
 
   loslassen();
@@ -112,52 +258,16 @@ test("Warteschlange: Der Agent arbeitet nacheinander, nicht gleichzeitig", async
   assert.deepEqual(gesendet, ["lang", "kurz"]);
 });
 
-test("Freigabe wird abgelehnt, wenn das Tool inzwischen verboten ist", async () => {
-  const { db, chat, postfach, status } = aufbauen(seiteVorschlagen);
-  const { id } = await chat.neueAufgabe();
-  chat.nimmNachrichtAn(id, "Lege die Seite an");
-  await warteBis(() => status(id) === "wartet");
-  setzeRegel(db, "standard", "jira", "seite_anlegen", "verbieten");
-  await assert.rejects(postfach.freigeben(1), /inzwischen verboten/);
-  assert.equal(postfach.alle()[0].status, "offen");
-});
-
-test("Im Chat: Die nächste Nachricht beantwortet eine offene Rückfrage", async () => {
-  const { chat, postfach, gesendet, status } = aufbauen((text, sitzung) => {
-    if (text === "Mach was") sitzung.plattformTools.find((t) => t.name === "rueckfrage_stellen")!.fuehreAus({ frage: "Welches Paket?" });
-  });
-  const { id } = await chat.neueAufgabe();
-  chat.nimmNachrichtAn(id, "Mach was");
-  await warteBis(() => status(id) === "wartet");
-
-  chat.nimmNachrichtAn(id, "$TMP");
-  await warteBis(() => gesendet.length === 2 && status(id) === "bereit");
-  assert.equal(gesendet[1], "Antwort auf deine Rückfrage #1:\n$TMP");
-  assert.deepEqual([postfach.fuerAufgabe(id)[0].status, postfach.fuerAufgabe(id)[0].antwort], ["beantwortet", "$TMP"]);
-});
-
 test("Chat-Einträge gehören nicht ins Postfach, Meldungen aus Chats gelten als gesehen", async () => {
   const { db, chat, postfach, status } = aufbauen((_text, { gateway }) => {
-    gateway.vorAufruf({ server: "jira", tool: "seite_anlegen" }, { bereich: "ABAP", titel: "x", inhalt: "x" });
     gateway.nachAufruf({ server: "jira", tool: "ticket_verschieben" }, {}, "verschoben");
   });
   setzeRegel(db, "standard", "jira", "ticket_verschieben", "melden");
   const { id } = await chat.neueAufgabe();
   chat.nimmNachrichtAn(id, "los");
-  await warteBis(() => status(id) === "wartet");
+  await warteBis(() => status(id) === "bereit");
 
   assert.deepEqual(postfach.fuerWorkflows(), []);
   assert.equal(postfach.anzahlOffen(), 0);
-  assert.deepEqual(
-    postfach.fuerAufgabe(id).map((e) => [e.art, e.status]),
-    [
-      ["freigabe", "offen"],
-      ["meldung", "zur_kenntnis"],
-    ],
-  );
-
-  // Dieselbe Aufgabe als Workflow (kommt in Phase 4): dann landet sie im Postfach
-  db.prepare(`UPDATE aufgaben SET herkunft = 'workflow' WHERE id = ?`).run(id);
-  assert.deepEqual(postfach.fuerWorkflows().map((e) => e.nr), [1, 2]);
-  assert.equal(postfach.anzahlOffen(), 1);
+  assert.deepEqual(postfach.fuerAufgabe(id).map((e) => [e.art, e.status]), [["meldung", "zur_kenntnis"]]);
 });

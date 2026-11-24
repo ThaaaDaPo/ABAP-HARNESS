@@ -54,6 +54,11 @@ class SimulationsSitzung implements AgentenSitzung {
   async sende(text: string): Promise<void> {
     this.abgebrochen = false;
     this.empfaenger({ art: "modell", modell: this.einstellungen.modell || "sim-automatisch" });
+    await this.spiele(text);
+  }
+
+  /** Spielt das Drehbuch zu einem Text ab. */
+  private async spiele(text: string): Promise<void> {
     for (const schritt of findeSchritte(text)) {
       if (this.abgebrochen) return;
 
@@ -63,8 +68,10 @@ class SimulationsSitzung implements AgentenSitzung {
         const aufrufId = randomUUID();
         this.empfaenger({ art: "tool_start", aufrufId, toolName: schritt.tool, argumente: schritt.argumente });
         await pause(300);
-        const { erfolgreich, ergebnis } = await this.fuehreAus(schritt);
+        const { erfolgreich, ergebnis } = await this.fuehreAus(schritt, aufrufId);
         this.empfaenger({ art: "tool_ende", aufrufId, erfolgreich, ergebnis });
+        // Wie ein echtes Modell auf einen Änderungswunsch reagieren: mit dem Drehbuch dafür
+        if (!erfolgreich && ergebnis.includes("wünscht Änderungen")) return this.spiele(ergebnis);
       } else {
         await this.schreibe(schritt.text.replace("{eingabe}", text).replace("{modell}", this.modellText()));
       }
@@ -80,25 +87,25 @@ class SimulationsSitzung implements AgentenSitzung {
   }
 
   /** Fragt das Gateway und ruft das Tool beim MCP-Server auf, wenn es erlaubt ist. */
-  private async fuehreAus(schritt: ToolSchritt): Promise<{ erfolgreich: boolean; ergebnis: string }> {
+  private async fuehreAus(schritt: ToolSchritt, aufrufId: string): Promise<{ erfolgreich: boolean; ergebnis: string }> {
     const { gateway, mcpServer, plattformTools } = this.einstellungen;
 
     const plattformTool = plattformTools.find((t) => t.name === schritt.tool);
-    if (plattformTool) return { erfolgreich: true, ergebnis: plattformTool.fuehreAus(schritt.argumente ?? {}) };
+    if (plattformTool) return { erfolgreich: true, ergebnis: await plattformTool.fuehreAus(schritt.argumente ?? {}) };
 
     const adresse = gateway.zerlege(schritt.tool);
 
     // Kein MCP-Tool eines eingetragenen Servers: das Ergebnis steht im Drehbuch.
     if (!adresse) return { erfolgreich: !schritt.fehlgeschlagen, ergebnis: schritt.ergebnis ?? "" };
 
-    const entscheidung = gateway.vorAufruf(adresse, schritt.argumente);
+    const entscheidung = await gateway.vorAufruf(adresse, schritt.argumente, aufrufId);
     if (!entscheidung.ausfuehren) return { erfolgreich: false, ergebnis: entscheidung.grund };
 
     try {
       const server = mcpServer.find((s) => s.schluessel === adresse.server);
       if (!server) throw new Error(`Server ${adresse.server} war beim Start der Sitzung nicht eingetragen.`);
       const antwort = await this.aufrufer.rufeAuf(server, adresse.tool, schritt.argumente);
-      if (!antwort.fehler) gateway.nachAufruf(adresse, schritt.argumente, antwort.text);
+      if (!antwort.fehler) gateway.nachAufruf(adresse, schritt.argumente, antwort.text, aufrufId);
       return { erfolgreich: !antwort.fehler, ergebnis: antwort.text };
     } catch (fehler) {
       return { erfolgreich: false, ergebnis: (fehler as Error).message };

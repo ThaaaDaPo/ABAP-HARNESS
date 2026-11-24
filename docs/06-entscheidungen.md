@@ -57,6 +57,7 @@
 | E-51 | 2026-11-24 | Modell je Chat wählbar, mit Thinking Effort und Context Window (ergänzt E-34: dort Modell je Agent) | Wunsch David vor dem Test von Schritt 3 |
 | E-52 | 2026-11-24 | Freigaben und Rückfragen aus einem Chat werden **im Chat** erledigt. Das Postfach ist für Workflows, die ohne David laufen (z. B. am nächsten Morgen nachsehen, weiterlaufen lassen, stoppen, Änderung freigeben) und kommt mit Phase 4 | Rückmeldung nach dem Test von Schritt 3 |
 | E-53 | 2026-11-24 | Beim Context Window steht die Größe in Tokens dabei, nicht nur „Standard“/„Lang“ | Rückmeldung nach dem Test von Schritt 3 |
+| E-54 | 2026-11-24 | **Im Chat wartet der Agent auf die Freigabe**: Ruft er ein Tool mit Regel *Freigabe* auf, erscheint sofort die Vorschlagskarte – kein fehlgeschlagener Aufruf, kein `auf_freigabe_warten`, kein Zwischentext. Bis David entscheidet, passiert in dem Chat nichts. *Freigeben*: das Tool läuft, der Agent macht mit dem Ergebnis weiter. *Verwerfen*: Lauf endet, Aufgabe abgebrochen. Eine Nachricht im Eingabefeld ist der Änderungswunsch. Rückfragen genauso: die Antwort im Eingabefeld geht direkt an den wartenden Agenten. Ersetzt für Chats E-44/E-45 (für Workflows gelten sie weiter) | Rückmeldung David nach dem Test |
 
 ## Erkenntnisse aus Phase 0 (Privatrechner, 2026-11-13)
 

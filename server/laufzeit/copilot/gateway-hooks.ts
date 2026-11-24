@@ -19,7 +19,8 @@ export function erstelleGatewayHooks(gateway: ToolGateway): Hooks {
       const adresse = gateway.zerlege(eingabe.toolName);
       if (!adresse) return undefined;
 
-      const entscheidung = gateway.vorAufruf(adresse, eingabe.toolArgs);
+      // Bei "freigabe" wartet dieser Aufruf im Chat, bis David entschieden hat (E-54).
+      const entscheidung = await gateway.vorAufruf(adresse, eingabe.toolArgs, eingabe.toolCallId);
       if (!entscheidung.ausfuehren) {
         return { permissionDecision: "deny", permissionDecisionReason: entscheidung.grund };
       }
@@ -30,7 +31,7 @@ export function erstelleGatewayHooks(gateway: ToolGateway): Hooks {
     // Läuft nur nach erfolgreichen Aufrufen. Bei Regel "melden" entsteht hier der Postfach-Eintrag.
     onPostToolUse: async (eingabe) => {
       const adresse = gateway.zerlege(eingabe.toolName);
-      if (adresse) gateway.nachAufruf(adresse, eingabe.toolArgs, eingabe.toolResult?.textResultForLlm ?? "");
+      if (adresse) gateway.nachAufruf(adresse, eingabe.toolArgs, eingabe.toolResult?.textResultForLlm ?? "", eingabe.toolCallId);
       return undefined;
     },
   };

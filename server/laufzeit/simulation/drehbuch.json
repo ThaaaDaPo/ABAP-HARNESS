@@ -23,7 +23,8 @@
   {
     "beschreibung": "Fortsetzung nach Änderungswunsch: der Agent legt einen überarbeiteten Vorschlag vor",
     "wennEnthaelt": [
-      "änderungswunsch zu vorschlag"
+      "änderungswunsch zu vorschlag",
+      "wünscht änderungen"
     ],
     "schritte": [
       {
@@ -38,7 +39,7 @@
         }
       },
       {
-        "text": "Der überarbeitete Vorschlag wartet auf deine Freigabe."
+        "text": "Hier ist der überarbeitete Vorschlag."
       }
     ]
   },
@@ -65,7 +66,7 @@
     ]
   },
   {
-    "beschreibung": "Rückfrage: der Agent stellt eine Frage und hört auf",
+    "beschreibung": "Rückfrage: im Chat wartet der Aufruf auf die Antwort im Eingabefeld",
     "wennEnthaelt": [
       "rückfrage",
       "rueckfrage",
@@ -82,12 +83,12 @@
         }
       },
       {
-        "text": "Ich mache weiter, sobald du geantwortet hast."
+        "text": "Danke, dann lege ich die Klasse so an (in der Simulation passiert dabei nichts)."
       }
     ]
   },
   {
-    "beschreibung": "Freigabe zum Weitermachen: der Agent braucht die Seite, um sie im Ticket zu verlinken",
+    "beschreibung": "Freigabe im Chat: der Aufruf wartet, nach der Freigabe macht der Agent mit dem Ergebnis weiter",
     "wennEnthaelt": [
       "verlink"
     ],
@@ -104,11 +105,14 @@
         }
       },
       {
-        "tool": "auf_freigabe_warten",
-        "argumente": {}
+        "tool": "jira-ticket_verschieben",
+        "argumente": {
+          "schluessel": "ABAP-123",
+          "status": "Review"
+        }
       },
       {
-        "text": "Zum Verlinken brauche ich die angelegte Seite. Die Aufgabe ist pausiert, bis du den Vorschlag freigibst."
+        "text": "Erledigt: Die Doku-Seite steht, **ABAP-123** ist auf *Review*."
       }
     ]
   },
@@ -134,7 +138,7 @@
     ]
   },
   {
-    "beschreibung": "Confluence-Seite anlegen: Regel 'freigabe', Freigabe zum Abschluss (Aufgabe ist danach erledigt)",
+    "beschreibung": "Confluence-Seite anlegen: Regel 'freigabe' – im Chat wartet der Aufruf auf die Freigabe",
     "wennEnthaelt": [
       "confluence",
       "doku"
@@ -152,7 +156,7 @@
         }
       },
       {
-        "text": "Die Seite ist noch nicht angelegt, sondern wartet als Vorschlag auf deine Freigabe. Gibst du ihn frei, legt die Plattform sie an – damit ist die Aufgabe erledigt."
+        "text": "Die Seite ist angelegt."
       }
     ]
   },

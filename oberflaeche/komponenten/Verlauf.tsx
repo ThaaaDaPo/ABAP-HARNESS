@@ -10,16 +10,24 @@ type Block =
   | { art: "nutzer"; text: string }
   | { art: "agent"; text: string }
   | { art: "tool"; aufruf: ToolAufrufDaten }
-  | { art: "postfach"; nr: number; eintragsArt: PostfachArt }
+  /** `ausfuehrung`: der zugehörige Tool-Aufruf – seine Karte entfällt, die Vorschlagskarte zeigt ihn */
+  | { art: "postfach"; nr: number; eintragsArt: PostfachArt; ausfuehrung?: ToolAufrufDaten }
   | { art: "postfach_aktion"; text: string; details?: string }
   | { art: "modell"; text: string }
   | { art: "fehler"; text: string };
 
-/** Macht aus der Ereignisliste die Blöcke für die Anzeige. Tool-Start und -Ende werden zu einem Block. */
+/**
+ * Macht aus der Ereignisliste die Blöcke für die Anzeige. Tool-Start und -Ende werden zu einem Block.
+ * Braucht ein Tool-Aufruf eine Freigabe, steht nur die Vorschlagskarte da (E-54); ebenso zeigt eine
+ * Rückfrage nur die Frage, nicht den Aufruf von rueckfrage_stellen.
+ */
 function bildeBloecke(ereignisse: Ereignis[]): Block[] {
   const bloecke: Block[] = [];
   const toolBloecke = new Map<string, ToolAufrufDaten>();
   let letztesModell = "";
+
+  // Aufrufe, die zu einem Vorschlag gehören (Copilot meldet den Vorschlag ggf. vor dem Tool-Start)
+  const mitVorschlag = new Set(ereignisse.flatMap((e) => (e.art === "postfach" && e.aufrufId ? [e.aufrufId] : [])));
 
   for (const ereignis of ereignisse) {
     switch (ereignis.art) {
@@ -30,9 +38,13 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
         bloecke.push({ art: "agent", text: ereignis.text });
         break;
       case "tool_start": {
-        const aufruf: ToolAufrufDaten = { aufrufId: ereignis.aufrufId, toolName: ereignis.toolName, argumente: ereignis.argumente };
+        // Vorhandenen Eintrag weiterverwenden, falls der Vorschlag schon vorher kam
+        const aufruf = toolBloecke.get(ereignis.aufrufId) ?? { aufrufId: ereignis.aufrufId, toolName: "", argumente: null };
+        aufruf.toolName = ereignis.toolName;
+        aufruf.argumente = ereignis.argumente;
         toolBloecke.set(ereignis.aufrufId, aufruf);
-        bloecke.push({ art: "tool", aufruf });
+        const versteckt = mitVorschlag.has(ereignis.aufrufId) || ereignis.toolName === "rueckfrage_stellen";
+        if (!versteckt) bloecke.push({ art: "tool", aufruf });
         break;
       }
       case "tool_ende": {
@@ -41,7 +53,12 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
         break;
       }
       case "postfach":
-        bloecke.push({ art: "postfach", nr: ereignis.postfachNr, eintragsArt: ereignis.eintragsArt });
+        bloecke.push({
+          art: "postfach",
+          nr: ereignis.postfachNr,
+          eintragsArt: ereignis.eintragsArt,
+          ausfuehrung: ereignis.aufrufId ? (toolBloecke.get(ereignis.aufrufId) ?? legeAn(toolBloecke, ereignis.aufrufId)) : undefined,
+        });
         break;
       case "postfach_aktion":
         bloecke.push({ art: "postfach_aktion", text: ereignis.text, details: ereignis.details });
@@ -107,7 +124,16 @@ export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen
             // Meldungen zeigt schon die Tool-Karte darüber; im Chat braucht es dafür nichts Eigenes.
             if (!eintrag || block.eintragsArt === "meldung") return null;
             if (eintrag.art === "rueckfrage") return <Rueckfrage key={index} eintrag={eintrag} />;
-            return <PostfachKarte key={index} eintrag={eintrag} aktionen={aktionen(eintrag)} beschaeftigt={beschaeftigt === eintrag.nr} imChat />;
+            return (
+              <PostfachKarte
+                key={index}
+                eintrag={eintrag}
+                aktionen={aktionen(eintrag)}
+                beschaeftigt={beschaeftigt === eintrag.nr}
+                ausfuehrung={block.ausfuehrung?.ende}
+                imChat
+              />
+            );
           }
           case "postfach_aktion":
             return (
@@ -143,4 +169,14 @@ function Rueckfrage({ eintrag }: { eintrag: PostfachEintrag }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Kommt der Vorschlag vor dem Tool-Start, wird der Aufruf hier schon angelegt; Start und Ende
+ * füllen ihn dann. So hängt das Ergebnis immer an der Vorschlagskarte.
+ */
+function legeAn(toolBloecke: Map<string, ToolAufrufDaten>, aufrufId: string): ToolAufrufDaten {
+  const aufruf: ToolAufrufDaten = { aufrufId, toolName: "", argumente: null };
+  toolBloecke.set(aufrufId, aufruf);
+  return aufruf;
 }

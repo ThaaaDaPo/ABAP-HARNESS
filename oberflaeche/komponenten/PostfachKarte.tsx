@@ -17,8 +17,13 @@ interface Eigenschaften {
   aktionen: PostfachAktionen;
   /** Eine Aktion für diesen Eintrag läuft gerade (Freigeben kann dauern) */
   beschaeftigt: boolean;
-  /** Im Chat: ohne Verweis auf den Chat, und Antworten geht über das normale Eingabefeld */
+  /**
+   * Im Chat (E-54): Der Agent wartet auf die Entscheidung. Nur Freigeben und Verwerfen – einen
+   * Änderungswunsch schreibt David ins normale Eingabefeld.
+   */
   imChat?: boolean;
+  /** Im Chat: der wirkliche Tool-Aufruf nach der Freigabe (Ergebnis oder Fehler) */
+  ausfuehrung?: { erfolgreich: boolean; ergebnis: string };
 }
 
 const statusTexte: Record<PostfachStatus, string> = {
@@ -37,7 +42,7 @@ function artText(eintrag: PostfachEintrag): string {
   return eintrag.weiterNachFreigabe ? "Freigabe zum Weitermachen" : "Freigabe zum Abschluss";
 }
 
-export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false }: Eigenschaften) {
+export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false, ausfuehrung }: Eigenschaften) {
   const offen = eintrag.status === "offen" || eintrag.status === "fehlgeschlagen";
   const [antwortOffen, setAntwortOffen] = useState(false);
   const [text, setText] = useState("");
@@ -54,16 +59,22 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false 
   }
 
   // Bei offenen Freigaben und Rückfragen ist das Antwortfeld immer da, sonst auf Knopfdruck.
-  const antwortImmerDa = offen && eintrag.art !== "meldung";
+  // Im Chat nie: Dort ist das normale Eingabefeld die Antwort.
+  const antwortImmerDa = offen && eintrag.art !== "meldung" && !imChat;
+
+  // Im Chat zählt, was beim wirklichen Aufruf herauskam; im Postfach das gespeicherte Ergebnis.
+  const ergebnis = eintrag.ergebnis ?? (ausfuehrung && eintrag.status === "freigegeben" ? ausfuehrung.ergebnis : null);
+  const fehlgeschlagen = eintrag.status === "fehlgeschlagen" || (eintrag.status === "freigegeben" && ausfuehrung?.erfolgreich === false);
+  const statusText = imChat && offen ? "wartet auf dich" : fehlgeschlagen ? statusTexte.fehlgeschlagen : statusTexte[eintrag.status];
   const antwortKnopf = eintrag.art === "freigabe" && offen ? "Änderungen anfordern" : "Antworten";
 
   return (
     <article className={`postfach-karte${offen ? " offen" : ""}${imChat ? " im-chat" : ""}`}>
       <header className="karten-kopf">
         <span className="karten-nr">{eintrag.art === "freigabe" ? "Vorschlag " : ""}#{eintrag.nr}</span>
-        <span className={`karten-art ${eintrag.art}`}>{artText(eintrag)}</span>
-        <span className={`karten-status ${eintrag.status}`}>{statusTexte[eintrag.status]}</span>
-        <span className="karten-zeit">{new Date(eintrag.erstelltAm).toLocaleString("de-DE")}</span>
+        {(!imChat || offen) && <span className={`karten-art ${eintrag.art}`}>{imChat ? "Freigabe nötig" : artText(eintrag)}</span>}
+        <span className={`karten-status ${fehlgeschlagen ? "fehlgeschlagen" : eintrag.status}`}>{statusText}</span>
+        {!imChat && <span className="karten-zeit">{new Date(eintrag.erstelltAm).toLocaleString("de-DE")}</span>}
       </header>
 
       {aktionen.zeigeChat && (
@@ -83,13 +94,14 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false 
         </>
       )}
 
-      {eintrag.ergebnis && (
+      {ergebnis && (
         <>
-          <div className="tool-ueberschrift">{eintrag.status === "fehlgeschlagen" ? "Fehler bei der Ausführung" : "Ergebnis"}</div>
-          <pre>{eintrag.ergebnis}</pre>
+          <div className="tool-ueberschrift">{fehlgeschlagen ? "Fehler bei der Ausführung" : "Ergebnis"}</div>
+          <pre>{ergebnis}</pre>
         </>
       )}
-      {eintrag.antwort && (
+      {/* Im Chat steht Davids Antwort schon als Nachricht darunter */}
+      {eintrag.antwort && !imChat && (
         <>
           <div className="tool-ueberschrift">Deine Antwort</div>
           <p className="karten-antwort">{eintrag.antwort}</p>
@@ -108,10 +120,12 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false 
             </button>
           </div>
           <p className="hinweis">
-            {eintrag.weiterNachFreigabe
-              ? "Freigeben führt den Aufruf aus; danach macht der Agent mit dem Ergebnis weiter, sobald er frei ist."
-              : "Freigeben führt den Aufruf aus, ohne KI – danach ist die Aufgabe erledigt."}{" "}
-            Verwerfen bricht die Aufgabe ab. Bei Änderungswünschen überarbeitet der Agent den Vorschlag.
+            {imChat
+              ? "Freigeben führt den Aufruf aus, der Agent macht mit dem Ergebnis weiter. Verwerfen bricht ab. Änderungswunsch? Schreib ihn unten ins Eingabefeld."
+              : (eintrag.weiterNachFreigabe
+                  ? "Freigeben führt den Aufruf aus; danach macht der Agent mit dem Ergebnis weiter, sobald er frei ist."
+                  : "Freigeben führt den Aufruf aus, ohne KI – danach ist die Aufgabe erledigt.") +
+                " Verwerfen bricht die Aufgabe ab. Bei Änderungswünschen überarbeitet der Agent den Vorschlag."}
           </p>
         </>
       )}

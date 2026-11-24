@@ -20,20 +20,29 @@ import { erstelleGatewayHooks } from "./gateway-hooks.ts";
 
 // Steht immer im Auftrag. Ohne diesen Hinweis probiert der Agent gesperrte Wege mehrfach aus
 // (am Firmenrechner beobachtet: fünf Versuche für `dir`) und verbraucht dabei Credits.
-const umgebungsRegeln = [
-  "Regeln dieser Umgebung:",
-  "- Shell-Befehle und Internetzugriff sind technisch gesperrt. Versuche sie nicht und suche keine Umwege.",
-  "- Dateien kannst du nur im Arbeitsverzeichnis lesen und schreiben.",
-  "- Manche Tool-Aufrufe brauchen eine Freigabe. Sie werden dann nicht ausgeführt, sondern als Vorschlag abgelegt, den der Nutzer freigibt; " +
-    "nach der Freigabe führt die Plattform sie selbst aus. Wiederhole sie nicht. Ist die Aufgabe damit erledigt, schließe ab. " +
-    "Brauchst du das Ergebnis zum Weitermachen, rufe auf_freigabe_warten auf und beende deine Antwort.",
-  // E-47: nur bei wirklich wichtigen Fragen, aber nicht so selten, dass das Ergebnis leidet.
-  "- Rückfragen: Fehlt dir eine Information oder Entscheidung, die das Ergebnis wesentlich verändert und die du nicht " +
-    "selbst klären kannst, rufe rueckfrage_stellen auf und beende danach deine Antwort. Bündle mehrere Fragen in einer Rückfrage. " +
-    "Für Kleinigkeiten triff eine begründete Annahme und nenne sie im Ergebnis. Rate aber nicht, wenn das Ergebnis an der Frage hängt – " +
-    "lieber einmal fragen als eine falsche Lösung abliefern.",
-  "- Wird eine Aktion abgelehnt, nimm das hin und sage dem Nutzer, was du nicht tun konntest.",
-].join("\n");
+// Freigaben und Rückfragen laufen im Chat anders als ohne Nutzer (Workflow), daher zwei Fassungen.
+function umgebungsRegeln(imChat: boolean): string {
+  return [
+    "Regeln dieser Umgebung:",
+    "- Shell-Befehle und Internetzugriff sind technisch gesperrt. Versuche sie nicht und suche keine Umwege.",
+    "- Dateien kannst du nur im Arbeitsverzeichnis lesen und schreiben.",
+    imChat
+      ? "- Manche Tool-Aufrufe brauchen eine Freigabe durch den Nutzer. Der Aufruf wartet dann, bis er entschieden hat – das ist normal. " +
+        "Kündige ihn nicht vorher an und frag nicht zusätzlich um Erlaubnis. Wünscht der Nutzer Änderungen, bekommst du sie als " +
+        "Ergebnis und rufst das Tool angepasst erneut auf. Hat er verworfen, hör ohne weiteren Text auf. " +
+        "Ist die Aufgabe mit dem freigegebenen Aufruf erledigt, genügt ein kurzer Satz."
+      : "- Manche Tool-Aufrufe brauchen eine Freigabe. Sie werden dann nicht ausgeführt, sondern als Vorschlag abgelegt, den der Nutzer freigibt; " +
+        "nach der Freigabe führt die Plattform sie selbst aus. Wiederhole sie nicht. Ist die Aufgabe damit erledigt, schließe ab. " +
+        "Brauchst du das Ergebnis zum Weitermachen, rufe auf_freigabe_warten auf und beende deine Antwort.",
+    // E-47: nur bei wirklich wichtigen Fragen, aber nicht so selten, dass das Ergebnis leidet.
+    "- Rückfragen: Fehlt dir eine Information oder Entscheidung, die das Ergebnis wesentlich verändert und die du nicht " +
+      "selbst klären kannst, rufe rueckfrage_stellen auf" +
+      (imChat ? " – es liefert dir die Antwort des Nutzers. " : " und beende danach deine Antwort. ") +
+      "Bündle mehrere Fragen in einer Rückfrage. Für Kleinigkeiten triff eine begründete Annahme und nenne sie im Ergebnis. " +
+      "Rate aber nicht, wenn das Ergebnis an der Frage hängt – lieber einmal fragen als eine falsche Lösung abliefern.",
+    "- Wird eine Aktion abgelehnt, nimm das hin und sage dem Nutzer, was du nicht tun konntest.",
+  ].join("\n");
+}
 
 /** Die eingetragenen MCP-Server in der Form, die Copilot erwartet. Copilot startet sie selbst. */
 function mcpKonfiguration(einstellungen: SitzungsEinstellungen): Record<string, MCPServerConfig> {
@@ -79,7 +88,7 @@ function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionCon
     // "default" ausdrücklich (laut SDK erlaubt), damit ein Chat beim Zurückstellen nicht lang bleibt.
     contextTier: einstellungen.kontext === "lang" ? "long_context" : "default",
     workingDirectory: einstellungen.workspaceOrdner,
-    systemMessage: { mode: "append", content: `${einstellungen.auftrag}\n\n${umgebungsRegeln}` },
+    systemMessage: { mode: "append", content: `${einstellungen.auftrag}\n\n${umgebungsRegeln(einstellungen.imChat)}` },
     streaming: true,
     tools: plattformTools(einstellungen),
     mcpServers: mcpKonfiguration(einstellungen),

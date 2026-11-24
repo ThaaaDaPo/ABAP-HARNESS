@@ -55,18 +55,18 @@ test("Nicht eingetragene Server sind gesperrt", () => {
   assert.equal(gateway.darfAusfuehren({ server: "fremd", tool: "x" }), false);
 });
 
-test("Erlauben: wird ausgeführt, nichts im Postfach", () => {
+test("Erlauben: wird ausgeführt, nichts im Postfach", async () => {
   const { db, gateway, postfach } = aufbauen();
   setzeRegel(db, "standard", "jira", "ticket_lesen", "erlauben");
   const adresse = { server: "jira", tool: "ticket_lesen" };
-  assert.deepEqual(gateway.vorAufruf(adresse, {}), { ausfuehren: true });
+  assert.deepEqual(await gateway.vorAufruf(adresse, {}), { ausfuehren: true });
   gateway.nachAufruf(adresse, {}, "Ergebnis");
   assert.equal(postfach().length, 0);
 });
 
-test("Freigabe: wird nicht ausgeführt, Vorschlag liegt im Postfach, Agent bekommt die Nummer", () => {
+test("Freigabe ohne wartenden Nutzer: wird nicht ausgeführt, Vorschlag liegt im Postfach, Agent bekommt die Nummer", async () => {
   const { gateway, gemeldet, postfach } = aufbauen();
-  const entscheidung = gateway.vorAufruf({ server: "jira", tool: "ticket_lesen" }, { schluessel: "ABAP-1" });
+  const entscheidung = await gateway.vorAufruf({ server: "jira", tool: "ticket_lesen" }, { schluessel: "ABAP-1" });
   assert.equal(entscheidung.ausfuehren, false);
   assert.match((entscheidung as { grund: string }).grund, /Vorschlag #1/);
   assert.deepEqual(postfach(), [{ art: "freigabe", tool: "ticket_lesen", argumente: '{"schluessel":"ABAP-1"}', ergebnis: null }]);
@@ -75,21 +75,21 @@ test("Freigabe: wird nicht ausgeführt, Vorschlag liegt im Postfach, Agent bekom
   assert.equal(gateway.darfAusfuehren({ server: "jira", tool: "ticket_lesen" }), false);
 });
 
-test("Melden: wird ausgeführt, danach Meldung mit Ergebnis im Postfach", () => {
+test("Melden: wird ausgeführt, danach Meldung mit Ergebnis im Postfach", async () => {
   const { db, gateway, postfach } = aufbauen();
   setzeRegel(db, "standard", "jira", "ticket_lesen", "melden");
   const adresse = { server: "jira", tool: "ticket_lesen" };
-  assert.deepEqual(gateway.vorAufruf(adresse, {}), { ausfuehren: true });
+  assert.deepEqual(await gateway.vorAufruf(adresse, {}), { ausfuehren: true });
   assert.equal(postfach().length, 0);
   gateway.nachAufruf(adresse, {}, "ABAP-1 gelesen");
   assert.deepEqual(postfach(), [{ art: "meldung", tool: "ticket_lesen", argumente: "{}", ergebnis: "ABAP-1 gelesen" }]);
 });
 
-test("Verbieten: abgelehnt, nichts im Postfach, und das Tool wird gar nicht erst angeboten", () => {
+test("Verbieten: abgelehnt, nichts im Postfach, und das Tool wird gar nicht erst angeboten", async () => {
   const { db, gateway, postfach } = aufbauen();
   setzeRegel(db, "standard", "jira", standardTool, "erlauben");
   setzeRegel(db, "standard", "jira", "ticket_loeschen", "verbieten");
-  const entscheidung = gateway.vorAufruf({ server: "jira", tool: "ticket_loeschen" }, {});
+  const entscheidung = await gateway.vorAufruf({ server: "jira", tool: "ticket_loeschen" }, {});
   assert.equal(entscheidung.ausfuehren, false);
   assert.match((entscheidung as { grund: string }).grund, /gesperrt/);
   assert.equal(postfach().length, 0);

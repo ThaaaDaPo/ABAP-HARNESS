@@ -12,11 +12,14 @@ interface AufgabenZeile {
   modell: string;
   denkaufwand: string;
   kontext: ModellWahl["kontext"];
+  herkunft: "chat" | "workflow";
 }
 
 export interface AufgabeIntern extends Aufgabe {
   /** Id der Agenten-Sitzung, damit sie nach einem Neustart fortgesetzt werden kann. */
   sitzungId: string | null;
+  /** "chat": David ist dabei. "workflow" (ab Phase 4): läuft ohne ihn. */
+  herkunft: "chat" | "workflow";
 }
 
 function ausZeile(zeile: AufgabenZeile): AufgabeIntern {
@@ -25,6 +28,7 @@ function ausZeile(zeile: AufgabenZeile): AufgabeIntern {
     titel: zeile.titel,
     status: zeile.status,
     sitzungId: zeile.sitzung_id,
+    herkunft: zeile.herkunft,
     erstelltAm: zeile.erstellt_am,
     modellWahl: { modell: zeile.modell, denkaufwand: zeile.denkaufwand, kontext: zeile.kontext },
   };
@@ -32,7 +36,7 @@ function ausZeile(zeile: AufgabenZeile): AufgabeIntern {
 
 /** Ohne interne Felder, für die Oberfläche. */
 export function oeffentlich(aufgabe: AufgabeIntern): Aufgabe {
-  const { sitzungId: _weglassen, ...rest } = aufgabe;
+  const { sitzungId: _sitzung, herkunft: _herkunft, ...rest } = aufgabe;
   return rest;
 }
 

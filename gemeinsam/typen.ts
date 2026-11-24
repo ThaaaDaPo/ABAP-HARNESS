@@ -60,7 +60,14 @@ export type Ereignis =
   | { art: "tool_start"; aufrufId: string; toolName: string; argumente: unknown }
   | { art: "tool_ende"; aufrufId: string; erfolgreich: boolean; ergebnis: string }
   /** Ein Eintrag wurde ins Postfach gelegt (Freigabe nötig, Meldung oder Rückfrage). */
-  | { art: "postfach"; postfachNr: number; eintragsArt: PostfachArt; toolName: string }
+  | {
+      art: "postfach";
+      postfachNr: number;
+      eintragsArt: PostfachArt;
+      toolName: string;
+      /** Der Tool-Aufruf, zu dem der Vorschlag gehört – im Chat zeigt die Karte ihn statt der Tool-Karte */
+      aufrufId?: string;
+    }
   /** David hat im Postfach gehandelt (freigegeben, verworfen, geantwortet …). */
   | { art: "postfach_aktion"; postfachNr: number; text: string; details?: string }
   /** Statuswechsel der Aufgabe. Wird nur live gezeigt, nicht gespeichert. */

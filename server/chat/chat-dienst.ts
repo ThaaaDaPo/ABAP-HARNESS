@@ -4,16 +4,21 @@
 // Der Agent arbeitet immer nur an einer Aufgabe (E-45). Alles Weitere – neue Nachrichten in anderen
 // Chats und Fortsetzungen nach Postfach-Aktionen – wartet in der Warteschlange und kommt dran,
 // sobald er fertig ist.
+//
+// Freigaben und Rückfragen im Chat (E-54): Der Agent wartet mitten im Tool-Aufruf auf David. In der
+// Zeit ist er für andere Chats frei. Hat David entschieden, geht der Aufruf weiter, sobald der Agent
+// wieder dran ist – an genau der Stelle, an der er gewartet hat.
 import type { AufgabenStatus, Ereignis, ModellInfo, ModellWahl } from "../../gemeinsam/typen.ts";
 import * as aufgaben from "../datenbank/aufgaben.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { sollGespeichertWerden, speichereEreignis } from "../datenbank/ereignisse.ts";
 import { holeAlleServer } from "../datenbank/mcp-server.ts";
-import { hatOffeneFreigabeOderRueckfrage, offeneRueckfragen, schliesseAb } from "../datenbank/postfach.ts";
+import { hatOffeneFreigabeOderRueckfrage, holeEintrag, offeneRueckfragen, schliesseAb } from "../datenbank/postfach.ts";
 import * as warteschlange from "../datenbank/warteschlange.ts";
 import { standardAgentId, ToolGateway } from "../gateway/gateway.ts";
 import type { Einstellungen } from "../einstellungen.ts";
 import type { AgentenLaufzeit, AgentenSitzung, SitzungsEinstellungen } from "../laufzeit/laufzeit.ts";
+import { WartendeEntscheidungen, type NutzerEntscheidung } from "../postfach/entscheidungen.ts";
 import { erstellePlattformTools } from "../postfach/plattform-tools.ts";
 import { Fehler } from "../fehler.ts";
 import { meldeUebersicht, verteile } from "./live-verteiler.ts";
@@ -30,6 +35,12 @@ export class ChatDienst {
   private laufend: string | null = null;
   /** Aufgaben, deren Modellwahl sich geändert hat: Die Sitzung wird vor dem nächsten Lauf neu aufgebaut. */
   private veraltet = new Set<string>();
+  /** Tool-Aufrufe im Chat, die auf Davids Entscheidung warten */
+  private entscheidungen = new WartendeEntscheidungen();
+  /** Entschiedene Aufrufe, die weiterlaufen, sobald der Agent frei ist (vor der Warteschlange) */
+  private fortsetzungen: { aufgabeId: string; weiter: () => void }[] = [];
+  /** Aufgaben, die nach dem Ende des Laufs als abgebrochen gelten (Vorschlag verworfen) */
+  private abgebrochenNachLauf = new Set<string>();
 
   constructor(db: Datenbank, laufzeit: AgentenLaufzeit, einstellungen: Einstellungen) {
     this.db = db;
@@ -58,10 +69,15 @@ export class ChatDienst {
     const aufgabe = aufgaben.holeAufgabe(this.db, aufgabeId);
     if (!aufgabe) throw new Fehler(404, "Aufgabe nicht gefunden");
     if (this.laufend === aufgabeId) throw new Fehler(409, "Der Agent arbeitet gerade an diesem Chat. Bitte erst abbrechen.");
+    // Wartet der Agent hier auf David, gilt der Vorschlag als verworfen und der Lauf endet.
+    const wartetHier = this.wartetAufDavid(aufgabeId);
+    for (const nr of this.entscheidungen.vonAufgabe(aufgabeId)) this.entscheidungen.nimm(nr)?.loese({ art: "verworfen" });
+    this.fortsetzungen = this.fortsetzungen.filter((f) => f.aufgabeId !== aufgabeId);
 
     const sitzung = this.sitzungen.get(aufgabeId);
     this.sitzungen.delete(aufgabeId);
     this.veraltet.delete(aufgabeId);
+    if (wartetHier) await sitzung?.abbrechen().catch(() => {});
     await sitzung?.trennen().catch(() => {});
     if (aufgabe.sitzungId) await this.laufzeit.loescheSitzung(aufgabe.sitzungId).catch(() => {});
 
@@ -114,6 +130,15 @@ export class ChatDienst {
       aufgaben.setzeTitel(this.db, aufgabeId, text.replace(/\s+/g, " ").trim().slice(0, 60));
     }
     this.melde(aufgabeId, { art: "nutzer_nachricht", text });
+
+    // Wartet der Agent gerade auf David, ist die Nachricht die Antwort darauf: bei einer Rückfrage
+    // die Antwort, bei einem Vorschlag der Änderungswunsch (E-54).
+    const wartend = this.entscheidungen.vonAufgabe(aufgabeId);
+    if (wartend.length > 0) {
+      for (const nr of wartend) this.entscheide(nr, { art: "antwort", text });
+      return;
+    }
+
     warteschlange.reiheEin(this.db, aufgabeId, this.mitRueckfrageBezug(aufgabeId, text), false);
     this.setzeStatus(aufgabeId, "eingereiht");
     this.arbeiteWeiter();
@@ -129,6 +154,52 @@ export class ChatDienst {
     for (const nr of offen) schliesseAb(this.db, nr, { status: "beantwortet", antwort: text });
     const nummern = offen.map((nr) => `#${nr}`).join(", ");
     return `Antwort auf deine Rückfrage ${nummern}:\n${text}`;
+  }
+
+  /**
+   * David hat über einen Vorschlag oder eine Rückfrage entschieden, auf die der Agent im Chat wartet.
+   * Der wartende Aufruf läuft weiter, sobald der Agent frei ist. False, wenn niemand darauf wartet
+   * (dann erledigt der Postfach-Dienst den Eintrag ohne wartenden Agenten).
+   */
+  entscheide(nr: number, entscheidung: NutzerEntscheidung): boolean {
+    const wartend = this.entscheidungen.nimm(nr);
+    if (!wartend) return false;
+    const eintrag = holeEintrag(this.db, nr);
+    const { aufgabeId } = wartend;
+
+    if (entscheidung.art === "freigegeben") schliesseAb(this.db, nr, { status: "freigegeben" });
+    else if (entscheidung.art === "verworfen") schliesseAb(this.db, nr, { status: "verworfen" });
+    else {
+      const status = eintrag?.art === "rueckfrage" ? "beantwortet" : "aenderung_angefordert";
+      schliesseAb(this.db, nr, { status, antwort: entscheidung.text });
+    }
+    meldeUebersicht({ bereich: "postfach" });
+
+    if (entscheidung.art === "verworfen") this.abgebrochenNachLauf.add(aufgabeId);
+    this.fortsetzungen.push({
+      aufgabeId,
+      weiter: () => {
+        wartend.loese(entscheidung);
+        // Verworfen: Der Agent soll nichts mehr schreiben – Lauf gleich anhalten.
+        if (entscheidung.art === "verworfen") void this.sitzungen.get(aufgabeId)?.abbrechen();
+      },
+    });
+    this.aktualisiereStatus(aufgabeId);
+    this.arbeiteWeiter();
+    return true;
+  }
+
+  /** Der Agent wartet im Chat auf David: Er ist so lange für andere Aufgaben frei. */
+  private warteAufDavid(aufgabeId: string, nr: number): Promise<NutzerEntscheidung> {
+    const entscheidung = this.entscheidungen.warte(nr, aufgabeId);
+    if (this.laufend === aufgabeId) this.laufend = null;
+    this.setzeStatus(aufgabeId, "wartet");
+    this.arbeiteWeiter();
+    return entscheidung;
+  }
+
+  private wartetAufDavid(aufgabeId: string): boolean {
+    return this.entscheidungen.vonAufgabe(aufgabeId).length > 0;
   }
 
   /**
@@ -160,7 +231,7 @@ export class ChatDienst {
     if (this.laufend === aufgabeId) return;
     let status = sonst;
     // Eine Fortsetzung, die noch auf weitere Freigaben wartet, zählt als "wartet", nicht als eingereiht.
-    if (warteschlange.stehtAn(this.db, aufgabeId)) status = "eingereiht";
+    if (this.fortsetzungen.some((f) => f.aufgabeId === aufgabeId) || warteschlange.stehtAn(this.db, aufgabeId)) status = "eingereiht";
     else if (hatOffeneFreigabeOderRueckfrage(this.db, aufgabeId)) status = "wartet";
     this.setzeStatus(aufgabeId, status);
   }
@@ -173,6 +244,16 @@ export class ChatDienst {
   /** Startet die nächste Aufgabe aus der Warteschlange, wenn der Agent frei ist. */
   private arbeiteWeiter(): void {
     if (this.laufend) return;
+
+    // Zuerst Aufrufe, die auf David gewartet haben – sie stecken mitten in einem Lauf.
+    const fortsetzung = this.fortsetzungen.shift();
+    if (fortsetzung) {
+      this.laufend = fortsetzung.aufgabeId;
+      this.setzeStatus(fortsetzung.aufgabeId, "arbeitet");
+      fortsetzung.weiter();
+      return;
+    }
+
     const naechste = warteschlange.nimmNaechste(this.db);
     if (!naechste) return;
 
@@ -184,8 +265,8 @@ export class ChatDienst {
     this.lasseAgentArbeiten(aufgabe, naechste.text)
       .catch((fehler) => this.melde(aufgabe.id, { art: "fehler", meldung: String(fehler?.message ?? fehler) }))
       .finally(() => {
-        this.laufend = null;
-        this.aktualisiereStatus(aufgabe.id);
+        if (this.laufend === aufgabe.id) this.laufend = null;
+        this.aktualisiereStatus(aufgabe.id, this.abgebrochenNachLauf.delete(aufgabe.id) ? "abgebrochen" : "bereit");
         this.arbeiteWeiter();
       });
   }
@@ -224,7 +305,7 @@ export class ChatDienst {
    */
   async konfigurationGeaendert(): Promise<void> {
     for (const [aufgabeId, sitzung] of this.sitzungen) {
-      if (this.laufend === aufgabeId) continue;
+      if (this.laufend === aufgabeId || this.wartetAufDavid(aufgabeId)) continue;
       this.sitzungen.delete(aufgabeId);
       await sitzung.trennen().catch(() => {});
     }
@@ -232,7 +313,14 @@ export class ChatDienst {
 
   private sitzungsEinstellungen(aufgabe: aufgaben.AufgabeIntern): SitzungsEinstellungen {
     const aufgabeId = aufgabe.id;
-    const kontext = { db: this.db, aufgabeId, melde: (ereignis: Ereignis) => this.melde(aufgabeId, ereignis) };
+    // Im Chat warten Freigaben und Rückfragen auf David; ohne ihn (Workflow) wird nicht gewartet.
+    const imChat = aufgabe.herkunft === "chat";
+    const kontext = {
+      db: this.db,
+      aufgabeId,
+      melde: (ereignis: Ereignis) => this.melde(aufgabeId, ereignis),
+      ...(imChat ? { warteAufNutzer: (nr: number) => this.warteAufDavid(aufgabeId, nr) } : {}),
+    };
     const { modell, denkaufwand, kontext: kontextGroesse } = aufgabe.modellWahl;
     return {
       auftrag: this.einstellungen.agent.auftrag,
@@ -244,6 +332,7 @@ export class ChatDienst {
       mcpServer: holeAlleServer(this.db),
       gateway: new ToolGateway({ ...kontext, agentId: standardAgentId }),
       plattformTools: erstellePlattformTools(kontext),
+      imChat,
     };
   }
 

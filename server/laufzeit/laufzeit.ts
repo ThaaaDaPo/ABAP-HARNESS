@@ -22,6 +22,8 @@ export interface SitzungsEinstellungen {
   gateway: ToolGateway;
   /** Eigene Tools der App (Rückfrage stellen, auf Freigabe warten). */
   plattformTools: PlattformTool[];
+  /** David ist dabei (Chat): Freigaben und Rückfragen warten auf ihn (E-54). Sonst Workflow. */
+  imChat: boolean;
 }
 
 /** Bekommt jedes Ereignis der Sitzung, sobald es passiert. */
