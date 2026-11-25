@@ -116,6 +116,11 @@ Neu im Hauptprojekt, aber schon vom Prüfpaket über Nexus geladen: `abap-adt-ap
   erlaubt“): Copilot meldet in `onPermissionRequest` den Tool-Namen hier **mit** Server-Präfix.
   Behoben in [berechtigungen.ts](../server/laufzeit/copilot/berechtigungen.ts) (Präfix wird
   entfernt, beide Schreibweisen gehen).
+- 2026-11-25: Anlegen und Speichern eines Reports klappen, die Datei liegt im Workspace.
+  **Aktivieren** scheiterte mit „Prüfung der Bedingung fehlgeschlagen“ (von Hand ging es). Ursache
+  vermutlich die Listenform von `activate` mit leerer `parentUri`. Umgestellt auf die im Prüfpaket
+  bewährte Form (Name und URL, je Objekt); weitere inaktive Teile, die SAP nennt, werden mit SAPs
+  eigenen Angaben nachaktiviert.
 
 ## Abnahme ADT-MCP auf dem Firmenrechner
 

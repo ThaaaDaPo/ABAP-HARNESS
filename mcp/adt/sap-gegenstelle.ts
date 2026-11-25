@@ -123,19 +123,26 @@ export class SapGegenstelle implements AdtGegenstelle {
 
   async aktiviere(objekte: AdtObjekt[]): Promise<AktivierungsErgebnis> {
     await this.benutzer();
-    // Mehrere Objekte in einem Schritt, damit sie sich gegenseitig sehen (z. B. Interface und Klasse).
-    const ergebnis = await this.client.activate(
-      objekte.map((o) => ({
-        "adtcore:uri": o.url,
-        "adtcore:type": arten[o.art].adtTyp,
-        "adtcore:name": o.name,
-        "adtcore:parentUri": "",
-      })),
-    );
-    return {
-      erfolgreich: ergebnis.success,
-      meldungen: ergebnis.messages.map((m) => ({ objekt: m.objDescr, zeile: m.line, spalte: 0, schwere: schwere(m.type), text: m.shortText })),
-    };
+    const meldungen: AktivierungsErgebnis["meldungen"] = [];
+    let erfolgreich = true;
+    for (const objekt of objekte) {
+      // Bewährte Form aus dem Prüfpaket: Name und URL. (Die Listenform mit leerer parentUri lehnte SAP
+      // am Firmenrechner ab: „Prüfung der Bedingung fehlgeschlagen“.)
+      let ergebnis = await this.client.activate(objekt.name, objekt.url);
+      // Nennt SAP weitere inaktive Teile, die dazugehören, diese zusammen aktivieren – mit den
+      // Angaben, die SAP selbst liefert.
+      const dazu = ergebnis.inactive.flatMap((r) => (r.object ? [r.object] : []));
+      if (!ergebnis.success && dazu.length > 0) ergebnis = await this.client.activate(dazu);
+
+      erfolgreich &&= ergebnis.success;
+      for (const m of ergebnis.messages) meldungen.push({ objekt: m.objDescr || objekt.name, zeile: m.line, spalte: 0, schwere: schwere(m.type), text: m.shortText });
+      // Gescheitert ohne Meldung: zeigen, was noch inaktiv ist – sonst weiß der Agent nicht weiter
+      if (!ergebnis.success && ergebnis.messages.length === 0) {
+        const offen = ergebnis.inactive.flatMap((r) => (r.object ? [r.object["adtcore:name"]] : [])).join(", ");
+        meldungen.push({ objekt: objekt.name, zeile: 0, spalte: 0, schwere: "fehler", text: `Nicht aktiviert${offen ? `, noch inaktiv: ${offen}` : ""}.` });
+      }
+    }
+    return { erfolgreich, meldungen };
   }
 
   async legeAn(art: ObjektArt, name: string, beschreibung: string, paket: string, funktionsgruppe?: AdtObjekt): Promise<AdtObjekt> {
