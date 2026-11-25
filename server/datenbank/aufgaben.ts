@@ -13,6 +13,7 @@ interface AufgabenZeile {
   denkaufwand: string;
   kontext: ModellWahl["kontext"];
   herkunft: "chat" | "workflow";
+  agent_id: string;
 }
 
 export interface AufgabeIntern extends Aufgabe {
@@ -30,6 +31,7 @@ function ausZeile(zeile: AufgabenZeile): AufgabeIntern {
     sitzungId: zeile.sitzung_id,
     herkunft: zeile.herkunft,
     erstelltAm: zeile.erstellt_am,
+    agentId: zeile.agent_id,
     modellWahl: { modell: zeile.modell, denkaufwand: zeile.denkaufwand, kontext: zeile.kontext },
   };
 }
@@ -40,12 +42,13 @@ export function oeffentlich(aufgabe: AufgabeIntern): Aufgabe {
   return rest;
 }
 
-export function legeAufgabeAn(db: Datenbank, titel: string): AufgabeIntern {
+export function legeAufgabeAn(db: Datenbank, titel: string, agentId: string): AufgabeIntern {
   const id = randomUUID();
-  db.prepare(`INSERT INTO aufgaben (id, titel, status, sitzung_id, erstellt_am) VALUES (?, ?, 'bereit', NULL, ?)`).run(
+  db.prepare(`INSERT INTO aufgaben (id, titel, status, sitzung_id, erstellt_am, agent_id) VALUES (?, ?, 'bereit', NULL, ?, ?)`).run(
     id,
     titel,
     new Date().toISOString(),
+    agentId,
   );
   return holeAufgabe(db, id)!;
 }
@@ -92,6 +95,10 @@ export function setzeModellWahl(db: Datenbank, id: string, wahl: ModellWahl): vo
     wahl.kontext,
     id,
   );
+}
+
+export function setzeAgent(db: Datenbank, id: string, agentId: string): void {
+  db.prepare(`UPDATE aufgaben SET agent_id = ? WHERE id = ?`).run(agentId, id);
 }
 
 /** Löscht die Aufgabe mit Verlauf, Postfach-Einträgen und Warteschlange. */

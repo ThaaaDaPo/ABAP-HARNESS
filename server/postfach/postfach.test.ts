@@ -9,6 +9,7 @@ import type { ChatDienst } from "../chat/chat-dienst.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { holeEintrag } from "../datenbank/postfach.ts";
 import { setzeRegel } from "../datenbank/tool-regeln.ts";
+import * as warteschlange from "../datenbank/warteschlange.ts";
 import { aufbauen, warteBis, type Verhalten } from "../testhilfe.ts";
 
 const seite = { server: "jira", tool: "seite_anlegen" };
@@ -102,12 +103,12 @@ test("Chat: Im Chat gibt es kein auf_freigabe_warten – der Aufruf wartet selbs
   assert.deepEqual(namen, ["rueckfrage_stellen"]);
 });
 
-test("Chat: Während der Agent wartet, laufen andere Chats; danach geht es der Reihe nach weiter", async () => {
+test("Chat: Während der Agent in einem Chat wartet, läuft ein anderer; die Freigabe geht sofort weiter", async () => {
   const merke: string[] = [];
   let loslassen = () => {};
-  const { chat, postfach, gesendet, status } = aufbauen(async (text, sitzung) => {
+  const { chat, postfach, gesendet, status } = aufbauen(async (text, sitzung, melde) => {
     if (text === "lang") return new Promise<void>((r) => (loslassen = r));
-    await seiteAnlegen(merke)(text, sitzung);
+    await seiteAnlegen(merke)(text, sitzung, melde);
   });
   const a = (await chat.neueAufgabe()).id;
   chat.nimmNachrichtAn(a, "Lege die Seite an");
@@ -117,14 +118,14 @@ test("Chat: Während der Agent wartet, laufen andere Chats; danach geht es der R
   chat.nimmNachrichtAn(b, "lang");
   await warteBis(() => status(b) === "arbeitet" && gesendet.length === 2);
 
-  // A wird freigegeben, während der Agent an B arbeitet: A ist eingereiht, bis B fertig ist
+  // A wird freigegeben, während B noch arbeitet: Jeder Chat läuft für sich (E-57), A wartet nicht auf B.
   await postfach.freigeben(1);
-  assert.equal(status(a), "eingereiht");
-  assert.deepEqual(merke, []);
+  await warteBis(() => status(a) === "bereit");
+  assert.deepEqual(merke, ["ausgeführt"]);
+  assert.equal(status(b), "arbeitet");
 
   loslassen();
-  await warteBis(() => status(a) === "bereit" && status(b) === "bereit");
-  assert.deepEqual(merke, ["ausgeführt"]);
+  await warteBis(() => status(b) === "bereit");
   assert.deepEqual(gesendet, ["Lege die Seite an", "lang"]);
 });
 
@@ -238,24 +239,30 @@ test("Freigabe wird abgelehnt, wenn das Tool inzwischen verboten ist", async () 
   assert.equal(postfach.alle()[0].status, "offen");
 });
 
-test("Warteschlange: Der Agent arbeitet nacheinander, nicht gleichzeitig", async () => {
-  let loslassen = () => {};
-  const { chat, gesendet, status } = aufbauen(async (text) => {
-    if (text === "lang") await new Promise<void>((r) => (loslassen = r));
+test("Parallel: Chats laufen gleichzeitig, im selben Chat geht es der Reihe nach", async () => {
+  const offen: (() => void)[] = [];
+  const { db, chat, gesendet, status } = aufbauen(async (text) => {
+    if (text.startsWith("lang")) await new Promise<void>((r) => offen.push(r));
   });
-  // Nacheinander anlegen: „Neuer Chat“ räumt leere Chats weg
+  // Zwei Chats desselben Agenten
   const a = (await chat.neueAufgabe()).id;
-  chat.nimmNachrichtAn(a, "lang");
+  chat.nimmNachrichtAn(a, "lang A");
   const b = (await chat.neueAufgabe()).id;
-  chat.nimmNachrichtAn(b, "kurz");
-  await warteBis(() => gesendet.length === 1);
-  assert.equal(status(a), "arbeitet");
-  assert.equal(status(b), "eingereiht");
-  assert.throws(() => chat.nimmNachrichtAn(b, "noch was"), /noch beschäftigt/);
+  chat.nimmNachrichtAn(b, "lang B");
+  await warteBis(() => gesendet.length === 2);
+  assert.deepEqual([status(a), status(b)], ["arbeitet", "arbeitet"]);
+  assert.throws(() => chat.nimmNachrichtAn(a, "noch was"), /noch beschäftigt/);
 
-  loslassen();
+  // Eine Fortsetzung für einen laufenden Chat wartet, bis sein Lauf fertig ist
+  chat.setzeFortAusPostfach(a, "Fortsetzung");
+  assert.equal(warteschlange.stehtAn(db, a), true);
+  offen.shift()!();
+  await warteBis(() => gesendet.length === 3);
+  assert.equal(gesendet[2], "Fortsetzung");
+  await warteBis(() => status(a) === "bereit");
+
+  offen.shift()!();
   await warteBis(() => status(b) === "bereit");
-  assert.deepEqual(gesendet, ["lang", "kurz"]);
 });
 
 test("Chat-Einträge gehören nicht ins Postfach, Meldungen aus Chats gelten als gesehen", async () => {

@@ -125,6 +125,19 @@ button:disabled { cursor: default; }
 }
 .modell-info { color: var(--text-leise); }
 .modell-hinweis { align-self: flex-start; font-size: 12px; color: var(--text-leise); }
+/* Verbrauch eines Laufs, klein unter der Antwort */
+.verbrauch-hinweis { align-self: flex-start; font-size: 11px; color: var(--text-leise); margin-top: -6px; }
+.chat-verbrauch { margin-left: auto; }
+/* Ein Lauf wurde abgebrochen */
+.abbruch-hinweis {
+  align-self: flex-start;
+  font-size: 13px;
+  color: var(--warnung);
+  padding: 4px 10px;
+  border-left: 3px solid var(--warnung);
+  background: #fff7ed;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
 .chat-titel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arbeitet-punkt {
   width: 8px;
@@ -153,7 +166,8 @@ button:disabled { cursor: default; }
   line-height: 1.45;
 }
 .nachricht.nutzer { align-self: flex-end; background: var(--akzent); color: white; }
-.nachricht.agent { align-self: flex-start; background: var(--flaeche); border: 1px solid var(--rand); }
+/* Antworten des Agenten sind Markdown: Zeilenumbrüche macht das HTML, nicht pre-wrap */
+.nachricht.agent { align-self: flex-start; background: var(--flaeche); border: 1px solid var(--rand); white-space: normal; }
 .nachricht.fehler { align-self: flex-start; background: var(--fehler-hell); color: var(--fehler); }
 .nachricht.schreibt { opacity: 0.85; }
 .denkt { color: var(--text-leise); font-style: italic; }
@@ -391,5 +405,76 @@ button:disabled { cursor: default; }
 
 .leer { color: var(--text-leise); }
 .leer.mitte { margin: auto; }
+
+/* Markdown (Antworten des Agenten, Vorschau von Instructions) */
+.markdown { line-height: 1.5; overflow-wrap: anywhere; }
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown p, .markdown ul, .markdown ol, .markdown pre, .markdown blockquote, .markdown table { margin: 0 0 10px; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 { margin: 14px 0 8px; line-height: 1.25; }
+.markdown h1 { font-size: 20px; }
+.markdown h2 { font-size: 17px; }
+.markdown h3, .markdown h4 { font-size: 15px; }
+.markdown ul, .markdown ol { padding-left: 22px; }
+.markdown li + li { margin-top: 2px; }
+.markdown code { font-family: Consolas, monospace; font-size: 13px; background: var(--hintergrund); padding: 1px 4px; border-radius: 4px; }
+.markdown pre { background: var(--hintergrund); padding: 10px; border-radius: 6px; overflow-x: auto; }
+.markdown pre code { background: none; padding: 0; white-space: pre; }
+.markdown blockquote { border-left: 3px solid var(--rand); padding-left: 10px; color: var(--text-leise); }
+.markdown table { border-collapse: collapse; }
+.markdown th, .markdown td { border: 1px solid var(--rand); padding: 4px 8px; text-align: left; }
+.markdown a { color: var(--akzent); }
+
+/* Formulare mit Gruppen (Agenten-Seite) */
+.feld { display: flex; flex-direction: column; gap: 6px; border: none; padding: 0; margin: 0; }
+.feld-titel { font-weight: 600; font-size: 14px; padding: 0; }
+.formular .haken { flex-direction: row; align-items: baseline; gap: 8px; font-weight: normal; flex-wrap: wrap; }
+.formular .haken code, .listen-eintrag code { font-size: 12px; color: var(--text-leise); }
+.formular textarea.lesbar { font-family: inherit; font-size: 14px; }
+.modell-wahl.im-formular { padding: 0; border: none; background: none; }
+.formular .modell-wahl label { flex-direction: row; align-items: center; font-weight: normal; font-size: 13px; }
+.fehler-text { color: var(--fehler); font-size: 13px; }
+.agent-regeln { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid var(--rand); padding-top: 16px; }
+.agent-regeln h3, .detail h3 { margin: 8px 0 0; font-size: 16px; }
+.server-regeln h4 { margin: 0 0 8px; font-size: 15px; }
+.listen-titel { font-size: 12px; font-weight: 600; color: var(--text-leise); text-transform: uppercase; letter-spacing: 0.4px; margin: 12px 10px 2px; }
+
+/* Instructions & Skills */
+.editor {
+  min-height: 420px;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  padding: 10px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  resize: vertical;
+}
+.frontmatter { margin: 0; padding: 8px 10px; background: var(--hintergrund); border-radius: 6px; font-size: 12px; color: var(--text-leise); white-space: pre-wrap; }
+.vorschau { background: var(--flaeche); border: 1px solid var(--rand); border-radius: var(--radius); padding: 14px 18px; max-width: 860px; }
+
+/* Einfache Tabellen (MCP-Tools, Verbrauch, Einstellungen) */
+.tabelle { border-collapse: collapse; width: 100%; background: var(--flaeche); border: 1px solid var(--rand); }
+.tabelle th { text-align: left; font-size: 13px; color: var(--text-leise); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--rand); }
+.tabelle td { padding: 8px 12px; border-bottom: 1px solid var(--rand); vertical-align: top; font-size: 14px; }
+.tabelle tr:last-child td { border-bottom: none; }
+.tabelle .zahl { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tabelle td.tool-name { white-space: nowrap; }
+.detail.breit { max-width: 1000px; }
+
+/* Verbrauch */
+.kennzahlen { display: flex; gap: 32px; flex-wrap: wrap; }
+.kennzahlen > div { display: flex; flex-direction: column; }
+.kennzahl { font-size: 22px; font-weight: 600; }
+
+/* Einrichtung */
+.pruefungen { display: flex; flex-direction: column; gap: 6px; }
+.pruefung { display: flex; gap: 12px; padding: 10px 14px; background: var(--flaeche); border: 1px solid var(--rand); border-radius: var(--radius); }
+.pruefung-zeichen { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 13px; }
+.pruefung.ok .pruefung-zeichen { background: #ecfdf5; color: var(--ok); }
+.pruefung.fehler { border-left: 4px solid var(--fehler); }
+.pruefung.fehler .pruefung-zeichen { background: var(--fehler-hell); color: var(--fehler); }
+.pruefung.info .pruefung-zeichen { background: var(--akzent-hell); color: var(--akzent); }
+.pruefung-titel { font-weight: 600; }
+.pruefung-hinweis { color: var(--warnung); font-size: 13px; margin-top: 2px; }
 
 @keyframes pulsieren { from { opacity: 0.3; } to { opacity: 1; } }

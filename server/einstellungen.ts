@@ -11,7 +11,12 @@ export interface Einstellungen {
   workspaceOrdner: string;
   /** Hier liegen Datenbank und andere Laufzeitdaten der App. */
   datenOrdner: string;
-  /** Leer = automatische Modellauswahl von Copilot. */
+  /** Ordner mit *.instructions.md und Skill-Ordnern (je mit SKILL.md), E-30/E-58. */
+  instructionsOrdner: string;
+  /**
+   * Nur beim allerersten Start: Daraus entsteht der Agent "standard" (Modell leer = automatisch).
+   * Danach stellt David Agenten in der App ein; diese Werte liest die App dann nicht mehr.
+   */
   modell: string;
   agent: {
     name: string;
@@ -26,6 +31,7 @@ const standard: Einstellungen = {
   modus: "simulation",
   workspaceOrdner: "./daten/workspace",
   datenOrdner: "./daten",
+  instructionsOrdner: "./daten/instructions",
   modell: "",
   agent: {
     name: "Assistent",
@@ -33,9 +39,10 @@ const standard: Einstellungen = {
   },
 };
 
+export const einstellungsDatei = path.join(projektOrdner, "einstellungen.json");
+
 export function ladeEinstellungen(): Einstellungen {
-  const datei = path.join(projektOrdner, "einstellungen.json");
-  const ausDatei = fs.existsSync(datei) ? JSON.parse(fs.readFileSync(datei, "utf8")) : {};
+  const ausDatei = fs.existsSync(einstellungsDatei) ? JSON.parse(fs.readFileSync(einstellungsDatei, "utf8")) : {};
   const einstellungen: Einstellungen = {
     ...standard,
     ...ausDatei,
@@ -49,8 +56,14 @@ export function ladeEinstellungen(): Einstellungen {
   // Relative Pfade gelten ab dem Projektordner, nicht ab dem Ordner, aus dem gestartet wurde.
   einstellungen.workspaceOrdner = path.resolve(projektOrdner, einstellungen.workspaceOrdner);
   einstellungen.datenOrdner = path.resolve(projektOrdner, einstellungen.datenOrdner);
+  einstellungen.instructionsOrdner = path.resolve(projektOrdner, einstellungen.instructionsOrdner);
   fs.mkdirSync(einstellungen.workspaceOrdner, { recursive: true });
   fs.mkdirSync(einstellungen.datenOrdner, { recursive: true });
+  // Einen eingetragenen Instructions-Ordner nicht anlegen: Fehlt er, ist meist der Pfad falsch, und
+  // die Einrichtungsseite zeigt das an. Nur der Standardordner unter daten/ entsteht von selbst.
+  if (einstellungen.instructionsOrdner === path.resolve(projektOrdner, standard.instructionsOrdner)) {
+    fs.mkdirSync(einstellungen.instructionsOrdner, { recursive: true });
+  }
 
   return einstellungen;
 }

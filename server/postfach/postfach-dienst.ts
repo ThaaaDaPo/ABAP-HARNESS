@@ -17,12 +17,13 @@
 import type { PostfachEintrag } from "../../gemeinsam/typen.ts";
 import type { ChatDienst } from "../chat/chat-dienst.ts";
 import { meldeUebersicht } from "../chat/live-verteiler.ts";
+import { standardAgentId } from "../datenbank/agenten.ts";
 import { holeAufgabe } from "../datenbank/aufgaben.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { holeServer } from "../datenbank/mcp-server.ts";
 import * as postfach from "../datenbank/postfach.ts";
 import { Fehler } from "../fehler.ts";
-import { laufzeitName, standardAgentId, ToolGateway } from "../gateway/gateway.ts";
+import { laufzeitName, ToolGateway } from "../gateway/gateway.ts";
 import type { McpAufrufer } from "../mcp/mcp-aufrufer.ts";
 
 export class PostfachDienst {
@@ -63,8 +64,10 @@ export class PostfachDienst {
 
     const server = holeServer(this.db, eintrag.server);
     if (!server) throw new Fehler(409, `Der Server ${eintrag.server} ist nicht mehr eingetragen.`);
-    // Hat David das Tool inzwischen verboten, gilt das auch für alte Vorschläge.
-    const gateway = new ToolGateway({ db: this.db, agentId: standardAgentId, aufgabeId: eintrag.aufgabeId, melde: () => {} });
+    // Hat David das Tool inzwischen verboten, gilt das auch für alte Vorschläge – nach den Regeln
+    // des Agenten, der den Chat gerade bearbeitet.
+    const agentId = holeAufgabe(this.db, eintrag.aufgabeId)?.agentId ?? standardAgentId;
+    const gateway = new ToolGateway({ db: this.db, agentId, aufgabeId: eintrag.aufgabeId, melde: () => {} });
     if (gateway.regel(eintrag) === "verbieten") {
       throw new Fehler(409, `Das Tool ${laufzeitName(eintrag)} ist inzwischen verboten. Bitte verwerfen oder die Regel ändern.`);
     }
@@ -135,25 +138,29 @@ export class PostfachDienst {
     if (!eintrag) throw new Fehler(404, `Eintrag #${nr} nicht gefunden.`);
     if (this.inAusfuehrung.has(nr)) throw new Fehler(409, `Vorschlag #${nr} wird gerade ausgeführt.`);
     const offen = postfach.offeneStatus.includes(eintrag.status);
+    // Im Chat (Änderungswunsch in der Vorschlagskarte, E-55) steht die Antwort wie eine normale
+    // Nachricht im Verlauf – genauso, als hätte David sie ins Eingabefeld geschrieben.
+    const imChat = holeAufgabe(this.db, eintrag.aufgabeId)?.herkunft === "chat";
+    if (imChat) this.chat.melde(eintrag.aufgabeId, { art: "nutzer_nachricht", text });
     if (offen && this.chat.entscheide(nr, { art: "antwort", text })) return;
     const name = eintrag.art === "rueckfrage" ? "" : ` (${laufzeitName(eintrag)})`;
 
     let anAgent: string;
     if (eintrag.art === "freigabe" && offen) {
       postfach.schliesseAb(this.db, nr, { status: "aenderung_angefordert", antwort: text });
-      this.hinweis(eintrag, `Änderungswunsch zu Vorschlag #${nr}:`, text);
+      this.hinweis(eintrag, `Änderungswunsch zu Vorschlag #${nr}:`, imChat ? undefined : text);
       anAgent =
         `Änderungswunsch zu Vorschlag #${nr}${name}. Der Vorschlag wurde NICHT ausgeführt. Der Nutzer schreibt:\n${text}\n\n` +
         `Überarbeite ihn und lege ihn neu vor.`;
     } else if (eintrag.art === "rueckfrage" && offen) {
       postfach.schliesseAb(this.db, nr, { status: "beantwortet", antwort: text });
-      this.hinweis(eintrag, `Antwort auf Rückfrage #${nr}:`, text);
+      this.hinweis(eintrag, `Antwort auf Rückfrage #${nr}:`, imChat ? undefined : text);
       anAgent = `Antwort auf deine Rückfrage #${nr}:\n${text}`;
     } else {
       // Offene Meldung: damit erledigt. Erledigter Eintrag: Status bleibt, nur die Antwort wird vermerkt.
       if (offen) postfach.schliesseAb(this.db, nr, { status: "beantwortet", antwort: text });
       else postfach.setzeAntwort(this.db, nr, text);
-      this.hinweis(eintrag, `Rückmeldung zu Eintrag #${nr}:`, text);
+      this.hinweis(eintrag, `Rückmeldung zu Eintrag #${nr}:`, imChat ? undefined : text);
       anAgent = `Rückmeldung des Nutzers zu Postfach-Eintrag #${nr}${name}:\n${text}`;
     }
     this.chat.setzeFortAusPostfach(eintrag.aufgabeId, anAgent);
@@ -169,7 +176,9 @@ export class PostfachDienst {
 
   /** Vermerk im Chat der Aufgabe, damit der Verlauf zeigt, was im Postfach passiert ist. */
   private hinweis(eintrag: PostfachEintrag, text: string, details?: string): void {
-    this.chat.melde(eintrag.aufgabeId, { art: "postfach_aktion", postfachNr: eintrag.nr, text, ...(details ? { details } : {}) });
+    // Ohne Details (im Chat steht Davids Text schon als Nachricht) endet der Satz nicht mit Doppelpunkt.
+    const satz = details ? text : text.replace(/:$/, ".");
+    this.chat.melde(eintrag.aufgabeId, { art: "postfach_aktion", postfachNr: eintrag.nr, text: satz, ...(details ? { details } : {}) });
     meldeUebersicht({ bereich: "postfach" });
   }
 }

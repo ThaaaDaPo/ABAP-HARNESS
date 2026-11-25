@@ -8,14 +8,12 @@
 // Freigabe ohne David (Workflows, später): Der Aufruf wird nicht ausgeführt, sondern als Vorschlag
 // abgelegt, und der Agent arbeitet weiter (E-44, E-45).
 import type { Ereignis, ToolRegel } from "../../gemeinsam/typen.ts";
+import { hatServer } from "../datenbank/agenten.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { holeServer } from "../datenbank/mcp-server.ts";
 import { legeAb, schliesseAb } from "../datenbank/postfach.ts";
 import { regelFuer } from "../datenbank/tool-regeln.ts";
 import type { NutzerEntscheidung } from "../postfach/entscheidungen.ts";
-
-/** Bis es die Agentenverwaltung gibt (Schritt 4), gelten alle Regeln für diesen einen Agenten. */
-export const standardAgentId = "standard";
 
 /** Welches Tool auf welchem Server gemeint ist. */
 export interface ToolAdresse {
@@ -70,6 +68,8 @@ export class ToolGateway {
   regel(adresse: ToolAdresse): ToolRegel {
     // Ein Server, der nicht (mehr) eingetragen ist, hat keine Regeln – also gesperrt.
     if (!holeServer(this.kontext.db, adresse.server)) return "verbieten";
+    // Ebenso ein Server, den der Agent nicht benutzen darf (Agenten-Seite).
+    if (!hatServer(this.kontext.db, this.kontext.agentId, adresse.server)) return "verbieten";
     return regelFuer(this.kontext.db, this.kontext.agentId, adresse.server, adresse.tool);
   }
 

@@ -5,7 +5,7 @@
 /**
  * Wo eine Aufgabe gerade steht:
  * - bereit:      wartet auf eine Nachricht von David
- * - eingereiht:  Arbeit liegt in der Warteschlange, der Agent ist noch mit etwas anderem beschäftigt
+ * - eingereiht:  Arbeit liegt in der Warteschlange und kommt dran, sobald der laufende Schritt im Chat fertig ist
  * - arbeitet:    der Agent arbeitet daran
  * - wartet:      wartet auf das Postfach (Freigabe oder Antwort auf eine Rückfrage)
  * - erledigt:    abgeschlossen, z. B. nach der Freigabe zum Abschluss
@@ -19,12 +19,15 @@ export interface Aufgabe {
   titel: string;
   status: AufgabenStatus;
   erstelltAm: string;
+  /** Der Agent, der den Chat bearbeitet. Im laufenden Chat wechselbar (E-56). */
+  agentId: string;
+  /** Übersteuert das Standardmodell des Agenten (E-51). Leeres Modell = Standard des Agenten. */
   modellWahl: ModellWahl;
 }
 
-/** Welches Modell ein Chat benutzt. Gilt ab der nächsten Nachricht. */
+/** Welches Modell benutzt wird. Gilt ab der nächsten Nachricht. */
 export interface ModellWahl {
-  /** Leer = Standard aus einstellungen.json (dort leer = automatische Auswahl) */
+  /** Leer = im Chat: Standardmodell des Agenten; beim Agenten: automatische Auswahl von Copilot */
   modell: string;
   /** Thinking Effort, z. B. "high". Leer = Standard des Modells */
   denkaufwand: string;
@@ -57,6 +60,15 @@ export type Ereignis =
   | { art: "agent_schreibt"; textTeil: string }
   /** Welches Modell geantwortet hat (Copilot meldet das nach jedem Modellaufruf). */
   | { art: "modell"; modell: string }
+  /** Welcher Agent den Lauf bearbeitet (zu Beginn jedes Laufs; angezeigt wird nur ein Wechsel). */
+  | { art: "agent"; agentId: string; name: string }
+  /**
+   * Verbrauch eines einzelnen Modellaufrufs, wie die Laufzeit ihn meldet. Wird nicht als Ereignis
+   * gespeichert, sondern in der Tabelle verbrauch; am Ende des Laufs folgt die Summe (lauf_verbrauch).
+   */
+  | ({ art: "verbrauch" } & ModellAufrufVerbrauch)
+  /** Summe eines Laufs (eine Nachricht bis der Agent fertig ist) – klein unter der Antwort */
+  | ({ art: "lauf_verbrauch" } & VerbrauchSumme)
   | { art: "tool_start"; aufrufId: string; toolName: string; argumente: unknown }
   | { art: "tool_ende"; aufrufId: string; erfolgreich: boolean; ergebnis: string }
   /** Ein Eintrag wurde ins Postfach gelegt (Freigabe nötig, Meldung oder Rückfrage). */
@@ -70,6 +82,8 @@ export type Ereignis =
     }
   /** David hat im Postfach gehandelt (freigegeben, verworfen, geantwortet …). */
   | { art: "postfach_aktion"; postfachNr: number; text: string; details?: string }
+  /** Ein Lauf wurde abgebrochen (Knopf „Abbrechen“ oder Neustart der App mitten im Lauf). */
+  | { art: "abbruch"; text: string }
   /** Statuswechsel der Aufgabe. Wird nur live gezeigt, nicht gespeichert. */
   | { art: "status"; status: AufgabenStatus }
   | { art: "fehler"; meldung: string };
@@ -83,6 +97,8 @@ export interface AufgabeMitVerlauf {
   ereignisse: GespeichertesEreignis[];
   /** Vorschläge und Rückfragen des Chats – im Chat freigegeben bzw. beantwortet (E-52) */
   postfach: PostfachEintrag[];
+  /** Was der Chat bisher verbraucht hat */
+  verbrauch: VerbrauchSumme;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -167,22 +183,148 @@ export interface McpServerDaten {
   arbeitsordner: string;
 }
 
+/** Ein eingetragener Server, wie die MCP-Seite ihn zeigt. Die Regeln stehen beim Agenten. */
 export interface McpServer extends McpServerDaten {
   /** Zuletzt ausgelesene Tools. Leer, solange noch nie ausgelesen. */
   tools: McpTool[];
   toolsGelesenAm: string | null;
   /** Fehler beim letzten Auslesen */
   leseFehler: string | null;
+  /** Namen der Agenten, die den Server benutzen dürfen */
+  agenten: string[];
+}
+
+/** Die Regeln eines Agenten für einen Server – für die Tabelle auf der Agenten-Seite. */
+export interface ServerRegeln {
+  schluessel: string;
+  name: string;
+  tools: McpTool[];
   /** Gilt für jedes Tool ohne eigene Regel, auch für Tools, die später neu dazukommen. */
   standardRegel: ToolRegel;
   /** Eigene Regeln je Tool-Name */
   regeln: Record<string, ToolRegel>;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Agenten (Schritt 4)
+// ---------------------------------------------------------------------------------------------
+
+/** Was auf der Agenten-Seite eingestellt wird. */
+export interface AgentDaten {
+  name: string;
+  /** Systemprompt: wer der Agent ist und wie er arbeiten soll */
+  auftrag: string;
+  /** Standardmodell; ein Chat kann es übersteuern. Leeres Modell = automatische Auswahl */
+  modellWahl: ModellWahl;
+  /** Schlüssel der MCP-Server, die der Agent benutzen darf. Die Regeln je Tool stehen in tool_regeln. */
+  mcpServer: string[];
+  /** Zugeordnete Instructions (Pfad relativ zum Instructions-Ordner) */
+  instructions: string[];
+  /** Zugeordnete Skills (Ordner relativ zum Instructions-Ordner) */
+  skills: string[];
+}
+
+export interface Agent extends AgentDaten {
+  /** "standard" für den Agenten, der beim ersten Start entsteht; er lässt sich nicht löschen */
+  id: string;
+  erstelltAm: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Instructions und Skills (Schritt 4, E-30, E-58)
+// ---------------------------------------------------------------------------------------------
+
+/** Eine Datei *.instructions.md im Instructions-Ordner */
+export interface InstructionInfo {
+  /** Pfad relativ zum Instructions-Ordner, mit / getrennt – dient als Kennung */
+  pfad: string;
+  /** Angaben aus dem Kopf der Datei (Frontmatter), soweit vorhanden */
+  beschreibung: string;
+  applyTo: string;
+  /** Namen der Agenten, denen die Datei zugeordnet ist */
+  agenten: string[];
+}
+
+/** Ein Skill: ein Ordner mit SKILL.md */
+export interface SkillInfo {
+  /** Ordner relativ zum Instructions-Ordner – dient als Kennung */
+  pfad: string;
+  /** Name aus dem Frontmatter, sonst der Ordnername. Unter diesem Namen kennt Copilot den Skill. */
+  name: string;
+  beschreibung: string;
+  /** Weitere Dateien im Skill-Ordner (nur zur Anzeige) */
+  dateien: string[];
+  agenten: string[];
+}
+
+/** Antwort von GET /api/instructions */
+export interface InstructionsUebersicht {
+  ordner: string;
+  /** Gesetzt, wenn der Ordner fehlt oder nicht lesbar ist */
+  fehler: string | null;
+  instructions: InstructionInfo[];
+  skills: SkillInfo[];
+}
+
+// ---------------------------------------------------------------------------------------------
+// Verbrauch (Schritt 4, V-14 ohne Limit – E-60)
+// ---------------------------------------------------------------------------------------------
+
+/** Ein Modellaufruf, wie Copilot ihn im Ereignis assistant.usage meldet. */
+export interface ModellAufrufVerbrauch {
+  modell: string;
+  eingabeTokens: number;
+  ausgabeTokens: number;
+  /** Aus dem Prompt-Cache gelesene Tokens (in den Eingabe-Tokens enthalten oder nicht – laut SDK getrennt gemeldet) */
+  cacheTokens: number;
+  /** Kosten in Nano-AI-Units (copilotUsage.totalNanoAiu). Null, wenn Copilot nichts meldet. */
+  nanoAiu: number | null;
+  /** Kostenfaktor des Modells (cost), falls gemeldet */
+  kostenfaktor: number | null;
+}
+
+export interface VerbrauchSumme {
+  /** Anzahl Modellaufrufe */
+  aufrufe: number;
+  eingabeTokens: number;
+  ausgabeTokens: number;
+  cacheTokens: number;
+  nanoAiu: number;
+  /** Aufrufe ohne Kostenangabe – dann ist nanoAiu nur eine Untergrenze */
+  ohneKosten: number;
+}
+
+/** Antwort von GET /api/verbrauch */
+export interface VerbrauchUebersicht {
+  gesamt: VerbrauchSumme;
+  jeAgent: ({ name: string } & VerbrauchSumme)[];
+  jeModell: ({ name: string } & VerbrauchSumme)[];
+  /** Monat als "2026-11" */
+  jeMonat: ({ name: string } & VerbrauchSumme)[];
+}
+
+// ---------------------------------------------------------------------------------------------
+// Einrichtung (Schritt 4) – nur prüfen und anzeigen (E-60)
+// ---------------------------------------------------------------------------------------------
+
+export interface Pruefung {
+  titel: string;
+  /** true = in Ordnung, false = Fehler, null = nur Hinweis */
+  ok: boolean | null;
+  text: string;
+  /** Was zu tun ist, wenn etwas nicht stimmt */
+  hinweis?: string;
+}
+
+/** Antwort von GET /api/einrichtung */
+export interface EinrichtungsBericht {
+  pruefungen: Pruefung[];
+  /** Die Einstellungen, wie die App sie gerade benutzt (nur zur Anzeige) */
+  einstellungen: { name: string; wert: string }[];
+}
+
 /** Antwort von GET /api/status */
 export interface StatusAntwort {
   modus: "simulation" | "copilot";
-  modell: string;
-  agentName: string;
   workspaceOrdner: string;
 }

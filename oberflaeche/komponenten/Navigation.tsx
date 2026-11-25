@@ -1,7 +1,7 @@
 // Linke Leiste: Seiten der App, Zahl der offenen Postfach-Einträge und Modus-Anzeige.
 import type { StatusAntwort } from "../../gemeinsam/typen.ts";
 
-export type SeitenName = "chat" | "mcp" | "postfach" | "agenten" | "einrichtung";
+export type SeitenName = "chat" | "agenten" | "instructions" | "mcp" | "verbrauch" | "einrichtung" | "postfach";
 
 interface Eintrag {
   name: SeitenName;
@@ -12,11 +12,13 @@ interface Eintrag {
 
 const eintraege: Eintrag[] = [
   { name: "chat", titel: "Chat" },
+  { name: "agenten", titel: "Agenten" },
+  { name: "instructions", titel: "Instructions & Skills" },
   { name: "mcp", titel: "MCP-Server" },
+  { name: "verbrauch", titel: "Verbrauch" },
+  { name: "einrichtung", titel: "Einrichtung" },
   // Das Postfach ist für Workflows, die ohne David laufen (E-52). Freigaben aus Chats gibt er im Chat.
   { name: "postfach", titel: "Postfach", kommtIn: "Phase 4 (Workflows)" },
-  { name: "agenten", titel: "Agenten", kommtIn: "Schritt 4" },
-  { name: "einrichtung", titel: "Einrichtung", kommtIn: "Schritt 4" },
 ];
 
 interface Eigenschaften {
@@ -48,7 +50,6 @@ export function Navigation({ aktiv, waehle, status, offenImPostfach }: Eigenscha
         <div className="modus">
           <span className={status.modus === "copilot" ? "modus-punkt echt" : "modus-punkt"} />
           {status.modus === "copilot" ? "Copilot" : "Simulation"}
-          <div className="modus-details">Modell: {status.modell}</div>
         </div>
       )}
     </nav>

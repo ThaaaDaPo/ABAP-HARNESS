@@ -1,5 +1,5 @@
-// Warteschlange des Agenten: Arbeit, die ansteht, während er mit etwas anderem beschäftigt ist.
-// Ein Agent arbeitet immer nur an einer Aufgabe; der Rest wartet hier der Reihe nach.
+// Warteschlange: Arbeit, die für einen Chat ansteht. Chats laufen gleichzeitig (E-57), aber in einem
+// Chat immer nur ein Lauf: Was kommt, während er läuft (z. B. Fortsetzung aus dem Postfach), wartet hier.
 import type { Datenbank } from "./datenbank.ts";
 import { hatBlockierendeEintraege } from "./postfach.ts";
 
@@ -45,14 +45,15 @@ export function entferne(db: Datenbank, aufgabeId: string): void {
 /**
  * Nimmt die nächste Aufgabe, die jetzt weitergehen kann, aus der Warteschlange – mit allem, was
  * für sie ansteht, zu einer Nachricht zusammengefasst. So bekommt der Agent z. B. die Ergebnisse
- * von zwei Freigaben in einem Lauf statt in zweien. Null, wenn nichts ansteht.
+ * von zwei Freigaben in einem Lauf statt in zweien. `laufend`: Chats mit laufendem Lauf, die
+ * kommen erst danach dran. Null, wenn nichts ansteht.
  */
-export function nimmNaechste(db: Datenbank): { aufgabeId: string; text: string } | null {
+export function nimmNaechste(db: Datenbank, laufend: ReadonlySet<string> = new Set()): { aufgabeId: string; text: string } | null {
   const zeilen = db.prepare(`SELECT nr, aufgabe_id, text, aus_postfach FROM warteschlange ORDER BY nr`).all() as unknown as Zeile[];
 
   const geprueft = new Set<string>();
   for (const zeile of zeilen) {
-    if (geprueft.has(zeile.aufgabe_id)) continue;
+    if (geprueft.has(zeile.aufgabe_id) || laufend.has(zeile.aufgabe_id)) continue;
     geprueft.add(zeile.aufgabe_id);
 
     const eigene = zeilen.filter((z) => z.aufgabe_id === zeile.aufgabe_id);

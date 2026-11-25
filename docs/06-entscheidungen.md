@@ -58,6 +58,13 @@
 | E-52 | 2026-11-24 | Freigaben und Rückfragen aus einem Chat werden **im Chat** erledigt. Das Postfach ist für Workflows, die ohne David laufen (z. B. am nächsten Morgen nachsehen, weiterlaufen lassen, stoppen, Änderung freigeben) und kommt mit Phase 4 | Rückmeldung nach dem Test von Schritt 3 |
 | E-53 | 2026-11-24 | Beim Context Window steht die Größe in Tokens dabei, nicht nur „Standard“/„Lang“ | Rückmeldung nach dem Test von Schritt 3 |
 | E-54 | 2026-11-24 | **Im Chat wartet der Agent auf die Freigabe**: Ruft er ein Tool mit Regel *Freigabe* auf, erscheint sofort die Vorschlagskarte – kein fehlgeschlagener Aufruf, kein `auf_freigabe_warten`, kein Zwischentext. Bis David entscheidet, passiert in dem Chat nichts. *Freigeben*: das Tool läuft, der Agent macht mit dem Ergebnis weiter. *Verwerfen*: Lauf endet, Aufgabe abgebrochen. Eine Nachricht im Eingabefeld ist der Änderungswunsch. Rückfragen genauso: die Antwort im Eingabefeld geht direkt an den wartenden Agenten. Ersetzt für Chats E-44/E-45 (für Workflows gelten sie weiter) | Rückmeldung David nach dem Test |
+| E-55 | 2026-11-24 | Änderungswunsch zu einem Vorschlag lässt sich wieder **direkt in der Vorschlagskarte** eingeben (wie vor dem Umbau); das normale Chat-Eingabefeld geht weiterhin | Antwort Plan Schritt 4, Frage 0 |
+| E-56 | 2026-11-24 | Der Agent eines Chats ist **im laufenden Chat wechselbar** | Antwort Plan Schritt 4, Frage 1 |
+| E-57 | 2026-11-24 | Agenten sollen **parallel** arbeiten, soweit technisch machbar (ändert E-19 und die Festlegung „ein Agent, eine Sache zur Zeit“ aus Schritt 3) | Antwort Plan Schritt 4, Frage 2 |
+| E-58 | 2026-11-24 | Vorhandene Instructions sind `*.instructions.md`, Skills sind Ordner mit `SKILL.md` | Antwort Plan Schritt 4, Frage 3 |
+| E-59 | 2026-11-24 | Markdown im Chat: Claude wählt die beste Lösung, sie muss in der Anwendung sicher sein (kein ungeprüftes HTML aus Modell, Tickets oder Quelltext) | Antwort Plan Schritt 4, Frage 6 |
+| E-60 | 2026-11-24 | Limit je Lauf, Monatsbudget und das Bearbeiten der Einstellungen in der App kommen vorerst **nicht**; „das Ding soll erst mal laufen“. Die Verbrauchsanzeige bleibt in Schritt 4 | Antworten Plan Schritt 4, Fragen 4, 5, 7 |
+| E-61 | 2026-11-25 | **Jeder Chat läuft für sich**: Chats arbeiten gleichzeitig, auch zwei Chats desselben Agenten. Innerhalb eines Chats geht es der Reihe nach. Konkretisiert E-57; die Festlegung „ein Agent, eine Sache zur Zeit“ aus Schritt 3 entfällt | Antwort David vor dem Bau von Schritt 4 |
 
 ## Erkenntnisse aus Phase 0 (Privatrechner, 2026-11-13)
 

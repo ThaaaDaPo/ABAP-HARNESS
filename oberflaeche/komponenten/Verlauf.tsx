@@ -1,7 +1,10 @@
 // Zeigt den Verlauf eines Chats: Nachrichten, Tool-Aufrufe, Fehler und den Text, den der Agent gerade schreibt.
 // Vorschläge erscheinen als Karte zum Freigeben, Rückfragen als hervorgehobene Frage (E-52).
+// Antworten des Agenten als Markdown (E-59); Davids Nachrichten bleiben reiner Text.
 import { useEffect, useRef } from "react";
-import type { AufgabenStatus, Ereignis, PostfachArt, PostfachEintrag } from "../../gemeinsam/typen.ts";
+import type { AufgabenStatus, Ereignis, PostfachArt, PostfachEintrag, VerbrauchSumme } from "../../gemeinsam/typen.ts";
+import { verbrauchText } from "../verbrauch-text.ts";
+import { Markdown } from "./Markdown.tsx";
 import { PostfachKarte, type PostfachAktionen } from "./PostfachKarte.tsx";
 import { ToolAufruf, type ToolAufrufDaten } from "./ToolAufruf.tsx";
 
@@ -13,7 +16,10 @@ type Block =
   /** `ausfuehrung`: der zugehörige Tool-Aufruf – seine Karte entfällt, die Vorschlagskarte zeigt ihn */
   | { art: "postfach"; nr: number; eintragsArt: PostfachArt; ausfuehrung?: ToolAufrufDaten }
   | { art: "postfach_aktion"; text: string; details?: string }
+  /** Kleine graue Zeile: welches Modell bzw. welcher Agent */
   | { art: "modell"; text: string }
+  | { art: "verbrauch"; summe: VerbrauchSumme }
+  | { art: "abbruch"; text: string }
   | { art: "fehler"; text: string };
 
 /**
@@ -25,6 +31,7 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
   const bloecke: Block[] = [];
   const toolBloecke = new Map<string, ToolAufrufDaten>();
   let letztesModell = "";
+  let letzterAgent = "";
 
   // Aufrufe, die zu einem Vorschlag gehören (Copilot meldet den Vorschlag ggf. vor dem Tool-Start)
   const mitVorschlag = new Set(ereignisse.flatMap((e) => (e.art === "postfach" && e.aufrufId ? [e.aufrufId] : [])));
@@ -68,6 +75,17 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
         if (ereignis.modell !== letztesModell) bloecke.push({ art: "modell", text: `Modell: ${ereignis.modell}` });
         letztesModell = ereignis.modell;
         break;
+      case "agent":
+        // Ebenso der Agent: nur am Anfang und beim Wechsel (E-56)
+        if (ereignis.agentId !== letzterAgent) bloecke.push({ art: "modell", text: `Agent: ${ereignis.name}` });
+        letzterAgent = ereignis.agentId;
+        break;
+      case "lauf_verbrauch":
+        bloecke.push({ art: "verbrauch", summe: ereignis });
+        break;
+      case "abbruch":
+        bloecke.push({ art: "abbruch", text: ereignis.text });
+        break;
       case "fehler":
         bloecke.push({ art: "fehler", text: ereignis.meldung });
         break;
@@ -79,7 +97,7 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
 /** Hinweis unter dem Verlauf, solange der Chat nicht einfach auf eine Nachricht wartet */
 const statusHinweise: Partial<Record<AufgabenStatus, string>> = {
   arbeitet: "Agent arbeitet …",
-  eingereiht: "Eingereiht – der Agent macht hier weiter, sobald er mit seiner aktuellen Aufgabe fertig ist.",
+  eingereiht: "Eingereiht – kommt gleich dran.",
   wartet: "Wartet auf dich.",
   erledigt: "Aufgabe erledigt.",
   abgebrochen: "Aufgabe abgebrochen.",
@@ -116,7 +134,11 @@ export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen
           case "nutzer":
             return <div key={index} className="nachricht nutzer">{block.text}</div>;
           case "agent":
-            return <div key={index} className="nachricht agent">{block.text}</div>;
+            return (
+              <div key={index} className="nachricht agent">
+                <Markdown text={block.text} />
+              </div>
+            );
           case "tool":
             return <ToolAufruf key={index} aufruf={block.aufruf} />;
           case "postfach": {
@@ -146,10 +168,22 @@ export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen
             return <div key={index} className="nachricht fehler">{block.text}</div>;
           case "modell":
             return <div key={index} className="modell-hinweis">{block.text}</div>;
+          case "verbrauch":
+            return (
+              <div key={index} className="verbrauch-hinweis" title="Verbrauch dieser Nachricht, laut Copilot">
+                {verbrauchText(block.summe)}
+              </div>
+            );
+          case "abbruch":
+            return <div key={index} className="abbruch-hinweis">{block.text}</div>;
         }
       })}
 
-      {laufenderText && <div className="nachricht agent schreibt">{laufenderText}</div>}
+      {laufenderText && (
+        <div className="nachricht agent schreibt">
+          <Markdown text={laufenderText} />
+        </div>
+      )}
       {statusHinweise[status] && !laufenderText && <div className="denkt">{statusHinweise[status]}</div>}
       <div ref={ende} />
     </div>

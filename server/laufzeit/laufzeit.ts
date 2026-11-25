@@ -8,7 +8,9 @@ import type { McpAufrufer } from "../mcp/mcp-aufrufer.ts";
 import type { PlattformTool } from "../postfach/plattform-tools.ts";
 
 export interface SitzungsEinstellungen {
-  /** Systemprompt: wer der Agent ist und wie er arbeiten soll. */
+  /** Name des Agenten, nur zur Anzeige (Simulation) */
+  agentName: string;
+  /** Systemprompt: Auftrag des Agenten, dahinter die zugeordneten Instructions. */
   auftrag: string;
   /** Leer = automatische Auswahl. */
   modell: string;
@@ -22,6 +24,10 @@ export interface SitzungsEinstellungen {
   gateway: ToolGateway;
   /** Eigene Tools der App (Rückfrage stellen, auf Freigabe warten). */
   plattformTools: PlattformTool[];
+  /** Ordner, in denen Skill-Ordner (mit SKILL.md) liegen */
+  skillOrdner: string[];
+  /** Namen der Skills, die dieser Agent nicht benutzen soll (nicht zugeordnet) */
+  abgeschalteteSkills: string[];
   /** David ist dabei (Chat): Freigaben und Rückfragen warten auf ihn (E-54). Sonst Workflow. */
   imChat: boolean;
 }
@@ -47,6 +53,8 @@ export interface AgentenLaufzeit {
   loescheSitzung(sitzungId: string): Promise<void>;
   /** Die Modelle, die zur Wahl stehen. Kann leer sein (dann nur automatische Auswahl). */
   modelle(): Promise<ModellInfo[]>;
+  /** Für die Einrichtungsseite: Ist die Laufzeit angemeldet? null = nicht nötig (Simulation). */
+  anmeldung(): Promise<{ angemeldet: boolean | null; text: string }>;
   beenden(): Promise<void>;
 }
 

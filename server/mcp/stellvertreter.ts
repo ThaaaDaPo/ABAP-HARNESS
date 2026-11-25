@@ -6,7 +6,7 @@ import type { McpServerDaten, ToolRegel } from "../../gemeinsam/typen.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { holeServer, legeServerAn } from "../datenbank/mcp-server.ts";
 import { setzeRegel, standardTool } from "../datenbank/tool-regeln.ts";
-import { standardAgentId } from "../gateway/gateway.ts";
+import { standardAgentId } from "../datenbank/agenten.ts";
 import { leseTools } from "./mcp-dienst.ts";
 
 /** Die Stellvertreter sind TypeScript; Node braucht dafür bis Version 22.18 diesen Schalter. */

@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import type { Ereignis } from "../../gemeinsam/typen.ts";
+import { legeAgentAn } from "../datenbank/agenten.ts";
 import { oeffneDatenbank } from "../datenbank/datenbank.ts";
 import { legeServerAn, speichereTools } from "../datenbank/mcp-server.ts";
 import { setzeRegel, standardTool } from "../datenbank/tool-regeln.ts";
@@ -19,6 +20,10 @@ function aufbauen() {
     { name: "ticket_lesen", beschreibung: "", nurLesend: true },
     { name: "ticket_loeschen", beschreibung: "", nurLesend: false },
   ]);
+  // Der Agent darf den Server benutzen (Agenten-Seite)
+  const agent = { auftrag: "", modellWahl: { modell: "", denkaufwand: "", kontext: "standard" as const }, instructions: [], skills: [] };
+  legeAgentAn(db, { ...agent, name: "Standard", mcpServer: ["jira"] }, "standard");
+  legeAgentAn(db, { ...agent, name: "Ohne Server", mcpServer: [] }, "ohne");
   const gemeldet: Ereignis[] = [];
   const gateway = new ToolGateway({ db, agentId: "standard", aufgabeId: "a1", melde: (e) => gemeldet.push(e) });
   // SQLite liefert Zeilen ohne Prototyp; für den Vergleich in normale Objekte kopieren
@@ -53,6 +58,14 @@ test("Nicht eingetragene Server sind gesperrt", () => {
   const { gateway } = aufbauen();
   assert.equal(gateway.regel({ server: "fremd", tool: "x" }), "verbieten");
   assert.equal(gateway.darfAusfuehren({ server: "fremd", tool: "x" }), false);
+});
+
+test("Server, die dem Agenten nicht zugeordnet sind, sind für ihn gesperrt", () => {
+  const { db } = aufbauen();
+  setzeRegel(db, "ohne", "jira", "ticket_lesen", "erlauben");
+  const gateway = new ToolGateway({ db, agentId: "ohne", aufgabeId: "a1", melde: () => {} });
+  assert.equal(gateway.regel({ server: "jira", tool: "ticket_lesen" }), "verbieten");
+  assert.equal(gateway.darfAusfuehren({ server: "jira", tool: "ticket_lesen" }), false);
 });
 
 test("Erlauben: wird ausgeführt, nichts im Postfach", async () => {

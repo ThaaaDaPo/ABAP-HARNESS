@@ -1,6 +1,7 @@
 // Verwaltung der MCP-Server: eintragen, ändern, Tools auslesen, Regeln setzen.
 import path from "node:path";
 import type { McpServer, McpServerDaten, ToolRegel } from "../../gemeinsam/typen.ts";
+import { holeAlleAgenten } from "../datenbank/agenten.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import * as gespeichert from "../datenbank/mcp-server.ts";
 import * as regeln from "../datenbank/tool-regeln.ts";
@@ -14,9 +15,13 @@ import { McpVerbindung, type StartAngaben } from "./mcp-verbindung.ts";
  */
 const schluesselMuster = /^[a-z][a-z0-9_]{0,29}$/;
 
-/** Alle Server mit den Regeln des Agenten – so, wie die Oberfläche sie braucht. */
-export function holeServerMitRegeln(db: Datenbank, agentId: string): McpServer[] {
-  return gespeichert.holeAlleServer(db).map((server) => ({ ...server, ...regeln.holeRegeln(db, agentId, server.schluessel) }));
+/** Alle Server mit den Agenten, die sie benutzen – so, wie die MCP-Seite sie braucht. */
+export function holeServerUebersicht(db: Datenbank): McpServer[] {
+  const alleAgenten = holeAlleAgenten(db);
+  return gespeichert.holeAlleServer(db).map((server) => ({
+    ...server,
+    agenten: alleAgenten.filter((a) => a.mcpServer.includes(server.schluessel)).map((a) => a.name),
+  }));
 }
 
 /** Womit der Server gestartet wird. Ohne Arbeitsordner gilt der Projektordner. */
@@ -75,7 +80,7 @@ export async function leseTools(db: Datenbank, schluessel: string): Promise<void
   }
 }
 
-/** Setzt die Regel für ein Tool oder (tool = "*") die Standardregel. "standard" entfernt die eigene Regel. */
+/** Setzt die Regel eines Agenten für ein Tool oder (tool = "*") die Standardregel. "standard" entfernt die eigene Regel. */
 export function setzeRegel(db: Datenbank, agentId: string, server: string, tool: string, regel: ToolRegel | "standard"): void {
   if (!gespeichert.holeServer(db, server)) throw new Fehler(404, "Server nicht gefunden");
   if (regel === "standard") {

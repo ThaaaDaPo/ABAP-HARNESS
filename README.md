@@ -3,10 +3,11 @@
 KI-Plattform mit Harness für die ABAP-Entwicklung: Agenten über das GitHub Copilot SDK anlegen,
 verwalten und betreiben.
 
-Stand: **Phase 1, Schritt 3** – Chat mit einem Agenten, Live-Ansicht, Simulation,
-Copilot-Anbindung, MCP-Server und Tool-Gateway mit Regeln je Tool, Postfach mit Freigaben,
-Rückfragen und Meldungen, Warteschlange und Wiederaufnahme, Modellwahl je Chat. Planung und Entscheidungen
-stehen in [docs/](docs/).
+Stand: **Phase 1, Schritt 4** – Agenten mit eigenem Auftrag, Modell, MCP-Servern, Regeln je Tool,
+Instructions und Skills; Chats mit Live-Ansicht (Markdown), Agent und Modell je Chat wählbar,
+Chats laufen gleichzeitig; Freigaben und Rückfragen im Chat; Verbrauchsanzeige; Einrichtungsseite;
+Simulation und Copilot-Anbindung. Das Postfach für Workflows ist gebaut, aber bis Phase 4 ausgegraut.
+Planung und Entscheidungen stehen in [docs/](docs/).
 
 ## Starten
 
@@ -29,23 +30,29 @@ ein Drehbuch ab ([server/laufzeit/simulation/drehbuch.json](server/laufzeit/simu
    - `"modus": "copilot"`
    - `"workspaceOrdner"`: der Ordner, in dem der Agent arbeiten darf, z. B. `"D:/agenten-workspace"`
      (Schrägstriche `/` oder doppelte `\\` verwenden)
-   - `"modell"`: leer lassen für automatische Auswahl
-3. `npm start`
+   - `"instructionsOrdner"`: Ordner mit `*.instructions.md` und Skill-Ordnern (je mit `SKILL.md`)
+   - `"modell"` und `"agent"`: nur für den allerersten Start – daraus entsteht der Agent „standard“.
+     Danach werden Agenten in der App eingestellt.
+3. `npm start`, dann die Seite **Einrichtung** öffnen: Sie zeigt, ob alles da ist.
 
 Der Agent darf Dateien nur im Workspace-Ordner lesen und schreiben. Shell-Befehle und
 Internetzugriff sind gesperrt.
 
-### MCP-Server und Regeln
+### Agenten, MCP-Server und Regeln
 
 Auf der Seite **MCP-Server** werden Server mit ihrem Startbefehl eingetragen; die App liest
-deren Tools aus. Je Tool gilt eine Regel:
+deren Tools aus. Auf der Seite **Agenten** bekommt jeder Agent seine Server (anhaken) und je Tool
+eine Regel:
 
 | Regel | Wirkung |
 |---|---|
 | Erlauben | wird ausgeführt |
-| Erlauben + melden | wird ausgeführt, Meldung im Postfach |
-| Freigabe nötig | wird nicht ausgeführt, sondern als Vorschlag ins Postfach gelegt |
+| Erlauben + melden | wird ausgeführt und gemeldet |
+| Freigabe nötig | wartet im Chat als Vorschlag, bis du freigibst, verwirfst oder Änderungen wünschst |
 | Verbieten | wird dem Agenten nicht angeboten und abgelehnt |
+
+Server, die einem Agenten nicht zugeordnet sind, kann er nicht benutzen. Welcher Agent einen Chat
+bearbeitet, steht über dem Chat und lässt sich jederzeit wechseln.
 
 Beim ersten Start sind zwei Stellvertreter-Server eingetragen (SAP, Jira/Confluence) mit
 Beispieldaten. Sie funktionieren in der Simulation und mit echtem Copilot und können gelöscht
@@ -57,7 +64,7 @@ werden.
 |---|---|
 | `npm start` | App starten |
 | `npm run entwickeln` | wie `start`, startet bei Änderungen am Server neu |
-| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach und Warteschlange |
+| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions und Verbrauch |
 | `npm run typpruefung` | TypeScript-Prüfung von Server und Oberfläche |
 
 ## Ordner
@@ -66,7 +73,10 @@ werden.
 server/                 Backend (Node, TypeScript – wird ohne Bau-Schritt direkt ausgeführt)
   start.ts              Einstieg
   einstellungen.ts      liest einstellungen.json
-  datenbank/            SQLite: Aufgaben, Ereignisse, MCP-Server, Regeln, Postfach, Warteschlange
+  datenbank/            SQLite: Aufgaben, Ereignisse, Agenten, MCP-Server, Regeln, Postfach, Warteschlange, Verbrauch
+  agenten/              Agenten verwalten: Standard-Agent beim ersten Start, prüfen, kopieren, löschen
+  instructions/         Instructions-Ordner lesen und bearbeiten (*.instructions.md, Skills mit SKILL.md)
+  einrichtung/          Prüfungen für die Einrichtungsseite
   laufzeit/             Agenten-Laufzeit, austauschbar
     laufzeit.ts         die gemeinsame Schnittstelle
     copilot/            echtes Copilot SDK, Berechtigungsregeln, Gateway-Hooks
@@ -84,7 +94,7 @@ gemeinsam/              Typen, die Server und Oberfläche teilen
 mcp/                    MCP-Server, je einer pro Unterordner (Stellvertreter, später ADT)
 pruefpaket/             Phase 0: Prüfung von Copilot und ADT auf dem Firmenrechner
 docs/                   Planung, Entscheidungen, offene Fragen
-daten/                  Datenbank und Standard-Workspace (wird angelegt, nicht im Repo)
+daten/                  Datenbank, Standard-Workspace und Standard-Instructions-Ordner (wird angelegt, nicht im Repo)
 ```
 
 ## Pakete für Nexus
@@ -92,3 +102,6 @@ daten/                  Datenbank und Standard-Workspace (wird angelegt, nicht i
 Neben den Paketen aus `package.json` lädt npm plattformabhängige Pakete. Unter Windows:
 `@github/copilot-sdk-win32-x64`, `@rolldown/binding-win32-x64-msvc`,
 `lightningcss-win32-x64-msvc`.
+
+Neu in Schritt 4 (Markdown im Chat): `marked` 18.2.1, `dompurify` 3.4.18 und dessen Abhängigkeit
+`@types/trusted-types` 2.0.7.

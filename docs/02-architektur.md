@@ -71,8 +71,10 @@ Shell-Befehle sind standardmäßig aus oder auf eine Positivliste beschränkt. G
 hängt von den Möglichkeiten des SDK ab (E1).
 
 ### Credit-Budget (E-08)
-10.000 Credits sind endlich. Je Lauf wird der Verbrauch erfasst; es gibt ein Limit je Lauf und
-eine Gesamtanzeige. Das Modell ist je Agent wählbar (günstiges Modell für einfache Aufgaben).
+10.000 Credits sind endlich. Je Lauf wird der Verbrauch erfasst und angezeigt (unter jeder
+Antwort, je Chat, Seite „Verbrauch“). Ein Limit je Lauf und ein Monatsbudget sind zurückgestellt
+(E-60). Das Modell ist je Agent wählbar (günstiges Modell für einfache Aufgaben), ein Chat kann es
+übersteuern (E-51).
 
 ### Wege, Arbeit zu starten (E-16)
 

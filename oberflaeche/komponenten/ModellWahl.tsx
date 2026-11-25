@@ -1,5 +1,5 @@
-// Leiste über dem Chat: Modell, Thinking Effort und Context Window für diesen Chat.
-// Was das gewählte Modell nicht kann, ist ausgeblendet. Änderungen gelten ab der nächsten Nachricht.
+// Auswahl von Modell, Thinking Effort und Context Window – über dem Chat und auf der Agenten-Seite.
+// Was das gewählte Modell nicht kann, ist ausgeblendet. Im Chat gelten Änderungen ab der nächsten Nachricht.
 import type { ModellInfo, ModellWahl as Wahl } from "../../gemeinsam/typen.ts";
 
 interface Eigenschaften {
@@ -7,7 +7,9 @@ interface Eigenschaften {
   wahl: Wahl;
   aendere: (wahl: Wahl) => void;
   /** Hinweis, dass die Änderung erst mit der nächsten Nachricht wirkt (Agent arbeitet gerade) */
-  agentArbeitet: boolean;
+  agentArbeitet?: boolean;
+  /** Text für „kein eigenes Modell“: im Chat das Standardmodell des Agenten, beim Agenten die automatische Auswahl */
+  standardText: string;
 }
 
 /** Die Stufen kommen vom SDK auf Englisch. */
@@ -25,7 +27,7 @@ function tokens(anzahl: number | null): string {
   return anzahl >= 1_000_000 ? `${(anzahl / 1_000_000).toLocaleString("de-DE")} Mio. Tokens` : `${Math.round(anzahl / 1000)} Tsd. Tokens`;
 }
 
-export function ModellWahl({ modelle, wahl, aendere, agentArbeitet }: Eigenschaften) {
+export function ModellWahl({ modelle, wahl, aendere, agentArbeitet = false, standardText }: Eigenschaften) {
   const modell = modelle.find((m) => m.id === wahl.modell) ?? null;
 
   function waehleModell(id: string) {
@@ -39,11 +41,11 @@ export function ModellWahl({ modelle, wahl, aendere, agentArbeitet }: Eigenschaf
   }
 
   return (
-    <div className="modell-wahl">
+    <>
       <label>
         Modell
         <select value={wahl.modell} onChange={(e) => waehleModell(e.target.value)}>
-          <option value="">Standard (automatisch)</option>
+          <option value="">{standardText}</option>
           {modelle.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name}
@@ -85,6 +87,6 @@ export function ModellWahl({ modelle, wahl, aendere, agentArbeitet }: Eigenschaf
 
       {modelle.length === 0 && <span className="modell-info">Copilot bietet keine Einzelmodelle an.</span>}
       {agentArbeitet && <span className="modell-info">Gilt ab der nächsten Nachricht.</span>}
-    </div>
+    </>
   );
 }

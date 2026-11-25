@@ -18,8 +18,8 @@ interface Eigenschaften {
   /** Eine Aktion für diesen Eintrag läuft gerade (Freigeben kann dauern) */
   beschaeftigt: boolean;
   /**
-   * Im Chat (E-54): Der Agent wartet auf die Entscheidung. Nur Freigeben und Verwerfen – einen
-   * Änderungswunsch schreibt David ins normale Eingabefeld.
+   * Im Chat (E-54): Der Agent wartet auf die Entscheidung. Den Änderungswunsch schreibt David in die
+   * Karte (E-55) oder ins normale Eingabefeld – beides geht an den wartenden Agenten.
    */
   imChat?: boolean;
   /** Im Chat: der wirkliche Tool-Aufruf nach der Freigabe (Ergebnis oder Fehler) */
@@ -59,8 +59,8 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false,
   }
 
   // Bei offenen Freigaben und Rückfragen ist das Antwortfeld immer da, sonst auf Knopfdruck.
-  // Im Chat nie: Dort ist das normale Eingabefeld die Antwort.
-  const antwortImmerDa = offen && eintrag.art !== "meldung" && !imChat;
+  // Im Chat nur beim Vorschlag (E-55); eine Rückfrage beantwortet David im normalen Eingabefeld.
+  const antwortImmerDa = offen && (imChat ? eintrag.art === "freigabe" : eintrag.art !== "meldung");
 
   // Im Chat zählt, was beim wirklichen Aufruf herauskam; im Postfach das gespeicherte Ergebnis.
   const ergebnis = eintrag.ergebnis ?? (ausfuehrung && eintrag.status === "freigegeben" ? ausfuehrung.ergebnis : null);
@@ -121,7 +121,7 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false,
           </div>
           <p className="hinweis">
             {imChat
-              ? "Freigeben führt den Aufruf aus, der Agent macht mit dem Ergebnis weiter. Verwerfen bricht ab. Änderungswunsch? Schreib ihn unten ins Eingabefeld."
+              ? "Freigeben führt den Aufruf aus, der Agent macht mit dem Ergebnis weiter. Verwerfen bricht ab. Einen Änderungswunsch schreibst du hier darunter oder ins Eingabefeld – der Agent legt dann neu vor."
               : (eintrag.weiterNachFreigabe
                   ? "Freigeben führt den Aufruf aus; danach macht der Agent mit dem Ergebnis weiter, sobald er frei ist."
                   : "Freigeben führt den Aufruf aus, ohne KI – danach ist die Aufgabe erledigt.") +
@@ -159,6 +159,13 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false,
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
+            // Wie im Eingabefeld: Enter schickt ab, Umschalt+Enter macht eine neue Zeile
+            onKeyDown={(taste) => {
+              if (taste.key === "Enter" && !taste.shiftKey) {
+                taste.preventDefault();
+                schickeAntwort();
+              }
+            }}
             rows={2}
             placeholder={eintrag.art === "freigabe" && offen ? "Was soll der Agent ändern?" : "Antwort an den Agenten"}
           />

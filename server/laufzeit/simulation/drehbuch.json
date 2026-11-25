@@ -237,6 +237,18 @@
     ]
   },
   {
+    "beschreibung": "Zeigt Auftrag, Instructions und Skills, wie der Agent sie bekommt – damit man die Zuordnung in der Simulation sieht",
+    "wennEnthaelt": [
+      "wer bist du",
+      "auftrag"
+    ],
+    "schritte": [
+      {
+        "text": "Ich bin **{agent}** (Modell: {modell}). Mein Auftrag, wie ich ihn bekomme:\n\n{auftrag}\n\n---\n\nAbgeschaltete Skills: {abgeschaltet}"
+      }
+    ]
+  },
+  {
     "beschreibung": "Antwortet langsam, um Abbrechen zu testen",
     "wennEnthaelt": [
       "langsam"
@@ -255,7 +267,7 @@
     "wennEnthaelt": [],
     "schritte": [
       {
-        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (gewählt: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern* oder *langsam*."
+        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (Agent: {agent}, Modell: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern*, *langsam* oder *Wer bist du*."
       }
     ]
   }

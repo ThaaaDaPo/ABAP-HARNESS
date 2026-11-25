@@ -4,7 +4,7 @@
 // wenn es sie erlaubt, wirklich beim eingetragenen MCP-Server ausgeführt. Die Plattform-Tools
 // (Rückfrage, auf Freigabe warten) laufen ebenfalls echt.
 import { randomUUID } from "node:crypto";
-import type { ModellInfo } from "../../../gemeinsam/typen.ts";
+import type { ModellAufrufVerbrauch, ModellInfo } from "../../../gemeinsam/typen.ts";
 import type { McpAufrufer } from "../../mcp/mcp-aufrufer.ts";
 import type { AgentenLaufzeit, AgentenSitzung, EreignisEmpfaenger, SitzungsEinstellungen } from "../laufzeit.ts";
 import { findeSchritte, type DrehbuchSchritt } from "./drehbuch.ts";
@@ -37,6 +37,24 @@ const simulierteModelle: ModellInfo[] = [
   },
 ];
 
+/**
+ * Erfundene, aber plausible Zahlen, damit die Verbrauchsanzeige etwas zu zeigen hat: grob vier
+ * Zeichen je Token; die Kosten richten sich nach dem Kostenfaktor des Modells (automatisch = 1).
+ */
+function erfundenerVerbrauch(modell: string, zeichenEin: number, zeichenAus: number): ModellAufrufVerbrauch {
+  const eingabeTokens = 900 + Math.round(zeichenEin / 4);
+  const ausgabeTokens = 20 + Math.round(zeichenAus / 4);
+  const faktor = simulierteModelle.find((m) => m.id === modell)?.multiplikator ?? 1;
+  return {
+    modell,
+    eingabeTokens,
+    ausgabeTokens,
+    cacheTokens: Math.round(eingabeTokens * 0.6),
+    nanoAiu: Math.round((eingabeTokens + 4 * ausgabeTokens) * 10_000 * faktor),
+    kostenfaktor: faktor,
+  };
+}
+
 class SimulationsSitzung implements AgentenSitzung {
   readonly id: string;
   private einstellungen: SitzungsEinstellungen;
@@ -53,14 +71,17 @@ class SimulationsSitzung implements AgentenSitzung {
 
   async sende(text: string): Promise<void> {
     this.abgebrochen = false;
-    this.empfaenger({ art: "modell", modell: this.einstellungen.modell || "sim-automatisch" });
-    await this.spiele(text);
+    const modell = this.einstellungen.modell || "sim-automatisch";
+    this.empfaenger({ art: "modell", modell });
+    const geschrieben = await this.spiele(text);
+    this.empfaenger({ art: "verbrauch", ...erfundenerVerbrauch(modell, this.einstellungen.auftrag.length + text.length, geschrieben) });
   }
 
-  /** Spielt das Drehbuch zu einem Text ab. */
-  private async spiele(text: string): Promise<void> {
+  /** Spielt das Drehbuch zu einem Text ab. Gibt zurück, wie viele Zeichen der Agent geschrieben hat. */
+  private async spiele(text: string): Promise<number> {
+    let geschrieben = 0;
     for (const schritt of findeSchritte(text)) {
-      if (this.abgebrochen) return;
+      if (this.abgebrochen) return geschrieben;
 
       if ("warten" in schritt) {
         await this.warte(schritt.warten);
@@ -71,11 +92,20 @@ class SimulationsSitzung implements AgentenSitzung {
         const { erfolgreich, ergebnis } = await this.fuehreAus(schritt, aufrufId);
         this.empfaenger({ art: "tool_ende", aufrufId, erfolgreich, ergebnis });
         // Wie ein echtes Modell auf einen Änderungswunsch reagieren: mit dem Drehbuch dafür
-        if (!erfolgreich && ergebnis.includes("wünscht Änderungen")) return this.spiele(ergebnis);
+        if (!erfolgreich && ergebnis.includes("wünscht Änderungen")) return geschrieben + (await this.spiele(ergebnis));
       } else {
-        await this.schreibe(schritt.text.replace("{eingabe}", text).replace("{modell}", this.modellText()));
+        const { agentName, auftrag, abgeschalteteSkills } = this.einstellungen;
+        const ausgabe = schritt.text
+          .replace("{eingabe}", text)
+          .replace("{modell}", this.modellText())
+          .replace("{agent}", agentName)
+          .replace("{auftrag}", auftrag.trim() || "(leer)")
+          .replace("{abgeschaltet}", abgeschalteteSkills.join(", ") || "keine");
+        await this.schreibe(ausgabe);
+        geschrieben += ausgabe.length;
       }
     }
+    return geschrieben;
   }
 
   /** Damit man in der Simulation sieht, dass die Modellwahl des Chats ankommt. */
@@ -155,6 +185,10 @@ export class SimulationsLaufzeit implements AgentenLaufzeit {
 
   async modelle(): Promise<ModellInfo[]> {
     return simulierteModelle;
+  }
+
+  async anmeldung(): Promise<{ angemeldet: boolean | null; text: string }> {
+    return { angemeldet: null, text: "Nicht nötig – die Simulation spricht nicht mit Copilot." };
   }
 
   // Die MCP-Verbindungen gehören dem Aufrufer und werden beim Herunterfahren dort geschlossen.

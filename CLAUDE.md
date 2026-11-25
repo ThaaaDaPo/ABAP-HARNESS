@@ -10,8 +10,11 @@ den Gesamtüberblick behält und selbständig ABAP im SAP-Entwicklungssystem ent
 Firmenrechner erfolgreich). Phase 1, Schritte 1 und 2 (MCP-Server, Tool-Gateway) sind am
 Firmenrechner abgenommen (Schritt 2 und 3 am 2026-11-24). Nach der Abnahme von Schritt 3 umgebaut:
 Freigaben im Chat, der Agent wartet im Tool-Aufruf auf David (E-52, E-54); Postfach nur für
-Workflows – kurze Nachprüfung am Firmenrechner steht aus. Danach Schritt 4 (Agentenverwaltung, Instructions/Skills, Verbrauch,
-Einrichtung). Stand, Erkenntnisse und bekannte Lücken in
+Workflows – am 2026-11-24 am Firmenrechner nachgeprüft, alles in Ordnung. **Schritt 4 ist gebaut
+(2026-11-25)**: Agentenverwaltung (Agent im Chat wechselbar, jeder Chat läuft für sich – E-61),
+Instructions/Skills, Verbrauchsanzeige, Einrichtungsseite, Markdown, Änderungswunsch in der Karte.
+Als Nächstes: Abnahme am Firmenrechner nach der Checkliste in 08-phase-1.md, „Abnahme Schritt 4“.
+Stand, Erkenntnisse und bekannte Lücken in
 [docs/08-phase-1.md](docs/08-phase-1.md).
 Aufbau des Codes: [README.md](README.md).
 

@@ -1,10 +1,9 @@
-// MCP-Server-Seite: links die eingetragenen Server, rechts der gewählte mit Startbefehl,
-// Tools und ihren Regeln im Tool-Gateway.
+// MCP-Server-Seite: links die eingetragenen Server, rechts der gewählte mit Startbefehl und Tools.
+// Welcher Agent welchen Server benutzen darf und mit welchen Regeln, steht auf der Agenten-Seite.
 import { useEffect, useState } from "react";
-import type { McpServer, McpServerDaten, ToolRegel } from "../../gemeinsam/typen.ts";
+import type { McpServer, McpServerDaten } from "../../gemeinsam/typen.ts";
 import * as api from "../api.ts";
 import { McpServerFormular } from "../komponenten/McpServerFormular.tsx";
-import { ToolRegeln } from "../komponenten/ToolRegeln.tsx";
 
 /** Was rechts angezeigt wird */
 type Ansicht = "ansehen" | "bearbeiten" | "neu";
@@ -147,11 +146,36 @@ export function McpSeite() {
               </p>
             )}
 
-            <ToolRegeln
-              server={aktuell}
-              setzeRegel={(tool: string, regel: ToolRegel | "standard") => aendere(() => api.setzeToolRegel(aktuell.schluessel, tool, regel))}
-              beschaeftigt={beschaeftigt}
-            />
+            <p className="hinweis">
+              {aktuell.agenten.length > 0
+                ? `Benutzt von: ${aktuell.agenten.join(", ")}. `
+                : "Noch keinem Agenten zugeordnet – die Agenten benutzen ihn erst, wenn du ihn auf der Seite Agenten anhakst. "}
+              Die Regeln je Tool (erlauben, Freigabe …) stellst du dort je Agent ein.
+            </p>
+
+            {aktuell.tools.length === 0 ? (
+              <p className="leer">Noch keine Tools ausgelesen.</p>
+            ) : (
+              <table className="tabelle">
+                <thead>
+                  <tr>
+                    <th>Tool</th>
+                    <th>Beschreibung</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aktuell.tools.map((tool) => (
+                    <tr key={tool.name}>
+                      <td className="tool-name">
+                        {tool.name}
+                        {tool.nurLesend && <span className="marke-lesend" title="Laut Server ändert dieses Tool nichts">nur lesend</span>}
+                      </td>
+                      <td className="tool-beschreibung">{tool.beschreibung}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </>
         )}
       </section>

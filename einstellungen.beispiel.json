@@ -3,6 +3,7 @@
   "modus": "simulation",
   "workspaceOrdner": "./daten/workspace",
   "datenOrdner": "./daten",
+  "instructionsOrdner": "./daten/instructions",
   "modell": "",
   "agent": {
     "name": "Assistent",

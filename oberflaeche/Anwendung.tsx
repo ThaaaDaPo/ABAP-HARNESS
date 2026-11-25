@@ -5,9 +5,13 @@ import type { StatusAntwort } from "../gemeinsam/typen.ts";
 import { holeAnzahlOffen, holeStatus } from "./api.ts";
 import { Navigation, type SeitenName } from "./komponenten/Navigation.tsx";
 import { useUebersicht } from "./live/useUebersicht.ts";
+import { AgentenSeite } from "./seiten/AgentenSeite.tsx";
 import { ChatSeite } from "./seiten/ChatSeite.tsx";
+import { EinrichtungSeite } from "./seiten/EinrichtungSeite.tsx";
+import { InstructionsSeite } from "./seiten/InstructionsSeite.tsx";
 import { McpSeite } from "./seiten/McpSeite.tsx";
 import { PostfachSeite } from "./seiten/PostfachSeite.tsx";
+import { VerbrauchSeite } from "./seiten/VerbrauchSeite.tsx";
 
 export function Anwendung() {
   const [seite, setSeite] = useState<SeitenName>("chat");
@@ -35,7 +39,11 @@ export function Anwendung() {
       <Navigation aktiv={seite} waehle={setSeite} status={status} offenImPostfach={offenImPostfach} />
       <main className="inhalt">
         {seite === "chat" && <ChatSeite gewaehlteId={chatId} waehle={setChatId} />}
+        {seite === "agenten" && <AgentenSeite />}
+        {seite === "instructions" && <InstructionsSeite />}
         {seite === "mcp" && <McpSeite />}
+        {seite === "verbrauch" && <VerbrauchSeite />}
+        {seite === "einrichtung" && <EinrichtungSeite />}
         {seite === "postfach" && <PostfachSeite zeigeChat={zeigeChat} />}
       </main>
     </div>

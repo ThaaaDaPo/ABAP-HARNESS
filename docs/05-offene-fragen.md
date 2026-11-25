@@ -8,11 +8,20 @@ Runden 1–3 und die Freigabe sind erledigt (E-06 bis E-39).
 - **L2 – Modelle**: Welche Modelle hat Schritt C2 auf dem Firmenrechner gelistet
   (`bericht\bericht.txt`)? Eilt nicht.
 
+- **L3 – Ordner der Instructions/Skills**: Wo liegen die vorhandenen `*.instructions.md` und
+  Skill-Ordner auf dem Firmenrechner? Der Ordner wird in `einstellungen.json` eingetragen, die
+  Antwort eilt also nicht.
+
 ## Zurückgestellt
 
 - Transporte und Arbeiten außerhalb `$TMP`: nach Abstimmung im Unternehmen (E-13, E-28).
 - Teams-Benachrichtigung (E-21).
-- Parallele Läufe (E-19).
+- **Limit je Lauf** (V-14): bei den Workflows (Phase 4) noch einmal fragen – je Nachricht oder
+  je Aufgabe, Standardwert, Einheit (sind die 10.000 Credits die AI-Credits der GitHub-Abrechnung?).
+- **Monatsbudget**: nur anzeigen oder ab einer Grenze sperren – beim Ausarbeiten der Feinheiten fragen.
+- **Einstellungen in der App bearbeiten** (Modus, Workspace, Ordner): fragen, wenn David die
+  Einrichtungsseite gesehen hat – sie steht seit Schritt 4 (nur prüfen und anzeigen), die Frage
+  ist Teil der Abnahme von Schritt 4 (08-phase-1.md, Punkt E).
 
 ## Technik – Stand Phase 0
 

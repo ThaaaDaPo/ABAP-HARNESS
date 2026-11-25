@@ -13,7 +13,7 @@ interface Eigenschaften {
 
 const platzhalter: Partial<Record<AufgabenStatus, string>> = {
   arbeitet: "Der Agent arbeitet …",
-  eingereiht: "Eingereiht – der Agent arbeitet gerade an etwas anderem",
+  eingereiht: "Eingereiht – kommt gleich dran",
 };
 
 export function Eingabefeld({ status, hinweis, sende, brecheAb }: Eigenschaften) {

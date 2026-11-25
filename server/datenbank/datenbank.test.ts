@@ -1,11 +1,16 @@
-// Prüft, dass eine Datenbank aus Schritt 2 (Firmenrechner) die neuen Spalten bekommt. npm test
+// Prüft, dass Datenbanken aus früheren Schritten (Firmenrechner) nachgerüstet werden. npm test
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
+import { richteStandardAgentenEin } from "../agenten/agenten-dienst.ts";
+import type { Einstellungen } from "../einstellungen.ts";
+import { holeAgent, standardAgentId } from "./agenten.ts";
+import { holeAufgabe } from "./aufgaben.ts";
 import { oeffneDatenbank } from "./datenbank.ts";
+import { legeServerAn } from "./mcp-server.ts";
 
 test("Postfach aus Schritt 2 wird nachgerüstet, alte Einträge bleiben", () => {
   const ordner = fs.mkdtempSync(path.join(os.tmpdir(), "harness-db-"));
@@ -25,4 +30,27 @@ test("Postfach aus Schritt 2 wird nachgerüstet, alte Einträge bleiben", () => 
   // Zweites Öffnen darf nicht scheitern
   db.close();
   oeffneDatenbank(ordner).close();
+});
+
+test("Datenbank aus Schritt 3: Chats gehören dem Standard-Agenten, der alle Server bekommt", () => {
+  const ordner = fs.mkdtempSync(path.join(os.tmpdir(), "harness-db-"));
+  const alt = oeffneDatenbank(ordner);
+  // Stand Schritt 3: Chat und Server, aber noch keine Agenten
+  alt.exec(`DELETE FROM agenten`);
+  alt.prepare(`INSERT INTO aufgaben (id, titel, status, erstellt_am) VALUES ('a1', 'Alt', 'bereit', '')`).run();
+  legeServerAn(alt, { schluessel: "atlassian", name: "Atlassian", befehl: "node", argumente: [], umgebung: {}, arbeitsordner: "" });
+  alt.close();
+
+  const db = oeffneDatenbank(ordner);
+  const einstellungen = { agent: { name: "Assistent", auftrag: "Hilf." }, modell: "gpt-x" } as Einstellungen;
+  richteStandardAgentenEin(db, einstellungen);
+  const agent = holeAgent(db, standardAgentId);
+  assert.deepEqual(
+    [agent?.name, agent?.auftrag, agent?.modellWahl.modell, agent?.mcpServer],
+    ["Assistent", "Hilf.", "gpt-x", ["atlassian"]],
+  );
+  assert.equal(holeAufgabe(db, "a1")?.agentId, standardAgentId);
+  // Ein zweiter Start ändert nichts mehr – auch nicht, wenn einstellungen.json inzwischen anders ist
+  richteStandardAgentenEin(db, { ...einstellungen, agent: { name: "Neu", auftrag: "" } });
+  assert.equal(holeAgent(db, standardAgentId)?.name, "Assistent");
 });

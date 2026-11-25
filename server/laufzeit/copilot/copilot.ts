@@ -92,6 +92,11 @@ function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionCon
     streaming: true,
     tools: plattformTools(einstellungen),
     mcpServers: mcpKonfiguration(einstellungen),
+    // Skills aus dem Instructions-Ordner; was dem Agenten nicht zugeordnet ist, wird abgeschaltet.
+    // Ob Copilot das genau so umsetzt, ist am Firmenrechner zu prüfen.
+    ...(einstellungen.skillOrdner.length > 0
+      ? { skillDirectories: einstellungen.skillOrdner, disabledSkills: einstellungen.abgeschalteteSkills }
+      : {}),
     excludedTools: [...shellWerkzeuge, ...verboten],
     hooks: erstelleGatewayHooks(gateway),
     onPermissionRequest: erstelleBerechtigungsPruefung(einstellungen.workspaceOrdner, gateway),
@@ -107,8 +112,7 @@ class CopilotSitzung implements AgentenSitzung {
     this.id = sitzung.sessionId;
     this.sitzung = sitzung;
     this.abmelden = sitzung.on((sdkEreignis) => {
-      const ereignis = uebersetze(sdkEreignis);
-      if (ereignis) empfaenger(ereignis);
+      for (const ereignis of uebersetze(sdkEreignis)) empfaenger(ereignis);
     });
   }
 
@@ -177,6 +181,15 @@ export class CopilotLaufzeit implements AgentenLaufzeit {
     const client = await this.holeClient();
     const liste = await client.listModels();
     return liste.filter((m) => m.policy?.state !== "disabled").map(alsModellInfo);
+  }
+
+  async anmeldung(): Promise<{ angemeldet: boolean | null; text: string }> {
+    try {
+      const status = await (await this.holeClient()).getAuthStatus();
+      return { angemeldet: true, text: `Angemeldet${status.login ? ` als ${status.login}` : ""}${status.host ? ` (${status.host})` : ""}.` };
+    } catch (fehler) {
+      return { angemeldet: false, text: (fehler as Error).message };
+    }
   }
 
   async beenden(): Promise<void> {

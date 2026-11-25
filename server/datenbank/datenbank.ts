@@ -72,6 +72,38 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
       aus_postfach INTEGER NOT NULL,
       erstellt_am  TEXT NOT NULL
     );
+
+    -- Agenten (seit Schritt 4). mcp_server, instructions und skills sind JSON-Listen.
+    -- Die Regeln je Tool stehen in tool_regeln (agent_id).
+    CREATE TABLE IF NOT EXISTS agenten (
+      id           TEXT PRIMARY KEY,
+      name         TEXT NOT NULL,
+      auftrag      TEXT NOT NULL,
+      modell       TEXT NOT NULL,
+      denkaufwand  TEXT NOT NULL,
+      kontext      TEXT NOT NULL,
+      mcp_server   TEXT NOT NULL,
+      instructions TEXT NOT NULL,
+      skills       TEXT NOT NULL,
+      erstellt_am  TEXT NOT NULL
+    );
+
+    -- Verbrauch je Modellaufruf (seit Schritt 4). lauf fasst die Aufrufe einer Nachricht zusammen.
+    -- Bleibt stehen, wenn ein Chat gelöscht wird: Verbraucht ist verbraucht.
+    CREATE TABLE IF NOT EXISTS verbrauch (
+      nr             INTEGER PRIMARY KEY AUTOINCREMENT,
+      aufgabe_id     TEXT NOT NULL,
+      agent_id       TEXT NOT NULL,
+      lauf           TEXT NOT NULL,
+      modell         TEXT NOT NULL,
+      eingabe_tokens INTEGER NOT NULL,
+      ausgabe_tokens INTEGER NOT NULL,
+      cache_tokens   INTEGER NOT NULL,
+      nano_aiu       INTEGER,
+      kostenfaktor   REAL,
+      zeitpunkt      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS verbrauch_nach_aufgabe ON verbrauch(aufgabe_id);
   `);
 
   // Seit Schritt 3. Bestehende Datenbanken (Firmenrechner) bekommen die Spalten nachgerüstet.
@@ -85,6 +117,8 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
   // Woher die Aufgabe kommt: "chat" (David ist dabei) oder später "workflow" (läuft ohne ihn).
   // Freigaben aus Chats werden im Chat erledigt, nur die aus Workflows im Postfach (E-52).
   ergaenzeSpalte(db, "aufgaben", "herkunft", "TEXT NOT NULL DEFAULT 'chat'");
+  // Agent je Chat (seit Schritt 4). Bestehende Chats gehören dem Agenten, der aus einstellungen.json entsteht.
+  ergaenzeSpalte(db, "aufgaben", "agent_id", "TEXT NOT NULL DEFAULT 'standard'");
 
   return db;
 }

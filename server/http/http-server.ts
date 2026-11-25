@@ -8,22 +8,28 @@ import { abonniere, uebersichtKanal } from "../chat/live-verteiler.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { projektOrdner, type Einstellungen } from "../einstellungen.ts";
 import { Fehler } from "../fehler.ts";
+import { verbrauchsUebersicht } from "../datenbank/verbrauch.ts";
+import { pruefeEinrichtung } from "../einrichtung/pruefungen.ts";
+import type { AgentenLaufzeit } from "../laufzeit/laufzeit.ts";
+import { routenAgenten } from "./routen-agenten.ts";
 import { routenAufgaben } from "./routen-aufgaben.ts";
+import { routenInstructions } from "./routen-instructions.ts";
 import { routenMcp } from "./routen-mcp.ts";
 import { routenPostfach } from "./routen-postfach.ts";
 import type { PostfachDienst } from "../postfach/postfach-dienst.ts";
 
-export async function erstelleHttpServer(einstellungen: Einstellungen, db: Datenbank, chat: ChatDienst, postfach: PostfachDienst) {
+export async function erstelleHttpServer(
+  einstellungen: Einstellungen,
+  db: Datenbank,
+  laufzeit: AgentenLaufzeit,
+  chat: ChatDienst,
+  postfach: PostfachDienst,
+) {
   const app = express();
   app.use(express.json({ limit: "2mb" }));
 
   app.get("/api/status", (_anfrage, antwort) => {
-    const status: StatusAntwort = {
-      modus: einstellungen.modus,
-      modell: einstellungen.modell || "automatisch",
-      agentName: einstellungen.agent.name,
-      workspaceOrdner: einstellungen.workspaceOrdner,
-    };
+    const status: StatusAntwort = { modus: einstellungen.modus, workspaceOrdner: einstellungen.workspaceOrdner };
     antwort.json(status);
   });
 
@@ -33,8 +39,19 @@ export async function erstelleHttpServer(einstellungen: Einstellungen, db: Daten
   });
 
   app.use("/api/aufgaben", routenAufgaben(db, chat, postfach));
+  app.use("/api/agenten", routenAgenten(db, chat));
+  app.use("/api/instructions", routenInstructions(db, chat, einstellungen.instructionsOrdner));
   app.use("/api/mcp", routenMcp(db, chat));
   app.use("/api/postfach", routenPostfach(postfach));
+
+  app.get("/api/verbrauch", (_anfrage, antwort) => {
+    antwort.json(verbrauchsUebersicht(db));
+  });
+
+  // Einrichtung prüfen. ?mcp=starten startet die MCP-Server dabei wirklich (kann dauern).
+  app.get("/api/einrichtung", async (anfrage, antwort) => {
+    antwort.json(await pruefeEinrichtung(einstellungen, db, laufzeit, anfrage.query.mcp === "starten"));
+  });
 
   // Live-Hinweise für alle Fenster: Aufgaben oder Postfach haben sich geändert
   app.get("/api/uebersicht/live", (_anfrage, antwort) => abonniere(uebersichtKanal, antwort));

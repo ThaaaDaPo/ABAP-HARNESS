@@ -1,6 +1,6 @@
-// Die Tools eines MCP-Servers mit ihrer Regel im Tool-Gateway.
+// Die Tools eines MCP-Servers mit ihrer Regel im Tool-Gateway – für einen Agenten (Agenten-Seite).
 // Eine Änderung wirkt sofort, auch für Agenten, die gerade arbeiten.
-import type { McpServer, ToolRegel } from "../../gemeinsam/typen.ts";
+import type { ServerRegeln, ToolRegel } from "../../gemeinsam/typen.ts";
 
 const regelTexte: Record<ToolRegel, string> = {
   erlauben: "Erlauben",
@@ -11,15 +11,15 @@ const regelTexte: Record<ToolRegel, string> = {
 
 const regelErklaerung: Record<ToolRegel, string> = {
   erlauben: "wird ausgeführt",
-  melden: "wird ausgeführt, Meldung im Postfach",
-  freigabe: "wird nicht ausgeführt, sondern als Vorschlag ins Postfach gelegt",
+  melden: "wird ausgeführt und gemeldet",
+  freigabe: "wartet als Vorschlag auf deine Freigabe",
   verbieten: "wird dem Agenten nicht angeboten und abgelehnt",
 };
 
 const alleRegeln = Object.keys(regelTexte) as ToolRegel[];
 
 interface Eigenschaften {
-  server: McpServer;
+  server: ServerRegeln;
   /** tool "*" = Standardregel; regel "standard" = eigene Regel des Tools entfernen */
   setzeRegel: (tool: string, regel: ToolRegel | "standard") => void;
   beschaeftigt: boolean;

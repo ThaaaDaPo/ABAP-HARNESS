@@ -1,7 +1,18 @@
 // Chat-Seite: links die Chats, rechts der gewählte Chat mit Live-Verlauf.
+// Über dem Chat: Agent (im laufenden Chat wechselbar, E-56), Modell und was der Chat bisher verbraucht hat.
 // Vorschläge gibt David hier direkt frei, Rückfragen beantwortet er im Eingabefeld (E-52).
+// Jeder Chat läuft für sich – auch während der Agent in einem anderen Chat arbeitet (E-57).
 import { useCallback, useEffect, useState } from "react";
-import type { Aufgabe, AufgabenStatus, Ereignis, ModellInfo, PostfachEintrag, ModellWahl as Wahl } from "../../gemeinsam/typen.ts";
+import type {
+  Agent,
+  Aufgabe,
+  AufgabenStatus,
+  Ereignis,
+  ModellInfo,
+  PostfachEintrag,
+  VerbrauchSumme,
+  ModellWahl as Wahl,
+} from "../../gemeinsam/typen.ts";
 import * as api from "../api.ts";
 import { ChatListe } from "../komponenten/ChatListe.tsx";
 import { Eingabefeld } from "../komponenten/Eingabefeld.tsx";
@@ -10,6 +21,7 @@ import type { PostfachAktionen } from "../komponenten/PostfachKarte.tsx";
 import { Verlauf } from "../komponenten/Verlauf.tsx";
 import { useLiveEreignisse } from "../live/useLiveEreignisse.ts";
 import { useUebersicht } from "../live/useUebersicht.ts";
+import { tokenText, creditText } from "../verbrauch-text.ts";
 
 interface Eigenschaften {
   gewaehlteId: string | null;
@@ -26,10 +38,14 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
   /** Vorschläge und Rückfragen des gewählten Chats */
   const [eintraege, setEintraege] = useState<PostfachEintrag[]>([]);
   const [beschaeftigt, setBeschaeftigt] = useState<number | null>(null);
+  const [agenten, setAgenten] = useState<Agent[]>([]);
+  /** Was der gewählte Chat bisher verbraucht hat */
+  const [verbrauch, setVerbrauch] = useState<VerbrauchSumme | null>(null);
 
-  // Die Modellliste ändert sich nicht während der Sitzung; einmal laden reicht.
+  // Modelle und Agenten ändern sich nicht, während die Seite offen ist; einmal laden reicht.
   useEffect(() => {
     api.holeModelle().then(setModelle).catch((e) => setFehler(`Modelle: ${e.message}`));
+    api.holeAgenten().then(setAgenten).catch((e) => setFehler(`Agenten: ${e.message}`));
   }, []);
 
   const ladeListe = useCallback(() => {
@@ -46,13 +62,15 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
     setEintraege([]);
     setLaufenderText("");
     setFehler(null);
+    setVerbrauch(null);
     if (!gewaehlteId) return;
     api
       .holeAufgabe(gewaehlteId)
-      .then(({ aufgabe, ereignisse, postfach }) => {
+      .then(({ aufgabe, ereignisse, postfach, verbrauch }) => {
         setEreignisse(ereignisse);
         setEintraege(postfach);
         setStatus(aufgabe.status);
+        setVerbrauch(verbrauch);
       })
       .catch((e) => setFehler(e.message));
   }, [gewaehlteId]);
@@ -66,6 +84,8 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
   useLiveEreignisse(gewaehlteId, (ereignis) => {
     // Neue Vorschläge, Freigaben und Statuswechsel (z. B. Rückfrage beantwortet) ändern die Karten
     if (ereignis.art === "postfach" || ereignis.art === "postfach_aktion" || ereignis.art === "status") ladeEintraege();
+    // Ein Lauf ist fertig: Summe des Chats neu laden
+    if (ereignis.art === "lauf_verbrauch" && gewaehlteId) api.holeVerbrauchDesChats(gewaehlteId).then(setVerbrauch).catch(() => {});
     switch (ereignis.art) {
       case "agent_schreibt":
         setLaufenderText((bisher) => bisher + ereignis.textTeil);
@@ -83,7 +103,8 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
 
   async function neuerChat() {
     try {
-      const aufgabe = await api.legeAufgabeAn();
+      // Der neue Chat bekommt den Agenten des gerade offenen Chats – meist will man mit ihm weitermachen.
+      const aufgabe = await api.legeAufgabeAn(aktuell?.agentId);
       ladeListe();
       waehle(aufgabe.id);
     } catch (e) {
@@ -109,6 +130,17 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
     setFehler(null);
     try {
       const geaendert = await api.setzeModellWahl(gewaehlteId, wahl);
+      setAufgaben((liste) => liste.map((a) => (a.id === geaendert.id ? geaendert : a)));
+    } catch (e) {
+      setFehler((e as Error).message);
+    }
+  }
+
+  async function wechsleAgent(agentId: string) {
+    if (!gewaehlteId) return;
+    setFehler(null);
+    try {
+      const geaendert = await api.setzeAgentDesChats(gewaehlteId, agentId);
       setAufgaben((liste) => liste.map((a) => (a.id === geaendert.id ? geaendert : a)));
     } catch (e) {
       setFehler((e as Error).message);
@@ -162,7 +194,30 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
         {gewaehlteId ? (
           <>
             {aktuell && (
-              <ModellWahl modelle={modelle} wahl={aktuell.modellWahl} aendere={aendereModell} agentArbeitet={status === "arbeitet"} />
+              <div className="modell-wahl">
+                <label>
+                  Agent
+                  <select value={aktuell.agentId} onChange={(e) => wechsleAgent(e.target.value)}>
+                    {agenten.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <ModellWahl
+                  modelle={modelle}
+                  wahl={aktuell.modellWahl}
+                  aendere={aendereModell}
+                  agentArbeitet={status === "arbeitet"}
+                  standardText={standardModellText(agenten.find((a) => a.id === aktuell.agentId), modelle)}
+                />
+                {verbrauch && verbrauch.aufrufe > 0 && (
+                  <span className="modell-info chat-verbrauch" title={`${verbrauch.aufrufe} Modellaufrufe in diesem Chat`}>
+                    Chat bisher: {tokenText(verbrauch.eingabeTokens + verbrauch.ausgabeTokens)} Tokens · {creditText(verbrauch)}
+                  </span>
+                )}
+              </div>
             )}
             <Verlauf
               ereignisse={ereignisse}
@@ -181,4 +236,11 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
       </section>
     </div>
   );
+}
+
+/** „Standard des Agenten (Modellname)“ – damit klar ist, welches Modell ohne eigene Wahl gilt. */
+function standardModellText(agent: Agent | undefined, modelle: ModellInfo[]): string {
+  const id = agent?.modellWahl.modell;
+  if (!id) return "Standard des Agenten (automatisch)";
+  return `Standard des Agenten (${modelle.find((m) => m.id === id)?.name ?? id})`;
 }

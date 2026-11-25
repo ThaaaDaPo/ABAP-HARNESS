@@ -7,6 +7,7 @@ import { abonniere } from "../chat/live-verteiler.ts";
 import * as aufgaben from "../datenbank/aufgaben.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
 import { holeEreignisse } from "../datenbank/ereignisse.ts";
+import { summeDerAufgabe } from "../datenbank/verbrauch.ts";
 
 export function routenAufgaben(db: Datenbank, chat: ChatDienst, postfach: PostfachDienst): Router {
   const router = Router();
@@ -16,9 +17,10 @@ export function routenAufgaben(db: Datenbank, chat: ChatDienst, postfach: Postfa
     antwort.json(aufgaben.holeAlleAufgaben(db).map(aufgaben.oeffentlich));
   });
 
-  // Neue Aufgabe anlegen (leere Chats werden dabei weggeräumt)
-  router.post("/", async (_anfrage, antwort) => {
-    antwort.status(201).json(aufgaben.oeffentlich(await chat.neueAufgabe()));
+  // Neue Aufgabe anlegen (leere Chats werden dabei weggeräumt). Ohne Angabe: Standard-Agent.
+  router.post("/", async (anfrage, antwort) => {
+    const agentId = anfrage.body?.agentId ? String(anfrage.body.agentId) : undefined;
+    antwort.status(201).json(aufgaben.oeffentlich(await chat.neueAufgabe(agentId)));
   });
 
   // Chat löschen, mit Verlauf und Postfach-Einträgen
@@ -38,6 +40,11 @@ export function routenAufgaben(db: Datenbank, chat: ChatDienst, postfach: Postfa
     antwort.json(aufgaben.oeffentlich(await chat.setzeModellWahl(anfrage.params.id, wahl)));
   });
 
+  // Agent des Chats wechseln (E-56) – gilt ab der nächsten Nachricht
+  router.put("/:id/agent", (anfrage, antwort) => {
+    antwort.json(aufgaben.oeffentlich(chat.setzeAgent(anfrage.params.id, String(anfrage.body?.agentId ?? ""))));
+  });
+
   // Eine Aufgabe mit ihrem bisherigen Verlauf
   router.get("/:id", (anfrage, antwort) => {
     const aufgabe = aufgaben.holeAufgabe(db, anfrage.params.id);
@@ -49,8 +56,14 @@ export function routenAufgaben(db: Datenbank, chat: ChatDienst, postfach: Postfa
       aufgabe: aufgaben.oeffentlich(aufgabe),
       ereignisse: holeEreignisse(db, aufgabe.id),
       postfach: postfach.fuerAufgabe(aufgabe.id),
+      verbrauch: summeDerAufgabe(db, aufgabe.id),
     };
     antwort.json(ergebnis);
+  });
+
+  // Was der Chat bisher verbraucht hat (zum Neuladen nach einem Lauf)
+  router.get("/:id/verbrauch", (anfrage, antwort) => {
+    antwort.json(summeDerAufgabe(db, anfrage.params.id));
   });
 
   // Vorschläge und Rückfragen des Chats (zum Neuladen nach Änderungen)
