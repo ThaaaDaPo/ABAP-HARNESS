@@ -12,6 +12,7 @@ interface ServerZeile {
   tools: string;
   tools_gelesen_am: string | null;
   lese_fehler: string | null;
+  eingebaut: number;
 }
 
 /** Ein Server, wie er in der Datenbank steht – ohne Regeln. */
@@ -19,6 +20,8 @@ export interface GespeicherterServer extends McpServerDaten {
   tools: McpTool[];
   toolsGelesenAm: string | null;
   leseFehler: string | null;
+  /** Von der App mitgebracht (ADT): Startbefehl setzt die App selbst, nicht änderbar, nicht löschbar */
+  eingebaut: boolean;
 }
 
 function ausZeile(zeile: ServerZeile): GespeicherterServer {
@@ -32,6 +35,7 @@ function ausZeile(zeile: ServerZeile): GespeicherterServer {
     tools: JSON.parse(zeile.tools),
     toolsGelesenAm: zeile.tools_gelesen_am,
     leseFehler: zeile.lese_fehler,
+    eingebaut: zeile.eingebaut === 1,
   };
 }
 
@@ -45,10 +49,10 @@ export function holeServer(db: Datenbank, schluessel: string): GespeicherterServ
   return zeile ? ausZeile(zeile) : null;
 }
 
-export function legeServerAn(db: Datenbank, daten: McpServerDaten): void {
+export function legeServerAn(db: Datenbank, daten: McpServerDaten, eingebaut = false): void {
   db.prepare(
-    `INSERT INTO mcp_server (schluessel, name, befehl, argumente, umgebung, arbeitsordner, tools, erstellt_am)
-     VALUES (?, ?, ?, ?, ?, ?, '[]', ?)`,
+    `INSERT INTO mcp_server (schluessel, name, befehl, argumente, umgebung, arbeitsordner, tools, erstellt_am, eingebaut)
+     VALUES (?, ?, ?, ?, ?, ?, '[]', ?, ?)`,
   ).run(
     daten.schluessel,
     daten.name,
@@ -57,6 +61,7 @@ export function legeServerAn(db: Datenbank, daten: McpServerDaten): void {
     JSON.stringify(daten.umgebung),
     daten.arbeitsordner,
     new Date().toISOString(),
+    eingebaut ? 1 : 0,
   );
 }
 

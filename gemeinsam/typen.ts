@@ -160,7 +160,7 @@ export interface PostfachEintrag {
 }
 
 /** Live-Hinweis an alle Fenster: Aufgaben oder Postfach haben sich geändert, bitte neu laden. */
-export type UebersichtsEreignis = { bereich: "aufgaben" } | { bereich: "postfach" };
+export type UebersichtsEreignis = { bereich: "aufgaben" } | { bereich: "postfach" } | { bereich: "adt" };
 
 /** Ein Tool, wie der MCP-Server es beim Auslesen beschreibt. */
 export interface McpTool {
@@ -192,6 +192,8 @@ export interface McpServer extends McpServerDaten {
   leseFehler: string | null;
   /** Namen der Agenten, die den Server benutzen dürfen */
   agenten: string[];
+  /** Von der App mitgebracht (ADT): eigenes Formular statt Startbefehl, nicht löschbar */
+  eingebaut: boolean;
 }
 
 /** Die Regeln eines Agenten für einen Server – für die Tabelle auf der Agenten-Seite. */
@@ -327,4 +329,48 @@ export interface EinrichtungsBericht {
 export interface StatusAntwort {
   modus: "simulation" | "copilot";
   workspaceOrdner: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// ADT (Phase 3): ABAP entwickeln über den ADT-MCP. Anmeldung ausschließlich per SSO (E-63).
+// ---------------------------------------------------------------------------------------------
+
+/** Was David in der App für den ADT-MCP einstellt. Benutzer und Passwort gibt es bewusst nicht. */
+export interface AdtKonfiguration {
+  /** "simulation": eingebautes Übungssystem ohne SAP (Privatrechner). "sap": echtes System. */
+  gegenstelle: "simulation" | "sap";
+  /** Adresse, die Edge für die SSO-Anmeldung öffnet. ADT benutzt davon Protokoll, Host und Port. */
+  url: string;
+  mandant: string;
+  sprache: string;
+  /** Nur hier darf der Agent anlegen, speichern und aktivieren (E-28, V-11). Start: $TMP */
+  pakete: string[];
+  /** Woran die Anmeldung erkannt wird. * am Ende = beliebige Fortsetzung, z. B. SAP_SESSIONID_* */
+  cookieNamen: string[];
+  /** Leer = an den üblichen Stellen suchen */
+  edgePfad: string;
+  /** ATC-Prüfvariante. Leer = Standardvariante des Systems */
+  atcVariante: string;
+}
+
+/** Stand der SSO-Anmeldung, wie die App ihn hält (das Cookie selbst verlässt die App nur zum ADT-MCP). */
+export interface AdtAnmeldung {
+  zustand: "abgemeldet" | "laeuft" | "angemeldet" | "fehler";
+  text: string;
+  /** Seit wann angemeldet (ISO) */
+  seit: string | null;
+}
+
+/** Antwort von GET /api/adt */
+export interface AdtUebersicht {
+  konfiguration: AdtKonfiguration;
+  anmeldung: AdtAnmeldung;
+}
+
+/** Was der ADT-MCP von der App bekommt (GET /api/adt/intern/konfiguration) */
+export interface AdtLaufzeitKonfiguration extends AdtKonfiguration {
+  /** Hier checkt der ADT-MCP Quelltexte aus (Unterordner abap/) */
+  workspaceOrdner: string;
+  /** Zustand des Übungssystems (nur gegenstelle "simulation") */
+  simulationsDatei: string;
 }

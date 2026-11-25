@@ -27,6 +27,8 @@ interface Wartend {
 
 /** Großzügig, weil der SAP-MCP beim Start ggf. erst im Browser ein Cookie holt (bis 60 s). */
 const standardZeitlimit = 120_000;
+/** Ein Tool-Aufruf kann auf die SSO-Anmeldung in Edge warten (ADT-MCP, bis 3 Minuten) und dann noch arbeiten. */
+const aufrufZeitlimit = 300_000;
 
 /** Fügt ein Argument für cmd.exe zusammen; Leerzeichen brauchen Anführungszeichen. */
 function fuerCmd(teil: string): string {
@@ -112,7 +114,7 @@ export class McpVerbindung {
   }
 
   async rufeAuf(tool: string, argumente: unknown): Promise<AufrufErgebnis> {
-    const ergebnis = await this.anfrage("tools/call", { name: tool, arguments: argumente ?? {} });
+    const ergebnis = await this.anfrage("tools/call", { name: tool, arguments: argumente ?? {} }, aufrufZeitlimit);
     const teile: { type: string; text?: string }[] = ergebnis?.content ?? [];
     const text = teile.map((teil) => (teil.type === "text" ? teil.text : `[${teil.type}]`)).join("\n");
     return { text, fehler: ergebnis?.isError === true };

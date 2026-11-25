@@ -60,13 +60,15 @@ Stellvertreter getestet.
 
 ## Phase 2 – Doku-Agent
 
-Liest ABAP-Objekt und ggf. Ticket, schreibt Doku, legt die Confluence-Seite als Vorschlag ins
-Postfach.
+**Übersprungen (E-62).** Mit Phase 1 ist das reine Einrichtung in der App; David macht das selbst
+auf dem Firmenrechner. Gedacht war: liest ABAP-Objekt und ggf. Ticket, schreibt Doku, legt die
+Confluence-Seite als Vorschlag vor.
 
 ## Phase 3 – ADT-MCP und ABAP-Entwickler
 
-Workspace, `checkout`/`check`/`push`/`activate`, Unit-Tests, ATC, Paket-Sperre, Vorher/Nachher
-mit „Rückgängig". Reihenfolge: Klassen, Interfaces, Reports, Funktionsbausteine.
+**Gestartet 2026-11-25**, Stand in [09-phase-3](09-phase-3.md). Workspace, auschecken/prüfen/
+speichern/aktivieren, Unit-Tests, ATC, Paket-Sperre, Vorher/Nachher; „Rückgängig“ in der App
+folgt. Klassen, Interfaces, Reports, Funktionsbausteine.
 
 ## Phase 4 – Zeitsteuerung und Workflows
 

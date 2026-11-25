@@ -12,6 +12,14 @@ Runden 1–3 und die Freigabe sind erledigt (E-06 bis E-39).
   Skill-Ordner auf dem Firmenrechner? Der Ordner wird in `einstellungen.json` eingetragen, die
   Antwort eilt also nicht.
 
+- **M1 – Rückgängig in der App** (E-31): Der ADT-MCP legt vor jedem Speichern den alten Stand ab
+  und meldet Vorher/Nachher. Den Knopf „Rückgängig“ in der App gibt es noch nicht. Als Nächstes
+  bauen oder erst nach der Abnahme des ADT-MCP?
+
+- **M2 – SAP-Adresse für die SSO-Anmeldung**: Welche Adresse öffnet Edge am besten – die des
+  SAP-MCP-Proxys (wie im Prüfpaket) oder direkt `https://<host>:<port>/sap/bc/adt/`? Klärt sich
+  bei der Abnahme (09-phase-3.md, Punkt 3).
+
 ## Zurückgestellt
 
 - Transporte und Arbeiten außerhalb `$TMP`: nach Abstimmung im Unternehmen (E-13, E-28).

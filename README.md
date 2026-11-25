@@ -7,6 +7,7 @@ Stand: **Phase 1, Schritt 4** – Agenten mit eigenem Auftrag, Modell, MCP-Serve
 Instructions und Skills; Chats mit Live-Ansicht (Markdown), Agent und Modell je Chat wählbar,
 Chats laufen gleichzeitig; Freigaben und Rückfragen im Chat; Verbrauchsanzeige; Einrichtungsseite;
 Simulation und Copilot-Anbindung. Das Postfach für Workflows ist gebaut, aber bis Phase 4 ausgegraut.
+Dazu **Phase 3**: der ADT-MCP zum Entwickeln von ABAP (siehe unten).
 Planung und Entscheidungen stehen in [docs/](docs/).
 
 ## Starten
@@ -54,6 +55,15 @@ eine Regel:
 Server, die einem Agenten nicht zugeordnet sind, kann er nicht benutzen. Welcher Agent einen Chat
 bearbeitet, steht über dem Chat und lässt sich jederzeit wechseln.
 
+### ABAP entwickeln (ADT-MCP)
+
+Eingebaut ist der Server **ADT (ABAP entwickeln)** ([mcp/adt/](mcp/adt/)). Unter **MCP-Server →
+ADT** stellst du SAP-Adresse, Mandant und die Pakete ein, in denen der Agent ändern darf (Start:
+`$TMP`). Angemeldet wird nur per SSO: Die App öffnet Edge, du meldest dich dort an (ggf.
+Zertifikat). Ohne SAP gibt es ein Übungssystem. Damit ein Agent ABAP entwickeln kann, auf der
+Seite **Agenten** den Server ADT anhaken und die Regeln setzen. Details:
+[docs/09-phase-3.md](docs/09-phase-3.md).
+
 Beim ersten Start sind zwei Stellvertreter-Server eingetragen (SAP, Jira/Confluence) mit
 Beispieldaten. Sie funktionieren in der Simulation und mit echtem Copilot und können gelöscht
 werden.
@@ -64,7 +74,7 @@ werden.
 |---|---|
 | `npm start` | App starten |
 | `npm run entwickeln` | wie `start`, startet bei Änderungen am Server neu |
-| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions und Verbrauch |
+| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions, Verbrauch und den ADT-MCP |
 | `npm run typpruefung` | TypeScript-Prüfung von Server und Oberfläche |
 
 ## Ordner
@@ -77,6 +87,7 @@ server/                 Backend (Node, TypeScript – wird ohne Bau-Schritt dire
   agenten/              Agenten verwalten: Standard-Agent beim ersten Start, prüfen, kopieren, löschen
   instructions/         Instructions-Ordner lesen und bearbeiten (*.instructions.md, Skills mit SKILL.md)
   einrichtung/          Prüfungen für die Einrichtungsseite
+  adt/                  ADT in der App: Konfiguration, SSO-Anmeldung über Edge, eingebauter Server
   laufzeit/             Agenten-Laufzeit, austauschbar
     laufzeit.ts         die gemeinsame Schnittstelle
     copilot/            echtes Copilot SDK, Berechtigungsregeln, Gateway-Hooks
@@ -104,4 +115,5 @@ Neben den Paketen aus `package.json` lädt npm plattformabhängige Pakete. Unter
 `lightningcss-win32-x64-msvc`.
 
 Neu in Schritt 4 (Markdown im Chat): `marked` 18.2.1, `dompurify` 3.4.18 und dessen Abhängigkeit
-`@types/trusted-types` 2.0.7.
+`@types/trusted-types` 2.0.7. Neu in Phase 3 (ADT): `abap-adt-api` 10.0.0 und `playwright-core`
+1.65.0 – beide kamen schon mit dem Prüfpaket über Nexus.

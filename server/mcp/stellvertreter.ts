@@ -10,7 +10,7 @@ import { standardAgentId } from "../datenbank/agenten.ts";
 import { leseTools } from "./mcp-dienst.ts";
 
 /** Die Stellvertreter sind TypeScript; Node braucht dafür bis Version 22.18 diesen Schalter. */
-const nodeMitTypeScript = ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"];
+export const nodeMitTypeScript = ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"];
 
 const stellvertreter: { daten: McpServerDaten; regeln: Record<string, ToolRegel> }[] = [
   {

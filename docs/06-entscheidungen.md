@@ -65,6 +65,8 @@
 | E-59 | 2026-11-24 | Markdown im Chat: Claude wählt die beste Lösung, sie muss in der Anwendung sicher sein (kein ungeprüftes HTML aus Modell, Tickets oder Quelltext) | Antwort Plan Schritt 4, Frage 6 |
 | E-60 | 2026-11-24 | Limit je Lauf, Monatsbudget und das Bearbeiten der Einstellungen in der App kommen vorerst **nicht**; „das Ding soll erst mal laufen“. Die Verbrauchsanzeige bleibt in Schritt 4 | Antworten Plan Schritt 4, Fragen 4, 5, 7 |
 | E-61 | 2026-11-25 | **Jeder Chat läuft für sich**: Chats arbeiten gleichzeitig, auch zwei Chats desselben Agenten. Innerhalb eines Chats geht es der Reihe nach. Konkretisiert E-57; die Festlegung „ein Agent, eine Sache zur Zeit“ aus Schritt 3 entfällt | Antwort David vor dem Bau von Schritt 4 |
+| E-62 | 2026-11-25 | **Phase 2 (Doku-Agent) wird übersprungen.** Agenten, Instructions, Skills und das Feintuning richtet David selbst auf dem Firmenrechner ein | Vorgabe David |
+| E-63 | 2026-11-25 | **ADT-MCP** als eigener Server unter `mcp/adt/`, in der App konfigurierbar (SAP-Adresse, Mandant, Pakete …). Anmeldung **ausschließlich per SSO** – keine Benutzer-/Passwort-Felder | Vorgabe David |
 
 ## Erkenntnisse aus Phase 0 (Privatrechner, 2026-11-13)
 

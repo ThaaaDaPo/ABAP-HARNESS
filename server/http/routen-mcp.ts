@@ -4,7 +4,8 @@ import { Router } from "express";
 import type { ChatDienst } from "../chat/chat-dienst.ts";
 import { entferneServerUeberall } from "../datenbank/agenten.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
-import { loescheServer } from "../datenbank/mcp-server.ts";
+import { holeServer, loescheServer } from "../datenbank/mcp-server.ts";
+import { Fehler } from "../fehler.ts";
 import * as mcp from "../mcp/mcp-dienst.ts";
 
 export function routenMcp(db: Datenbank, chat: ChatDienst): Router {
@@ -30,13 +31,20 @@ export function routenMcp(db: Datenbank, chat: ChatDienst): Router {
     await fertig(antwort);
   });
 
+  // Den eingebauten ADT-MCP setzt die App selbst; eingestellt wird er unter /api/adt.
+  const nichtEingebaut = (schluessel: string) => {
+    if (holeServer(db, schluessel)?.eingebaut) throw new Fehler(409, "Der eingebaute Server lässt sich nicht ändern oder löschen – eingestellt wird er im eigenen Formular.");
+  };
+
   // Name und Startbefehl ändern (der Schlüssel bleibt)
   router.put("/:schluessel", async (anfrage, antwort) => {
+    nichtEingebaut(anfrage.params.schluessel);
     mcp.aendere(db, mcp.pruefeEingabe({ ...anfrage.body, schluessel: anfrage.params.schluessel }));
     await fertig(antwort);
   });
 
   router.delete("/:schluessel", async (anfrage, antwort) => {
+    nichtEingebaut(anfrage.params.schluessel);
     loescheServer(db, anfrage.params.schluessel);
     entferneServerUeberall(db, anfrage.params.schluessel);
     await fertig(antwort);

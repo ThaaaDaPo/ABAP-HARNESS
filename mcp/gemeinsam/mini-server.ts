@@ -10,24 +10,30 @@ export interface ToolDefinition {
   /** JSON-Schema der Parameter */
   parameter: { type: "object"; properties: Record<string, unknown>; required?: string[] };
   /** Liefert den Ergebnistext. Ein geworfener Fehler wird als fehlgeschlagener Aufruf gemeldet. */
-  ausfuehren: (argumente: Record<string, any>) => string;
+  ausfuehren: (argumente: Record<string, any>) => string | Promise<string>;
 }
 
 /** Ein Fehler, den der Agent sehen soll (z. B. „Objekt nicht gefunden"). */
 export class ToolFehler extends Error {}
 
-export function starteMcpServer(name: string, tools: ToolDefinition[]): void {
+/**
+ * `beimBeenden`: läuft, wenn die Eingabe endet (Copilot oder die App schließen die Verbindung),
+ * z. B. um eine SAP-Sitzung abzumelden. Danach beendet sich der Prozess auch dann, wenn noch
+ * Verbindungen offen sind.
+ */
+export function starteMcpServer(name: string, tools: ToolDefinition[], beimBeenden?: () => Promise<void>): void {
   const sende = (nachricht: object) => process.stdout.write(JSON.stringify(nachricht) + "\n");
   const antworte = (id: unknown, result: unknown) => sende({ jsonrpc: "2.0", id, result });
 
-  function rufeAuf(id: unknown, toolName: string, argumente: Record<string, any>) {
+  // Aufrufe laufen gleichzeitig; jede Antwort trägt ihre id, die Reihenfolge ist egal.
+  async function rufeAuf(id: unknown, toolName: string, argumente: Record<string, any>) {
     const tool = tools.find((t) => t.name === toolName);
     if (!tool) {
       sende({ jsonrpc: "2.0", id, error: { code: -32602, message: `Unbekanntes Tool ${toolName}` } });
       return;
     }
     try {
-      antworte(id, { content: [{ type: "text", text: tool.ausfuehren(argumente) }], isError: false });
+      antworte(id, { content: [{ type: "text", text: await tool.ausfuehren(argumente) }], isError: false });
     } catch (fehler) {
       antworte(id, { content: [{ type: "text", text: (fehler as Error).message }], isError: true });
     }
@@ -55,14 +61,15 @@ export function starteMcpServer(name: string, tools: ToolDefinition[]): void {
           })),
         });
       case "tools/call":
-        return rufeAuf(id, String(params?.name), params?.arguments ?? {});
+        void rufeAuf(id, String(params?.name), params?.arguments ?? {});
+        return;
       default:
         return sende({ jsonrpc: "2.0", id, error: { code: -32601, message: `Unbekannte Methode ${method}` } });
     }
   }
 
-  // Endet die Eingabe, beendet sich der Server (readline hält den Prozess sonst nicht offen).
-  readline.createInterface({ input: process.stdin }).on("line", (zeile) => {
+  const eingabe = readline.createInterface({ input: process.stdin });
+  eingabe.on("line", (zeile) => {
     if (!zeile.trim()) return;
     try {
       behandle(JSON.parse(zeile));
@@ -70,4 +77,12 @@ export function starteMcpServer(name: string, tools: ToolDefinition[]): void {
       // Unlesbare Zeile ignorieren
     }
   });
+  // Ohne beimBeenden endet der Prozess von selbst, sobald nichts mehr offen ist.
+  if (beimBeenden) {
+    eingabe.on("close", () => {
+      beimBeenden()
+        .catch(() => {})
+        .finally(() => process.exit(0));
+    });
+  }
 }

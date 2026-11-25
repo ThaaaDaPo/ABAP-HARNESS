@@ -4,9 +4,12 @@
 // wenn es sie erlaubt, wirklich beim eingetragenen MCP-Server ausgeführt. Die Plattform-Tools
 // (Rückfrage, auf Freigabe warten) laufen ebenfalls echt.
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { ModellAufrufVerbrauch, ModellInfo } from "../../../gemeinsam/typen.ts";
 import type { McpAufrufer } from "../../mcp/mcp-aufrufer.ts";
 import type { AgentenLaufzeit, AgentenSitzung, EreignisEmpfaenger, SitzungsEinstellungen } from "../laufzeit.ts";
+import { liegtImOrdner } from "../copilot/berechtigungen.ts";
 import { findeSchritte, type DrehbuchSchritt } from "./drehbuch.ts";
 
 const pause = (ms: number) => new Promise((fertig) => setTimeout(fertig, ms));
@@ -85,6 +88,8 @@ class SimulationsSitzung implements AgentenSitzung {
 
       if ("warten" in schritt) {
         await this.warte(schritt.warten);
+      } else if ("datei" in schritt) {
+        await this.schreibeDatei(schritt.datei, schritt.inhalt);
       } else if ("tool" in schritt) {
         const aufrufId = randomUUID();
         this.empfaenger({ art: "tool_start", aufrufId, toolName: schritt.tool, argumente: schritt.argumente });
@@ -140,6 +145,24 @@ class SimulationsSitzung implements AgentenSitzung {
     } catch (fehler) {
       return { erfolgreich: false, ergebnis: (fehler as Error).message };
     }
+  }
+
+  /**
+   * Wie das Datei-Werkzeug von Copilot: Datei im Workspace schreiben, als Tool-Aufruf „edit“ sichtbar.
+   * Außerhalb des Workspace wird abgelehnt – wie bei Copilot durch die Berechtigungsprüfung.
+   */
+  private async schreibeDatei(datei: string, inhalt: string): Promise<void> {
+    const aufrufId = randomUUID();
+    this.empfaenger({ art: "tool_start", aufrufId, toolName: "edit", argumente: { path: datei } });
+    await pause(300);
+    const ziel = path.resolve(this.einstellungen.workspaceOrdner, datei);
+    if (!liegtImOrdner(this.einstellungen.workspaceOrdner, ziel)) {
+      this.empfaenger({ art: "tool_ende", aufrufId, erfolgreich: false, ergebnis: "Schreiben ist nur im Workspace-Ordner erlaubt." });
+      return;
+    }
+    fs.mkdirSync(path.dirname(ziel), { recursive: true });
+    fs.writeFileSync(ziel, inhalt, "utf8");
+    this.empfaenger({ art: "tool_ende", aufrufId, erfolgreich: true, ergebnis: `${datei} geschrieben (${inhalt.split("\n").length} Zeilen).` });
   }
 
   /** Gibt den Text Wort für Wort aus, wie ein echtes Modell beim Streamen. */

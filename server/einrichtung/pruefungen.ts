@@ -10,6 +10,9 @@ import { durchsuche } from "../instructions/instructions-ordner.ts";
 import type { AgentenLaufzeit } from "../laufzeit/laufzeit.ts";
 import { startAngaben } from "../mcp/mcp-dienst.ts";
 import { McpVerbindung } from "../mcp/mcp-verbindung.ts";
+import { ladeKonfiguration } from "../adt/adt-konfiguration.ts";
+import { findeEdge, type SsoAnmeldung } from "../adt/sso-anmeldung.ts";
+import type { AdtKonfiguration } from "../../gemeinsam/typen.ts";
 
 /** Mindestversion: abap-adt-api verlangt 22.15, am Firmenrechner läuft 22.16 (Phase 0). */
 const nodeMindestens = [22, 16];
@@ -22,6 +25,7 @@ export async function pruefeEinrichtung(
   einstellungen: Einstellungen,
   db: Datenbank,
   laufzeit: AgentenLaufzeit,
+  sso: SsoAnmeldung,
   mcpStarten: boolean,
 ): Promise<EinrichtungsBericht> {
   const pruefungen: Pruefung[] = [
@@ -31,6 +35,7 @@ export async function pruefeEinrichtung(
     await pruefeModelle(laufzeit),
     pruefeOrdner("Workspace-Ordner", einstellungen.workspaceOrdner, "workspaceOrdner"),
     pruefeInstructions(einstellungen.instructionsOrdner),
+    ...pruefeAdt(ladeKonfiguration(db), sso),
     ...(mcpStarten ? await starteMcpServer(db) : letzterMcpStand(db)),
   ];
   return {
@@ -111,6 +116,41 @@ function pruefeInstructions(ordner: string): Pruefung {
   } catch (fehler) {
     return { ...grundlage, ok: false, text: (fehler as Error).message };
   }
+}
+
+/** ADT: Gegenstelle, Edge für die SSO-Anmeldung und Stand der Anmeldung. Angemeldet wird hier nicht. */
+function pruefeAdt(konfiguration: AdtKonfiguration, sso: SsoAnmeldung): Pruefung[] {
+  if (konfiguration.gegenstelle === "simulation") {
+    return [
+      {
+        titel: "ADT",
+        ok: null,
+        text: "Übungssystem statt SAP.",
+        hinweis: "Für das echte System unter MCP-Server → ADT „SAP-System“ wählen und die Adresse eintragen.",
+      },
+    ];
+  }
+  const edge = findeEdge(konfiguration.edgePfad);
+  const anmeldung = sso.anmeldung();
+  return [
+    {
+      titel: "ADT",
+      ok: !!konfiguration.url,
+      text: `${konfiguration.url || "keine Adresse"}, Mandant ${konfiguration.mandant}, Pakete ${konfiguration.pakete.join(", ")}`,
+    },
+    {
+      titel: "Edge für die SSO-Anmeldung",
+      ok: !!edge,
+      text: edge ?? "nicht gefunden",
+      ...(edge ? {} : { hinweis: "Pfad zu msedge.exe unter MCP-Server → ADT eintragen." }),
+    },
+    {
+      titel: "SAP-Anmeldung",
+      ok: anmeldung.zustand === "fehler" ? false : anmeldung.zustand === "angemeldet" ? true : null,
+      text: anmeldung.text,
+      ...(anmeldung.zustand === "angemeldet" ? {} : { hinweis: "Unter MCP-Server → ADT „Anmelden“ – oder beim ersten Zugriff des Agenten." }),
+    },
+  ];
 }
 
 /** Ohne Starten: was beim letzten Auslesen der Tools herauskam. */

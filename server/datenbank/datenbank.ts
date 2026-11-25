@@ -104,6 +104,12 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
       zeitpunkt      TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS verbrauch_nach_aufgabe ON verbrauch(aufgabe_id);
+
+    -- Einstellungen, die David in der App vornimmt (seit Phase 3: ADT). wert ist JSON.
+    CREATE TABLE IF NOT EXISTS app_einstellungen (
+      schluessel TEXT PRIMARY KEY,
+      wert       TEXT NOT NULL
+    );
   `);
 
   // Seit Schritt 3. Bestehende Datenbanken (Firmenrechner) bekommen die Spalten nachgerüstet.
@@ -119,6 +125,8 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
   ergaenzeSpalte(db, "aufgaben", "herkunft", "TEXT NOT NULL DEFAULT 'chat'");
   // Agent je Chat (seit Schritt 4). Bestehende Chats gehören dem Agenten, der aus einstellungen.json entsteht.
   ergaenzeSpalte(db, "aufgaben", "agent_id", "TEXT NOT NULL DEFAULT 'standard'");
+  // Eingebaute MCP-Server (ADT): Startbefehl setzt die App, eingestellt wird über ein eigenes Formular.
+  ergaenzeSpalte(db, "mcp_server", "eingebaut", "INTEGER NOT NULL DEFAULT 0");
 
   return db;
 }

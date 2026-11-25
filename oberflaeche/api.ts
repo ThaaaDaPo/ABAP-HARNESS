@@ -1,5 +1,7 @@
 // Alle Aufrufe an den Server an einer Stelle.
 import type {
+  AdtKonfiguration,
+  AdtUebersicht,
   Agent,
   AgentDaten,
   Aufgabe,
@@ -71,6 +73,20 @@ export const aendereMcpServer = (daten: McpServerDaten) =>
 export const loescheMcpServer = (schluessel: string) => anfrage<McpServer[]>(`/mcp/${schluessel}`, { method: "DELETE" });
 
 export const leseMcpTools = (schluessel: string) => anfrage<McpServer[]>(`/mcp/${schluessel}/tools-lesen`, { method: "POST" });
+
+// ADT-MCP: Konfiguration und SSO-Anmeldung
+
+export const holeAdt = () => anfrage<AdtUebersicht>("/adt");
+
+export const speichereAdt = (konfiguration: AdtKonfiguration) =>
+  anfrage<AdtUebersicht>("/adt", { method: "PUT", body: JSON.stringify(konfiguration) });
+
+/** Öffnet Edge und wartet, bis die SSO-Anmeldung da ist (bis 3 Minuten) */
+export const adtAnmelden = () => anfrage<AdtUebersicht>("/adt/anmelden", { method: "POST" });
+
+export const adtAbmelden = () => anfrage<AdtUebersicht>("/adt/abmelden", { method: "POST" });
+
+export const adtVerbindungTesten = () => anfrage<{ text: string; uebersicht: AdtUebersicht }>("/adt/verbindung-testen", { method: "POST" });
 
 // Agenten und ihre Regeln je Tool
 

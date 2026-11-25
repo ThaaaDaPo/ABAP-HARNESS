@@ -1,6 +1,7 @@
 # 03 – ADT-Integration, Workspace und Fehler-Feedback (Vorschlag)
 
-Status: **Vorschlag von Claude, noch nicht bestätigt.**
+Status: **Grundlage für Phase 3. Gebaut seit 2026-11-25 – was davon umgesetzt ist und wie (Tool-Namen,
+SSO über die App), steht in [09-phase-3](09-phase-3.md).**
 
 ## Kernaussage
 
@@ -98,10 +99,8 @@ Der bestehende Node-Proxy meldet sich mit einem **Cookie aus dem Browser** an. D
 denselben Weg. Das ist eine gute Nachricht: Ein gültiges Anmelde-Cookie gilt in der Regel für
 alle Dienste des Systems, also auch für `/sap/bc/adt`. Zu prüfen in Phase 0 (T2).
 
-Der Proxy holt sich das Cookie automatisch, ohne Zutun (E-33). **Wie** er das tut, ist noch
-unbekannt und muss vor dem Bau des ADT-MCP geklärt werden (offene Frage J2). Der Anmelde-Teil
-des ADT-MCP ist deshalb ein austauschbarer Baustein: entweder Nachbau des Proxy-Mechanismus oder
-direkte Einbindung des Proxy-Bausteins.
+Der Proxy holt sich das Cookie über Edge (E-38); so macht es seit Phase 3 auch die App –
+einmal für alle ADT-MCP-Prozesse, nur per SSO (E-63). Details in [09-phase-3](09-phase-3.md).
 
 Zusätzlich braucht ADT für schreibende Aufrufe ein CSRF-Token und für Sperren eine
 zustandsbehaftete Sitzung – beides Standard, aber Teil der Prüfung.

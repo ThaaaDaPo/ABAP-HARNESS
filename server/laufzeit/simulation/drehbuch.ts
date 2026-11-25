@@ -10,6 +10,8 @@ export type DrehbuchSchritt =
    * das Gateway und der Server liefert das Ergebnis. Sonst gelten ergebnis und fehlgeschlagen.
    */
   | { tool: string; argumente: unknown; ergebnis?: string; fehlgeschlagen?: boolean }
+  /** Schreibt eine Datei im Workspace – wie das Datei-Werkzeug von Copilot (z. B. ausgecheckten ABAP-Code ändern) */
+  | { datei: string; inhalt: string }
   | { warten: number };
 
 interface DrehbuchEintrag {

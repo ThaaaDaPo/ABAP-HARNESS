@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { McpServer, McpServerDaten } from "../../gemeinsam/typen.ts";
 import * as api from "../api.ts";
+import { AdtEinstellungen } from "../komponenten/AdtEinstellungen.tsx";
 import { McpServerFormular } from "../komponenten/McpServerFormular.tsx";
 
 /** Was rechts angezeigt wird */
@@ -87,6 +88,7 @@ export function McpSeite() {
             }}
           >
             <span className="chat-titel">{s.name}</span>
+            {s.eingebaut && <span className="status-marke">eingebaut</span>}
             {s.leseFehler && <span className="fehler-punkt" title="Fehler beim Auslesen" />}
           </button>
         ))}
@@ -121,22 +123,27 @@ export function McpSeite() {
         {ansicht === "ansehen" && aktuell && (
           <>
             <h2>{aktuell.name}</h2>
-            <div className="server-kopf">
-              <code>
-                {aktuell.befehl} {aktuell.argumente.join(" ")}
-              </code>
-              <div className="knopfreihe">
-                <button className="knopf" onClick={() => aendere(() => api.leseMcpTools(aktuell.schluessel))} disabled={beschaeftigt}>
-                  Tools neu auslesen
-                </button>
-                <button className="knopf" onClick={() => setAnsicht("bearbeiten")} disabled={beschaeftigt}>
-                  Bearbeiten
-                </button>
-                <button className="knopf" onClick={() => loesche(aktuell.schluessel)} disabled={beschaeftigt}>
-                  Löschen
-                </button>
+            {/* Den eingebauten ADT-MCP startet die App selbst; eingestellt wird er im eigenen Formular. */}
+            {aktuell.eingebaut ? (
+              <AdtEinstellungen />
+            ) : (
+              <div className="server-kopf">
+                <code>
+                  {aktuell.befehl} {aktuell.argumente.join(" ")}
+                </code>
+                <div className="knopfreihe">
+                  <button className="knopf" onClick={() => aendere(() => api.leseMcpTools(aktuell.schluessel))} disabled={beschaeftigt}>
+                    Tools neu auslesen
+                  </button>
+                  <button className="knopf" onClick={() => setAnsicht("bearbeiten")} disabled={beschaeftigt}>
+                    Bearbeiten
+                  </button>
+                  <button className="knopf" onClick={() => loesche(aktuell.schluessel)} disabled={beschaeftigt}>
+                    Löschen
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {aktuell.leseFehler && <div className="fehlerleiste">Auslesen fehlgeschlagen: {aktuell.leseFehler}</div>}
             {aktuell.toolsGelesenAm && (

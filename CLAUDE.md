@@ -13,7 +13,10 @@ Freigaben im Chat, der Agent wartet im Tool-Aufruf auf David (E-52, E-54); Postf
 Workflows – am 2026-11-24 am Firmenrechner nachgeprüft, alles in Ordnung. **Schritt 4 ist gebaut
 (2026-11-25)**: Agentenverwaltung (Agent im Chat wechselbar, jeder Chat läuft für sich – E-61),
 Instructions/Skills, Verbrauchsanzeige, Einrichtungsseite, Markdown, Änderungswunsch in der Karte.
-Als Nächstes: Abnahme am Firmenrechner nach der Checkliste in 08-phase-1.md, „Abnahme Schritt 4“.
+Abnahme am Firmenrechner nach der Checkliste in 08-phase-1.md, „Abnahme Schritt 4“, steht aus.
+**Phase 2 übersprungen (E-62). Phase 3 gestartet (2026-11-25)**: ADT-MCP unter `mcp/adt/`,
+eingebaut und in der App konfigurierbar, Anmeldung nur per SSO (E-63), mit Übungssystem statt SAP –
+Stand und Abnahme-Checkliste in [docs/09-phase-3.md](docs/09-phase-3.md). Offen: „Rückgängig“ (M1).
 Stand, Erkenntnisse und bekannte Lücken in
 [docs/08-phase-1.md](docs/08-phase-1.md).
 Aufbau des Codes: [README.md](README.md).
@@ -35,7 +38,8 @@ Zuerst diese Dateien lesen, in dieser Reihenfolge:
 2. [docs/06-entscheidungen.md](docs/06-entscheidungen.md) – was entschieden ist (und was nur Vorschlag ist)
 3. [docs/05-offene-fragen.md](docs/05-offene-fragen.md) – was noch geklärt werden muss
 4. Bei Bedarf: [02-architektur](docs/02-architektur.md), [03-adt-integration](docs/03-adt-integration.md),
-   [04-freigabe-postfach](docs/04-freigabe-postfach.md), [07-roadmap](docs/07-roadmap.md)
+   [04-freigabe-postfach](docs/04-freigabe-postfach.md), [07-roadmap](docs/07-roadmap.md),
+   Stand je Phase: [08-phase-1](docs/08-phase-1.md), [09-phase-3](docs/09-phase-3.md)
 
 ## Referenzcode
 

@@ -66,6 +66,159 @@
     ]
   },
   {
+    "beschreibung": "ADT: Klasse auschecken, ändern, prüfen, speichern, aktivieren (Regel je Tool beachten)",
+    "wennEnthaelt": [
+      "entwickl"
+    ],
+    "schritte": [
+      {
+        "text": "Ich checke ZCL_KUNDEN_SERVICE aus und ergänze eine Methode GET_NAME."
+      },
+      {
+        "tool": "adt-auschecken",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE"
+        }
+      },
+      {
+        "datei": "abap/zcl_kunden_service.clas.abap",
+        "inhalt": "CLASS zcl_kunden_service DEFINITION PUBLIC FINAL CREATE PUBLIC.\n  PUBLIC SECTION.\n    METHODS get_kunde IMPORTING iv_id TYPE kunnr RETURNING VALUE(rs_kunde) TYPE kna1.\n    METHODS get_name IMPORTING iv_id TYPE kunnr RETURNING VALUE(rv_name) TYPE name1_gp.\nENDCLASS.\n\nCLASS zcl_kunden_service IMPLEMENTATION.\n  METHOD get_kunde.\n    SELECT SINGLE * FROM kna1 WHERE kunnr = @iv_id INTO @rs_kunde.\n  ENDMETHOD.\n\n  METHOD get_name.\n    SELECT SINGLE name1 FROM kna1 WHERE kunnr = @iv_id INTO @rv_name.\n  ENDMETHOD.\nENDCLASS.\n"
+      },
+      {
+        "tool": "adt-pruefen",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE"
+        }
+      },
+      {
+        "tool": "adt-speichern",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE"
+        }
+      },
+      {
+        "tool": "adt-aktivieren",
+        "argumente": {
+          "namen": [
+            "ZCL_KUNDEN_SERVICE"
+          ]
+        }
+      },
+      {
+        "text": "Fertig: `GET_NAME` ist in **ZCL_KUNDEN_SERVICE** gespeichert und aktiviert."
+      }
+    ]
+  },
+  {
+    "beschreibung": "ADT: Syntaxfehler – speichern verweigert",
+    "wennEnthaelt": [
+      "syntaxfehler"
+    ],
+    "schritte": [
+      {
+        "tool": "adt-auschecken",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE",
+          "ueberschreiben": true
+        }
+      },
+      {
+        "datei": "abap/zcl_kunden_service.clas.abap",
+        "inhalt": "CLASS zcl_kunden_service DEFINITION PUBLIC FINAL CREATE PUBLIC.\n  PUBLIC SECTION.\n    METHODS get_kunde IMPORTING iv_id TYPE kunnr RETURNING VALUE(rs_kunde) TYPE kna1.\n    METHODS get_name IMPORTING iv_id TYPE kunnr RETURNING VALUE(rv_name) TYPE name1_gp.\nENDCLASS.\n\nCLASS zcl_kunden_service IMPLEMENTATION.\n  METHOD get_kunde.\n    SELECT SINGLE * FROM kna1 WHERE kunnr = @iv_id INTO @rs_kunde.\n  ENDMETHOD.\n\n  METHOD get_name.\n    SELECT SINGLE name1 FROM kna1 WHERE kunnr = @iv_id INTO @lv_unbekannt.\n  ENDMETHOD.\nENDCLASS.\n"
+      },
+      {
+        "tool": "adt-speichern",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE"
+        }
+      },
+      {
+        "text": "Das System meldet einen Syntaxfehler, deshalb ist nichts gespeichert. Ich müsste `LV_UNBEKANNT` korrigieren."
+      }
+    ]
+  },
+  {
+    "beschreibung": "ADT: Objekt außerhalb der freigegebenen Pakete – Paket-Sperre",
+    "wennEnthaelt": [
+      "kundenliste"
+    ],
+    "schritte": [
+      {
+        "tool": "adt-auschecken",
+        "argumente": {
+          "name": "Z_KUNDEN_LISTE"
+        }
+      },
+      {
+        "datei": "abap/z_kunden_liste.prog.abap",
+        "inhalt": "REPORT z_kunden_liste.\n\nSELECT kunnr, name1 FROM kna1 INTO TABLE @DATA(lt_kunden) UP TO 20 ROWS.\ncl_demo_output=>display( lt_kunden ).\n"
+      },
+      {
+        "tool": "adt-speichern",
+        "argumente": {
+          "name": "Z_KUNDEN_LISTE"
+        }
+      },
+      {
+        "text": "Z_KUNDEN_LISTE liegt im Paket ZVERTRIEB – dort darf ich nicht ändern."
+      }
+    ]
+  },
+  {
+    "beschreibung": "ADT: Testklasse anlegen, Unit-Tests und ATC",
+    "wennEnthaelt": [
+      "testklasse",
+      "unit-test",
+      "unit test"
+    ],
+    "schritte": [
+      {
+        "tool": "adt-auschecken",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE",
+          "ueberschreiben": true
+        }
+      },
+      {
+        "datei": "abap/zcl_kunden_service.clas.abap",
+        "inhalt": "CLASS zcl_kunden_service DEFINITION PUBLIC FINAL CREATE PUBLIC.\n  PUBLIC SECTION.\n    METHODS get_kunde IMPORTING iv_id TYPE kunnr RETURNING VALUE(rs_kunde) TYPE kna1.\n    METHODS get_name IMPORTING iv_id TYPE kunnr RETURNING VALUE(rv_name) TYPE name1_gp.\nENDCLASS.\n\nCLASS zcl_kunden_service IMPLEMENTATION.\n  METHOD get_kunde.\n    SELECT SINGLE * FROM kna1 WHERE kunnr = @iv_id INTO @rs_kunde.\n  ENDMETHOD.\n\n  METHOD get_name.\n    SELECT SINGLE name1 FROM kna1 WHERE kunnr = @iv_id INTO @rv_name.\n  ENDMETHOD.\nENDCLASS.\n"
+      },
+      {
+        "datei": "abap/zcl_kunden_service.clas.testclasses.abap",
+        "inhalt": "CLASS ltc_kunden_service DEFINITION FINAL FOR TESTING\n  DURATION SHORT RISK LEVEL HARMLESS.\n  PRIVATE SECTION.\n    METHODS name_ist_gefuellt FOR TESTING.\nENDCLASS.\n\nCLASS ltc_kunden_service IMPLEMENTATION.\n  METHOD name_ist_gefuellt.\n    cl_abap_unit_assert=>assert_not_initial( NEW zcl_kunden_service( )->get_name( '4711' ) ).\n  ENDMETHOD.\nENDCLASS.\n"
+      },
+      {
+        "tool": "adt-speichern",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE"
+        }
+      },
+      {
+        "tool": "adt-aktivieren",
+        "argumente": {
+          "namen": [
+            "ZCL_KUNDEN_SERVICE"
+          ]
+        }
+      },
+      {
+        "tool": "adt-unit_tests",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE"
+        }
+      },
+      {
+        "tool": "adt-atc_pruefen",
+        "argumente": {
+          "name": "ZCL_KUNDEN_SERVICE"
+        }
+      },
+      {
+        "text": "Testklasse steht, der Test läuft durch. ATC meldet noch `SELECT *` in GET_KUNDE."
+      }
+    ]
+  },
+  {
     "beschreibung": "Rückfrage: im Chat wartet der Aufruf auf die Antwort im Eingabefeld",
     "wennEnthaelt": [
       "rückfrage",
@@ -267,7 +420,7 @@
     "wennEnthaelt": [],
     "schritte": [
       {
-        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (Agent: {agent}, Modell: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern*, *langsam* oder *Wer bist du*."
+        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (Agent: {agent}, Modell: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern*, *langsam*, *Wer bist du* oder für ADT *entwickle*, *Syntaxfehler*, *Kundenliste*, *Testklasse*."
       }
     ]
   }
