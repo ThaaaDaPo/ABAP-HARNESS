@@ -55,6 +55,16 @@ export interface GatewayAuskunft {
   darfAusfuehren(adresse: ToolAdresse): boolean;
 }
 
+/**
+ * Copilot meldet den Tool-Namen hier mal ohne, mal mit Server-Präfix ("anlegen" bzw. "adt-anlegen",
+ * am Firmenrechner beim ADT-MCP beobachtet). Das Gateway kennt ihn ohne – sonst passt weder die
+ * Freigabe noch die Regel des Tools.
+ */
+export function ohneServerPraefix(server: string, toolName: string): string {
+  const praefix = `${server}-`;
+  return toolName.startsWith(praefix) ? toolName.slice(praefix.length) : toolName;
+}
+
 export function erstelleBerechtigungsPruefung(workspaceOrdner: string, gateway: GatewayAuskunft): PermissionHandler {
   return (anfrage) => {
     switch (anfrage.kind) {
@@ -74,13 +84,15 @@ export function erstelleBerechtigungsPruefung(workspaceOrdner: string, gateway: 
       case "url":
         return abgelehnt("Internetzugriff ist in dieser Umgebung abgeschaltet.");
 
-      case "mcp":
+      case "mcp": {
         // Zweite Sperre: Das Gateway hat im Hook onPreToolUse schon entschieden (und bei
         // "freigabe" den Vorschlag abgelegt). Hier wird nur noch einmal ohne Nebenwirkung geprüft.
         // Das fängt auch MCP-Server ab, die nicht in der App eingetragen sind.
-        return gateway.darfAusfuehren({ server: anfrage.serverName, tool: anfrage.toolName })
+        const tool = ohneServerPraefix(anfrage.serverName, anfrage.toolName);
+        return gateway.darfAusfuehren({ server: anfrage.serverName, tool })
           ? erlaubt
-          : abgelehnt(`Das Tool ${anfrage.serverName}-${anfrage.toolName} ist ohne Freigabe nicht erlaubt.`);
+          : abgelehnt(`Das Tool ${anfrage.serverName}-${tool} ist ohne Freigabe nicht erlaubt.`);
+      }
 
       case "custom-tool":
         // Eigene Tools der App (Rückfrage, auf Freigabe warten) sind erlaubt.

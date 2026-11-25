@@ -109,6 +109,14 @@ Neu im Hauptprojekt, aber schon vom Prüfpaket über Nexus geladen: `abap-adt-ap
 (samt Unterpaketen) und `playwright-core` **1.65.0**. Hinweis aus Phase 0: Zwei Unterpakete von
 `abap-adt-api` verlangen Node ≥ 22.19; mit 22.16 lief es trotzdem.
 
+### Befunde vom Firmenrechner
+
+- 2026-11-25: SSO-Anmeldung und Verbindung stehen. Beim ersten `adt-anlegen` mit Regel *Freigabe*
+  lehnte die zweite Sperre trotz Freigabe ab („Das Tool adt-adt-anlegen ist ohne Freigabe nicht
+  erlaubt“): Copilot meldet in `onPermissionRequest` den Tool-Namen hier **mit** Server-Präfix.
+  Behoben in [berechtigungen.ts](../server/laufzeit/copilot/berechtigungen.ts) (Präfix wird
+  entfernt, beide Schreibweisen gehen).
+
 ## Abnahme ADT-MCP auf dem Firmenrechner
 
 Sinnvoll nach der Abnahme von Schritt 4 (08-phase-1.md) oder zusammen damit.

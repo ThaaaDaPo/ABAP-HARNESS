@@ -75,6 +75,9 @@ test("MCP-Tools nur, wenn das Gateway sie erlaubt", async () => {
   assert.equal(await entscheidung({ kind: "mcp", serverName: "jira", toolName: "ticket_lesen" }), "approve-once");
   assert.equal(await entscheidung({ kind: "mcp", serverName: "jira", toolName: "seite_anlegen" }), "reject");
   assert.equal(await entscheidung({ kind: "mcp", serverName: "fremd", toolName: "ticket_lesen" }), "reject");
+  // Copilot meldet den Namen manchmal mit Server-Präfix – gilt dann genauso
+  assert.equal(await entscheidung({ kind: "mcp", serverName: "jira", toolName: "jira-ticket_lesen" }), "approve-once");
+  assert.equal(await entscheidung({ kind: "mcp", serverName: "jira", toolName: "jira-seite_anlegen" }), "reject");
 });
 
 test("Eigene Tools der App sind erlaubt", async () => {
