@@ -493,3 +493,70 @@ button:disabled { cursor: default; }
 .anmeldung.abgemeldet { border-left: 4px solid var(--warnung); }
 
 @keyframes pulsieren { from { opacity: 0.3; } to { opacity: 1; } }
+
+/* Änderung des ADT-MCP im Chat: Vergleich nebeneinander und Rückgängig (E-31) */
+.mit-aenderung { align-self: stretch; display: flex; flex-direction: column; gap: 6px; }
+.mit-aenderung > .tool-aufruf, .mit-aenderung > .postfach-karte { align-self: flex-start; }
+.aenderungs-karte {
+  max-width: 1400px;
+  border: 1px solid var(--rand);
+  border-left: 4px solid var(--akzent);
+  border-radius: var(--radius);
+  background: var(--flaeche);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+.aenderungs-karte.zurueckgenommen { border-left-color: var(--text-leise); }
+.aenderungs-karte .fehlerleiste { margin: 0; }
+.karten-status.zurueckgenommen { background: var(--hintergrund); color: var(--text-leise); }
+.knopfreihe .hinweis { align-self: center; }
+
+.nebeneinander { border: 1px solid var(--rand); border-radius: 6px; overflow: hidden; }
+.nebeneinander-kopf { display: flex; gap: 10px; padding: 4px 8px; background: var(--hintergrund); border-bottom: 1px solid var(--rand); }
+.zaehler-raus { color: var(--fehler); }
+.zaehler-rein { color: var(--ok); }
+.nebeneinander-rahmen { max-height: 520px; overflow-y: auto; }
+.nebeneinander table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.nebeneinander th {
+  position: sticky;
+  top: 0;
+  background: var(--flaeche);
+  text-align: left;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-weight: 600;
+  color: var(--text-leise);
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--rand);
+}
+.nebeneinander th + th, .nebeneinander td.nr + td.code + td.nr { border-left: 1px solid var(--rand); }
+.nebeneinander .spalte-nr { width: 44px; }
+.nebeneinander td { vertical-align: top; padding: 0 6px; }
+.nebeneinander td.nr { text-align: right; color: var(--text-leise); user-select: none; }
+.nebeneinander td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Rot: im alten Stand gelöscht. Grün: im neuen Stand hinzugefügt. */
+.nebeneinander td.raus { background: #fde2e2; }
+.nebeneinander td.nr.raus { background: #f9caca; color: var(--fehler); }
+.nebeneinander td.rein { background: #dcf5e3; }
+.nebeneinander td.nr.rein { background: #bfeacb; color: var(--ok); }
+.nebeneinander td.leer { background: repeating-linear-gradient(135deg, #f3f4f6 0 6px, #eceef1 6px 12px); }
+.nebeneinander tr.zugeklappt td { padding: 0; background: var(--akzent-hell); }
+.nebeneinander tr.zugeklappt button {
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--akzent);
+  padding: 2px 8px;
+  text-align: left;
+  font-size: 12px;
+}
+.nebeneinander tr.zugeklappt button:hover { text-decoration: underline; }

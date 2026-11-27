@@ -204,6 +204,15 @@ export class SimulierteGegenstelle implements AdtGegenstelle {
     return this.alsObjekt(sim);
   }
 
+  async loesche(objekt: AdtObjekt): Promise<void> {
+    const zustand = this.lade();
+    // Wie SAP: Eine Funktionsgruppe mit Bausteinen lässt sich nicht löschen.
+    const bausteine = Object.values(zustand).filter((o) => o.funktionsgruppe === objekt.name);
+    if (bausteine.length > 0) throw new Error(`${objekt.name} enthält noch Funktionsbausteine (${bausteine.map((b) => b.name).join(", ")}).`);
+    delete zustand[objekt.name];
+    this.speichere(zustand);
+  }
+
   async unitTests(objekt: AdtObjekt): Promise<TestErgebnis> {
     const sim = this.lade()[objekt.name];
     // Getestet wird die aktive Version – wie in SAP

@@ -1,5 +1,6 @@
 // Prüft die Tools des ADT-MCP gegen das Übungssystem: auschecken, prüfen, speichern (nur ohne
-// Syntaxfehler, mit Konflikterkennung und Paket-Sperre), aktivieren, anlegen, Unit-Tests, ATC. npm test
+// Syntaxfehler, mit Konflikterkennung und Paket-Sperre), aktivieren, anlegen, Unit-Tests, ATC;
+// dazu Änderungssätze und „Rückgängig“ (nur für die App). npm test
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,9 +8,12 @@ import path from "node:path";
 import { test } from "node:test";
 import type { AdtLaufzeitKonfiguration } from "../../gemeinsam/typen.ts";
 import { SimulierteGegenstelle } from "./simulierte-gegenstelle.ts";
+import { findeAenderungsId } from "../../gemeinsam/aenderungs-hinweis.ts";
+import { vergleicheZeilen } from "../../gemeinsam/zeilenvergleich.ts";
 import { vergleiche } from "./vergleich.ts";
 import { erstelleWerkzeuge } from "./werkzeuge.ts";
 import { Workspace } from "./workspace.ts";
+import { erstelleAppWerkzeuge } from "./zuruecknehmen.ts";
 
 function aufbauen() {
   const ordner = fs.mkdtempSync(path.join(os.tmpdir(), "harness-adt-"));
@@ -27,10 +31,12 @@ function aufbauen() {
   };
   const gegenstelle = new SimulierteGegenstelle(konfiguration.simulationsDatei);
   const workspace = new Workspace(konfiguration.workspaceOrdner);
-  const werkzeuge = erstelleWerkzeuge(async () => ({ gegenstelle, workspace, konfiguration }));
-  const rufe = async (name: string, argumente: Record<string, unknown>): Promise<string> => werkzeuge.find((w) => w.name === name)!.ausfuehren(argumente);
+  const kontext = async () => ({ gegenstelle, workspace, konfiguration });
+  const werkzeuge = erstelleWerkzeuge(kontext);
+  const alle = [...werkzeuge, ...erstelleAppWerkzeuge(kontext)];
+  const rufe = async (name: string, argumente: Record<string, unknown>): Promise<string> => alle.find((w) => w.name === name)!.ausfuehren(argumente);
   const datei = (relativ: string) => path.join(konfiguration.workspaceOrdner, relativ);
-  return { rufe, datei, gegenstelle, werkzeuge };
+  return { rufe, datei, gegenstelle, werkzeuge, workspace };
 }
 
 const klasse = "abap/zcl_kunden_service.clas.abap";
@@ -134,4 +140,89 @@ test("Vergleich zeigt nur die geänderten Zeilen, je Stelle mit Zeilennummer", (
   assert.equal(vergleiche("a\nb\nc", "a\nX\nY\nc"), "1 Zeilen raus, 2 rein\n@ Zeile 2\n- b\n+ X\n+ Y");
   // Zwei getrennte Stellen: zwei Abschnitte, das Gleiche dazwischen fehlt
   assert.equal(vergleiche("a\nb\nc\nd\ne", "a\nB\nc\nd\ne\nf"), "1 Zeilen raus, 2 rein\n@ Zeile 2\n- b\n+ B\n@ Zeile 6\n+ f");
+});
+
+test("Zeilenvergleich für die Anzeige nebeneinander: Zeilennummern links und rechts", () => {
+  const schritte = vergleicheZeilen("a\nb\nc", "a\nX\nc\nd");
+  assert.deepEqual(
+    schritte.map((s) => `${s.art} ${s.zeileAlt}/${s.zeileNeu} ${s.text}`),
+    ["gleich 1/1 a", "raus 2/0 b", "rein 0/2 X", "gleich 3/3 c", "rein 0/4 d"],
+  );
+  // Leerer Stand (z. B. neue Testklassen): nur hinzugefügte Zeilen, keine leere „gelöschte“ Zeile
+  assert.deepEqual(vergleicheZeilen("", "x").map((s) => s.art), ["rein"]);
+});
+
+test("Speichern legt einen Änderungssatz an; Rückgängig schreibt den alten Stand zurück und aktiviert", async () => {
+  const { rufe, datei, gegenstelle, workspace } = aufbauen();
+  await rufe("auschecken", { name: "ZCL_KUNDEN_SERVICE" });
+  const alt = fs.readFileSync(datei(klasse), "utf8");
+  fs.writeFileSync(datei(klasse), alt.replace("SELECT SINGLE *", "SELECT SINGLE kunnr"));
+  const id = findeAenderungsId(await rufe("speichern", { name: "ZCL_KUNDEN_SERVICE" }));
+  assert.ok(id, "das Ergebnis nennt die Änderung");
+  const aenderung = workspace.leseAenderung(id)!;
+  assert.equal(aenderung.art, "gespeichert");
+  assert.deepEqual(aenderung.teile.map((t) => [t.teil, t.datei, t.vorher === alt, t.nachher.includes("SELECT SINGLE kunnr")]), [["main", klasse, true, true]]);
+
+  const text = await rufe("zuruecknehmen", { id });
+  assert.match(text, /ZCL_KUNDEN_SERVICE: Stand vor der Änderung von \d\d:\d\d zurückgeschrieben und aktiviert\./);
+  const objekt = (await gegenstelle.finde("ZCL_KUNDEN_SERVICE"))!;
+  assert.equal(await gegenstelle.lies(objekt, "main"), alt, "im System wieder der alte Stand, aktiv");
+  assert.equal(fs.readFileSync(datei(klasse), "utf8"), alt, "Workspace zurückgesetzt");
+  assert.match(await rufe("speichern", { name: "ZCL_KUNDEN_SERVICE" }), /nichts zu speichern/, "danach passen Workspace und System zusammen");
+  assert.ok(workspace.leseAenderung(id)!.zurueckgenommen);
+  await assert.rejects(rufe("zuruecknehmen", { id }), /Schon erledigt/);
+});
+
+test("Rückgängig lehnt ab, wenn das Objekt seitdem noch einmal geändert wurde", async () => {
+  const { rufe, datei, gegenstelle } = aufbauen();
+  await rufe("auschecken", { name: "ZIF_KUNDEN_LESER" });
+  const pfad = datei("abap/zif_kunden_leser.intf.abap");
+  const alt = fs.readFileSync(pfad, "utf8");
+  fs.writeFileSync(pfad, alt.replace("METHODS lese", "METHODS lies"));
+  const erste = findeAenderungsId(await rufe("speichern", { name: "ZIF_KUNDEN_LESER" }))!;
+  fs.writeFileSync(pfad, alt.replace("METHODS lese", "METHODS hole"));
+  const zweite = findeAenderungsId(await rufe("speichern", { name: "ZIF_KUNDEN_LESER" }))!;
+
+  await assert.rejects(rufe("zuruecknehmen", { id: erste }), /noch einmal geändert[\s\S]*Erst die neuere Änderung rückgängig machen/);
+  const objekt = (await gegenstelle.finde("ZIF_KUNDEN_LESER"))!;
+  assert.match((await gegenstelle.lies(objekt, "main"))!, /METHODS hole/, "nichts verändert");
+  // In der richtigen Reihenfolge geht beides
+  await rufe("zuruecknehmen", { id: zweite });
+  await rufe("zuruecknehmen", { id: erste });
+  assert.equal(await gegenstelle.lies(objekt, "main"), alt);
+});
+
+test("Rückgängig bei neuen Testklassen und bei neu angelegten Objekten (löschen)", async () => {
+  const { rufe, datei, gegenstelle } = aufbauen();
+  const angelegt = findeAenderungsId(await rufe("anlegen", { art: "klasse", name: "ZCL_NEU", beschreibung: "x" }))!;
+  assert.ok(angelegt);
+  const test = datei("abap/zcl_neu.clas.testclasses.abap");
+  fs.writeFileSync(test, "CLASS ltc DEFINITION FOR TESTING.\nENDCLASS.\n");
+  const gespeichert = findeAenderungsId(await rufe("speichern", { name: "ZCL_NEU" }))!;
+  await rufe("zuruecknehmen", { id: gespeichert });
+  assert.equal(fs.existsSync(test), false, "die vorher leeren Testklassen liegen nicht mehr im Workspace");
+
+  assert.match(await rufe("zuruecknehmen", { id: angelegt }), /ZCL_NEU im System gelöscht/);
+  assert.equal(await gegenstelle.finde("ZCL_NEU"), null);
+  assert.equal(fs.existsSync(datei("abap/zcl_neu.clas.abap")), false);
+  await assert.rejects(rufe("pruefen", { name: "ZCL_NEU" }), /nicht ausgecheckt/);
+
+  // Eine Funktionsgruppe mit Bausteinen lässt sich nicht löschen
+  const gruppe = findeAenderungsId(await rufe("anlegen", { art: "funktionsgruppe", name: "ZFG_NEU", beschreibung: "x" }))!;
+  await rufe("anlegen", { art: "funktionsbaustein", name: "Z_FB_NEU", beschreibung: "x", funktionsgruppe: "ZFG_NEU" });
+  await assert.rejects(rufe("zuruecknehmen", { id: gruppe }), /enthält noch Funktionsbausteine/);
+});
+
+test("Rückgängig: Paket-Sperre und unbekannte Nummer", async () => {
+  const { rufe, workspace } = aufbauen();
+  await assert.rejects(rufe("zuruecknehmen", { id: "20261127-120000-abcd" }), /gibt es nicht/);
+  await assert.rejects(rufe("zuruecknehmen", { id: "../../geheim" }), /gibt es nicht/);
+  workspace.schreibeAenderung({
+    id: "20261127-120000-abcd",
+    zeit: new Date().toISOString(),
+    art: "gespeichert",
+    objekt: { name: "Z_KUNDEN_LISTE", art: "programm", paket: "ZVERTRIEB" },
+    teile: [],
+  });
+  await assert.rejects(rufe("zuruecknehmen", { id: "20261127-120000-abcd" }), /liegt im Paket ZVERTRIEB/);
 });

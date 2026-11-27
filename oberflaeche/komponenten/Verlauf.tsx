@@ -1,9 +1,12 @@
 // Zeigt den Verlauf eines Chats: Nachrichten, Tool-Aufrufe, Fehler und den Text, den der Agent gerade schreibt.
 // Vorschläge erscheinen als Karte zum Freigeben, Rückfragen als hervorgehobene Frage (E-52).
 // Antworten des Agenten als Markdown (E-59); Davids Nachrichten bleiben reiner Text.
-import { useEffect, useRef } from "react";
+// Hat ein ADT-Tool etwas im System geändert, steht darunter der Vergleich mit „Rückgängig“ (E-31).
+import { useEffect, useRef, type ReactNode } from "react";
+import { findeAenderungsId } from "../../gemeinsam/aenderungs-hinweis.ts";
 import type { AufgabenStatus, Ereignis, PostfachArt, PostfachEintrag, VerbrauchSumme } from "../../gemeinsam/typen.ts";
 import { verbrauchText } from "../verbrauch-text.ts";
+import { AenderungsKarte } from "./AenderungsKarte.tsx";
 import { Markdown } from "./Markdown.tsx";
 import { PostfachKarte, type PostfachAktionen } from "./PostfachKarte.tsx";
 import { ToolAufruf, type ToolAufrufDaten } from "./ToolAufruf.tsx";
@@ -16,6 +19,7 @@ type Block =
   /** `ausfuehrung`: der zugehörige Tool-Aufruf – seine Karte entfällt, die Vorschlagskarte zeigt ihn */
   | { art: "postfach"; nr: number; eintragsArt: PostfachArt; ausfuehrung?: ToolAufrufDaten }
   | { art: "postfach_aktion"; text: string; details?: string }
+  | { art: "zurueckgenommen"; text: string }
   /** Kleine graue Zeile: welches Modell bzw. welcher Agent */
   | { art: "modell"; text: string }
   | { art: "verbrauch"; summe: VerbrauchSumme }
@@ -70,6 +74,9 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
       case "postfach_aktion":
         bloecke.push({ art: "postfach_aktion", text: ereignis.text, details: ereignis.details });
         break;
+      case "adt_zurueckgenommen":
+        bloecke.push({ art: "zurueckgenommen", text: ereignis.text });
+        break;
       case "modell":
         // Nur anzeigen, wenn sich das Modell ändert – sonst stünde es nach jedem Aufruf da.
         if (ereignis.modell !== letztesModell) bloecke.push({ art: "modell", text: `Modell: ${ereignis.modell}` });
@@ -104,6 +111,7 @@ const statusHinweise: Partial<Record<AufgabenStatus, string>> = {
 };
 
 interface Eigenschaften {
+  aufgabeId: string;
   ereignisse: Ereignis[];
   /** Text, den der Agent gerade schreibt (noch nicht fertig) */
   laufenderText: string;
@@ -115,7 +123,7 @@ interface Eigenschaften {
   beschaeftigt: number | null;
 }
 
-export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen, beschaeftigt }: Eigenschaften) {
+export function Verlauf({ aufgabeId, ereignisse, laufenderText, status, eintraege, aktionen, beschaeftigt }: Eigenschaften) {
   const ende = useRef<HTMLDivElement>(null);
 
   // Bei neuen Inhalten nach unten scrollen
@@ -124,6 +132,20 @@ export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen
   }, [ereignisse.length, laufenderText]);
 
   const bloecke = bildeBloecke(ereignisse);
+
+  // Vergleich und Rückgängig unter einem erfolgreichen Aufruf, der einen Änderungssatz meldet
+  const zurueckgenommen = new Set(ereignisse.flatMap((e) => (e.art === "adt_zurueckgenommen" ? [e.aenderungId] : [])));
+  const gesperrt = status === "arbeitet" || status === "wartet" || status === "eingereiht";
+  const mitAenderung = (index: number, karte: ReactNode, ende?: ToolAufrufDaten["ende"]) => {
+    const id = ende?.erfolgreich ? findeAenderungsId(ende.ergebnis) : null;
+    if (!id) return karte;
+    return (
+      <div key={index} className="mit-aenderung">
+        {karte}
+        <AenderungsKarte id={id} aufgabeId={aufgabeId} gesperrt={gesperrt} zurueckgenommen={zurueckgenommen.has(id)} />
+      </div>
+    );
+  };
 
   return (
     <div className="verlauf">
@@ -140,13 +162,14 @@ export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen
               </div>
             );
           case "tool":
-            return <ToolAufruf key={index} aufruf={block.aufruf} />;
+            return mitAenderung(index, <ToolAufruf key={index} aufruf={block.aufruf} />, block.aufruf.ende);
           case "postfach": {
             const eintrag = eintraege.find((e) => e.nr === block.nr);
             // Meldungen zeigt schon die Tool-Karte darüber; im Chat braucht es dafür nichts Eigenes.
             if (!eintrag || block.eintragsArt === "meldung") return null;
             if (eintrag.art === "rueckfrage") return <Rueckfrage key={index} eintrag={eintrag} />;
-            return (
+            return mitAenderung(
+              index,
               <PostfachKarte
                 key={index}
                 eintrag={eintrag}
@@ -154,7 +177,8 @@ export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen
                 beschaeftigt={beschaeftigt === eintrag.nr}
                 ausfuehrung={block.ausfuehrung?.ende}
                 imChat
-              />
+              />,
+              block.ausfuehrung?.ende,
             );
           }
           case "postfach_aktion":
@@ -164,6 +188,8 @@ export function Verlauf({ ereignisse, laufenderText, status, eintraege, aktionen
                 {block.details && <pre>{block.details}</pre>}
               </div>
             );
+          case "zurueckgenommen":
+            return <div key={index} className="postfach-aktion">{block.text}</div>;
           case "fehler":
             return <div key={index} className="nachricht fehler">{block.text}</div>;
           case "modell":

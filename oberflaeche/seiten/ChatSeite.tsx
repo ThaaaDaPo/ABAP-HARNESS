@@ -220,6 +220,7 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
               </div>
             )}
             <Verlauf
+              aufgabeId={gewaehlteId}
               ereignisse={ereignisse}
               laufenderText={laufenderText}
               status={status}

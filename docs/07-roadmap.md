@@ -67,8 +67,8 @@ Confluence-Seite als Vorschlag vor.
 ## Phase 3 – ADT-MCP und ABAP-Entwickler
 
 **Gestartet 2026-11-25**, Stand in [09-phase-3](09-phase-3.md). Workspace, auschecken/prüfen/
-speichern/aktivieren, Unit-Tests, ATC, Paket-Sperre, Vorher/Nachher; „Rückgängig“ in der App
-folgt. Klassen, Interfaces, Reports, Funktionsbausteine.
+speichern/aktivieren, Unit-Tests, ATC, Paket-Sperre, Vergleich vorher/nachher nebeneinander und
+„Rückgängig“ im Chat (E-64, E-65). Klassen, Interfaces, Reports, Funktionsbausteine.
 
 ## Phase 4 – Zeitsteuerung und Workflows
 

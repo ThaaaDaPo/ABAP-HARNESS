@@ -1,5 +1,6 @@
 // Alle Aufrufe an den Server an einer Stelle.
 import type {
+  AdtAenderung,
   AdtKonfiguration,
   AdtUebersicht,
   Agent,
@@ -87,6 +88,12 @@ export const adtAnmelden = () => anfrage<AdtUebersicht>("/adt/anmelden", { metho
 export const adtAbmelden = () => anfrage<AdtUebersicht>("/adt/abmelden", { method: "POST" });
 
 export const adtVerbindungTesten = () => anfrage<{ text: string; uebersicht: AdtUebersicht }>("/adt/verbindung-testen", { method: "POST" });
+
+/** Änderungssatz des ADT-MCP für den Vergleich im Chat */
+export const holeAenderung = (id: string) => anfrage<AdtAenderung>(`/adt/aenderungen/${id}`);
+
+export const nimmAenderungZurueck = (id: string, aufgabeId: string) =>
+  anfrage<AdtAenderung>(`/adt/aenderungen/${id}/zuruecknehmen`, { method: "POST", body: JSON.stringify({ aufgabeId }) });
 
 // Agenten und ihre Regeln je Tool
 

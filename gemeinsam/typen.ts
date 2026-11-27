@@ -86,6 +86,8 @@ export type Ereignis =
   | { art: "abbruch"; text: string }
   /** Statuswechsel der Aufgabe. Wird nur live gezeigt, nicht gespeichert. */
   | { art: "status"; status: AufgabenStatus }
+  /** David hat eine Änderung des ADT-MCP im Chat rückgängig gemacht bzw. das neue Objekt gelöscht. */
+  | { art: "adt_zurueckgenommen"; aenderungId: string; text: string }
   | { art: "fehler"; meldung: string };
 
 /** Ein Ereignis, wie es in der Datenbank liegt. */
@@ -373,4 +375,22 @@ export interface AdtLaufzeitKonfiguration extends AdtKonfiguration {
   workspaceOrdner: string;
   /** Zustand des Übungssystems (nur gegenstelle "simulation") */
   simulationsDatei: string;
+}
+
+/**
+ * Ein Änderungssatz des ADT-MCP: was ein Speichern (oder Anlegen) im System geändert hat. Liegt im
+ * Workspace unter abap/.adt/aenderungen/<id>.json. Die App zeigt daraus den Vergleich nebeneinander
+ * und macht die Änderung auf Wunsch rückgängig (E-31).
+ */
+export interface AdtAenderung {
+  /** z. B. 20261127-143205-a1b2 */
+  id: string;
+  zeit: string;
+  /** gespeichert: Rückgängig schreibt den alten Stand zurück. angelegt: Rückgängig löscht das Objekt. */
+  art: "gespeichert" | "angelegt";
+  objekt: { name: string; art: string; paket: string };
+  /** Je geändertem Quelltext-Teil (bei Klassen z. B. Hauptteil und Testklassen) */
+  teile: { teil: string; beschreibung: string; datei: string; vorher: string; nachher: string }[];
+  /** Gesetzt, sobald die Änderung zurückgenommen ist */
+  zurueckgenommen?: { zeit: string; text: string };
 }

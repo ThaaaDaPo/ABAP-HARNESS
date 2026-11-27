@@ -127,6 +127,9 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
   ergaenzeSpalte(db, "aufgaben", "agent_id", "TEXT NOT NULL DEFAULT 'standard'");
   // Eingebaute MCP-Server (ADT): Startbefehl setzt die App, eingestellt wird über ein eigenes Formular.
   ergaenzeSpalte(db, "mcp_server", "eingebaut", "INTEGER NOT NULL DEFAULT 0");
+  // Was der Agent mit der nächsten Nachricht erfahren soll, z. B. dass David eine ADT-Änderung
+  // rückgängig gemacht hat (seit Phase 3). Leer = nichts.
+  ergaenzeSpalte(db, "aufgaben", "hinweis_fuer_agent", "TEXT NOT NULL DEFAULT ''");
 
   return db;
 }

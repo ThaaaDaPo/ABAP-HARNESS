@@ -118,6 +118,11 @@ export class ChatDienst {
     return aufgaben.holeAufgabe(this.db, aufgabeId)!;
   }
 
+  /** Arbeitet der Agent in diesem Chat, wartet er auf David oder ist eine Nachricht eingereiht? */
+  istBeschaeftigt(aufgabeId: string): boolean {
+    return this.laufend.has(aufgabeId) || warteschlange.stehtAn(this.db, aufgabeId);
+  }
+
   /** Arbeitet der Agent gerade in irgendeinem Chat? (Dann lässt er sich nicht löschen.) */
   agentArbeitet(agentId: string): boolean {
     return [...this.laufend].some((id) => aufgaben.holeAufgabe(this.db, id)?.agentId === agentId);
@@ -289,7 +294,9 @@ export class ChatDienst {
     const sitzung = await this.holeSitzung(aufgabe);
     const agent = this.agentDer(aufgabe);
     this.melde(aufgabe.id, { art: "agent", agentId: agent.id, name: agent.name });
-    await sitzung.sende(text);
+    // Was David inzwischen ohne den Agenten getan hat (z. B. Rückgängig), steht vor der Nachricht.
+    const hinweis = aufgaben.nimmHinweiseFuerAgent(this.db, aufgabe.id);
+    await sitzung.sende(hinweis ? `[Hinweis der App: ${hinweis}]\n\n${text}` : text);
   }
 
   /** Am Ende eines Laufs: was er verbraucht hat, klein unter der Antwort. */

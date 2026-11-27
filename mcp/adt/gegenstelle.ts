@@ -52,6 +52,8 @@ export interface AdtGegenstelle {
   schreibe(objekt: AdtObjekt, aenderungen: { teil: Teil; quelltext: string }[]): Promise<void>;
   aktiviere(objekte: AdtObjekt[]): Promise<AktivierungsErgebnis>;
   legeAn(art: ObjektArt, name: string, beschreibung: string, paket: string, funktionsgruppe?: AdtObjekt): Promise<AdtObjekt>;
+  /** Sperren und löschen. Nur für „Rückgängig“ eines neu angelegten Objekts – der Agent kann nicht löschen. */
+  loesche(objekt: AdtObjekt): Promise<void>;
   unitTests(objekt: AdtObjekt): Promise<TestErgebnis>;
   /** `variante` leer = Standard-Prüfvariante des Systems */
   atc(objekt: AdtObjekt, variante: string): Promise<AtcBefund[]>;

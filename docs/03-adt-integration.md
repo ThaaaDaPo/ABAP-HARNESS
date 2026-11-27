@@ -60,9 +60,11 @@ Grundsätze:
   verweigert alles andere. Nötig, weil der Agent unter Davids Benutzer läuft und sonst alles
   dürfte, was David darf. Start: nur `$TMP` (E-28). Die Liste ist Konfiguration, damit später
   weitere Pakete freigeschaltet werden können – dann kommen auch Transport-Tools dazu.
-- **Rückgängig (E-31)**: Zu jedem `push` wird der Vorher-Stand aufbewahrt. „Rückgängig" im
-  Postfach schreibt ihn zurück und aktiviert; bei neu angelegten Objekten wird das Objekt
-  gelöscht. Wurde das Objekt seither erneut geändert, wird gewarnt statt überschrieben.
+- **Rückgängig (E-31, E-64)**: Zu jedem `push` (`speichern`) und `create` (`anlegen`) wird ein
+  Änderungssatz mit Vorher und Nachher aufbewahrt. „Rückgängig“ an der Änderung im Chat schreibt
+  den Vorher-Stand zurück und aktiviert; bei neu angelegten Objekten wird das Objekt gelöscht.
+  Wurde das Objekt seither erneut geändert, wird abgelehnt statt überschrieben. Umsetzung:
+  [09-phase-3](09-phase-3.md).
 - **Vorher/Nachher (E-20)**: `push` liefert den Stand vor und nach der Änderung an die Plattform;
   daraus entsteht der Postfach-Eintrag.
 - **Die Regel „erst speichern, wenn syntaktisch korrekt" steckt im Tool, nicht im Prompt.**

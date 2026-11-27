@@ -2,10 +2,12 @@
 // <workspace>/abap/, damit der Agent sie mit seinen Datei-Werkzeugen gezielt bearbeiten kann.
 // Je Objekt merkt sich .adt/<name>.json, welcher Stand im System beim Auschecken bzw. letzten
 // Speichern war – daran erkennt „speichern“, ob jemand anderes inzwischen geändert hat.
-// Vor jedem Speichern wird der alte Stand unter .adt/verlauf/ abgelegt (Grundlage für „Rückgängig“, E-31).
+// Was jedes Speichern und Anlegen geändert hat, liegt als Änderungssatz unter .adt/aenderungen/ (aenderungen.ts).
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import type { AdtAenderung } from "../../gemeinsam/typen.ts";
+import { leseAenderung, schreibeAenderung } from "./aenderungen.ts";
 import { dateiName, type ObjektArt, type Teil } from "./objektarten.ts";
 
 export interface Stand {
@@ -73,12 +75,15 @@ export class Workspace {
     fs.writeFileSync(datei, JSON.stringify(stand, null, 2));
   }
 
-  /** Legt den Systemstand vor dem Speichern ab; gibt den Pfad zurück. */
-  sichereVorher(name: string, teil: Teil, quelltext: string): string {
-    const zeit = new Date().toISOString().replace(/[:.]/g, "-");
-    const datei = path.join(this.ordner, ".adt", "verlauf", name.replace(/\//g, "#"), `${zeit}.${teil}.abap`);
-    fs.mkdirSync(path.dirname(datei), { recursive: true });
-    fs.writeFileSync(datei, quelltext, "utf8");
-    return datei;
+  entferneStand(name: string): void {
+    fs.rmSync(this.standDatei(name.toUpperCase()), { force: true });
+  }
+
+  leseAenderung(id: string): AdtAenderung | null {
+    return leseAenderung(this.workspaceOrdner, id);
+  }
+
+  schreibeAenderung(aenderung: AdtAenderung): void {
+    schreibeAenderung(this.workspaceOrdner, aenderung);
   }
 }

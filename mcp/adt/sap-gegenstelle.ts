@@ -162,6 +162,21 @@ export class SapGegenstelle implements AdtGegenstelle {
     return objekt;
   }
 
+  async loesche(objekt: AdtObjekt): Promise<void> {
+    await this.benutzer();
+    // Wie im Prüfpaket (Schritt S10): sperren, löschen. Nach dem Löschen gibt es nichts mehr zu entsperren.
+    this.client.stateful = session_types.stateful;
+    const sperre = await this.client.lock(objekt.url);
+    try {
+      await this.client.deleteObject(objekt.url, sperre.LOCK_HANDLE);
+    } catch (fehler) {
+      await this.client.unLock(objekt.url, sperre.LOCK_HANDLE).catch(() => {});
+      throw fehler;
+    } finally {
+      this.client.stateful = session_types.stateless;
+    }
+  }
+
   async unitTests(objekt: AdtObjekt): Promise<TestErgebnis> {
     await this.benutzer();
     const klassen = await this.client.unitTestRun(objekt.url);

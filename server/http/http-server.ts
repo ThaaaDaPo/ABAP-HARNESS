@@ -11,6 +11,7 @@ import { Fehler } from "../fehler.ts";
 import { verbrauchsUebersicht } from "../datenbank/verbrauch.ts";
 import { pruefeEinrichtung } from "../einrichtung/pruefungen.ts";
 import type { AgentenLaufzeit } from "../laufzeit/laufzeit.ts";
+import type { AenderungenDienst } from "../adt/aenderungen-dienst.ts";
 import type { SsoAnmeldung } from "../adt/sso-anmeldung.ts";
 import { routenAdt } from "./routen-adt.ts";
 import { routenAgenten } from "./routen-agenten.ts";
@@ -26,7 +27,7 @@ export async function erstelleHttpServer(
   laufzeit: AgentenLaufzeit,
   chat: ChatDienst,
   postfach: PostfachDienst,
-  adt: { sso: SsoAnmeldung; schluessel: string },
+  adt: { sso: SsoAnmeldung; schluessel: string; aenderungen: AenderungenDienst },
 ) {
   const app = express();
   app.use(express.json({ limit: "2mb" }));
@@ -45,7 +46,7 @@ export async function erstelleHttpServer(
   app.use("/api/agenten", routenAgenten(db, chat));
   app.use("/api/instructions", routenInstructions(db, chat, einstellungen.instructionsOrdner));
   app.use("/api/mcp", routenMcp(db, chat));
-  app.use("/api/adt", routenAdt(db, einstellungen, chat, adt.sso, adt.schluessel));
+  app.use("/api/adt", routenAdt(db, einstellungen, chat, adt.sso, adt.schluessel, adt.aenderungen));
   app.use("/api/postfach", routenPostfach(postfach));
 
   app.get("/api/verbrauch", (_anfrage, antwort) => {

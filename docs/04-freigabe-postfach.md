@@ -48,7 +48,7 @@ Ein Agent arbeitet immer nur an einer Aufgabe; alles andere wartet in seiner War
 | Antworten („ändere das so …") | Agent wird mit vollem Kontext fortgesetzt, überarbeitet, legt neuen Stand ab (E-22) |
 | Verwerfen | Vorschlag wird nicht ausgeführt, Thema geschlossen |
 | Zur Kenntnis genommen | für Meldungen ohne Freigabe (z. B. Vorher/Nachher einer ABAP-Änderung) |
-| Rückgängig | nur bei Änderungsmeldungen: stellt den Vorher-Stand wieder her (E-31, Details in [03](03-adt-integration.md)) |
+| Rückgängig | nur bei Änderungsmeldungen: stellt den Vorher-Stand wieder her (E-31, Details in [03](03-adt-integration.md)). Seit E-64 an der Änderung im Chat gebaut; im Postfach folgt es mit Phase 4 |
 
 Antworten ist bei **jedem** Eintrag möglich, auch bei reinen Meldungen und bereits erledigten
 Themen.

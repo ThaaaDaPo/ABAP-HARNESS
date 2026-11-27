@@ -84,6 +84,18 @@ export function setzeTitel(db: Datenbank, id: string, titel: string): void {
   db.prepare(`UPDATE aufgaben SET titel = ? WHERE id = ?`).run(titel, id);
 }
 
+/** Merkt sich einen Hinweis, den der Agent mit der nächsten Nachricht bekommt. */
+export function merkeHinweisFuerAgent(db: Datenbank, id: string, hinweis: string): void {
+  db.prepare(`UPDATE aufgaben SET hinweis_fuer_agent = ltrim(hinweis_fuer_agent || char(10) || ?, char(10)) WHERE id = ?`).run(hinweis, id);
+}
+
+/** Gibt die gemerkten Hinweise zurück und leert sie. */
+export function nimmHinweiseFuerAgent(db: Datenbank, id: string): string {
+  const zeile = db.prepare(`SELECT hinweis_fuer_agent AS hinweis FROM aufgaben WHERE id = ?`).get(id) as { hinweis: string } | undefined;
+  if (zeile?.hinweis) db.prepare(`UPDATE aufgaben SET hinweis_fuer_agent = '' WHERE id = ?`).run(id);
+  return zeile?.hinweis ?? "";
+}
+
 export function setzeSitzungId(db: Datenbank, id: string, sitzungId: string): void {
   db.prepare(`UPDATE aufgaben SET sitzung_id = ? WHERE id = ?`).run(sitzungId, id);
 }

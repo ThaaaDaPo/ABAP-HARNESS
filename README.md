@@ -61,7 +61,9 @@ Eingebaut ist der Server **ADT (ABAP entwickeln)** ([mcp/adt/](mcp/adt/)). Unter
 ADT** stellst du SAP-Adresse, Mandant und die Pakete ein, in denen der Agent ändern darf (Start:
 `$TMP`). Angemeldet wird nur per SSO: Die App öffnet Edge, du meldest dich dort an (ggf.
 Zertifikat). Ohne SAP gibt es ein Übungssystem. Damit ein Agent ABAP entwickeln kann, auf der
-Seite **Agenten** den Server ADT anhaken und die Regeln setzen. Details:
+Seite **Agenten** den Server ADT anhaken und die Regeln setzen. Speichert der Agent ins System,
+zeigt der Chat darunter den Vergleich vorher/nachher nebeneinander mit dem Knopf **Rückgängig**
+(bei neu angelegten Objekten **Objekt löschen**). Details:
 [docs/09-phase-3.md](docs/09-phase-3.md).
 
 Beim ersten Start sind zwei Stellvertreter-Server eingetragen (SAP, Jira/Confluence) mit
@@ -74,7 +76,7 @@ werden.
 |---|---|
 | `npm start` | App starten |
 | `npm run entwickeln` | wie `start`, startet bei Änderungen am Server neu |
-| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions, Verbrauch und den ADT-MCP |
+| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions, Verbrauch und den ADT-MCP samt Rückgängig |
 | `npm run typpruefung` | TypeScript-Prüfung von Server und Oberfläche |
 
 ## Ordner
@@ -87,7 +89,7 @@ server/                 Backend (Node, TypeScript – wird ohne Bau-Schritt dire
   agenten/              Agenten verwalten: Standard-Agent beim ersten Start, prüfen, kopieren, löschen
   instructions/         Instructions-Ordner lesen und bearbeiten (*.instructions.md, Skills mit SKILL.md)
   einrichtung/          Prüfungen für die Einrichtungsseite
-  adt/                  ADT in der App: Konfiguration, SSO-Anmeldung über Edge, eingebauter Server
+  adt/                  ADT in der App: Konfiguration, SSO-Anmeldung über Edge, eingebauter Server, Rückgängig
   laufzeit/             Agenten-Laufzeit, austauschbar
     laufzeit.ts         die gemeinsame Schnittstelle
     copilot/            echtes Copilot SDK, Berechtigungsregeln, Gateway-Hooks

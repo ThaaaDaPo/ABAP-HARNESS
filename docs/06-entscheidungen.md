@@ -67,6 +67,8 @@
 | E-61 | 2026-11-25 | **Jeder Chat läuft für sich**: Chats arbeiten gleichzeitig, auch zwei Chats desselben Agenten. Innerhalb eines Chats geht es der Reihe nach. Konkretisiert E-57; die Festlegung „ein Agent, eine Sache zur Zeit“ aus Schritt 3 entfällt | Antwort David vor dem Bau von Schritt 4 |
 | E-62 | 2026-11-25 | **Phase 2 (Doku-Agent) wird übersprungen.** Agenten, Instructions, Skills und das Feintuning richtet David selbst auf dem Firmenrechner ein | Vorgabe David |
 | E-63 | 2026-11-25 | **ADT-MCP** als eigener Server unter `mcp/adt/`, in der App konfigurierbar (SAP-Adresse, Mandant, Pakete …). Anmeldung **ausschließlich per SSO** – keine Benutzer-/Passwort-Felder | Vorgabe David |
+| E-64 | 2026-11-27 | **„Rückgängig“ wird jetzt gebaut** (M1, konkretisiert E-31): Knopf an der Änderung im Chat, ohne KI. Gespeicherte Änderung: alter Stand wird zurückgeschrieben **und aktiviert**. Neu angelegtes Objekt: **Löschen im SAP** wird angeboten (mit Sicherheitsabfrage, nur in freigegebenen Paketen). Wurde das Objekt seitdem erneut geändert (Agent oder Eclipse), wird **abgelehnt mit Hinweis** – erst die neuere Änderung zurücknehmen | Antwort David auf M1 und die Fragen zum Plan |
+| E-65 | 2026-11-27 | **Vergleich vorher/nachher im Chat, nebeneinander**: links der alte Stand (gelöschte Zeilen rot), rechts der neue (hinzugefügte Zeilen grün). Nur beim Speichern ins SAP (`adt-speichern`), nicht bei Datei-Änderungen im Workspace | Wunsch und Antwort David |
 
 ## Erkenntnisse aus Phase 0 (Privatrechner, 2026-11-13)
 

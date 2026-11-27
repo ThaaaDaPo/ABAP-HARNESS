@@ -1,11 +1,13 @@
 // HTTP-Schnittstelle für den ADT-MCP.
-// - Für die Oberfläche: Konfiguration ansehen und ändern, per SSO anmelden, Verbindung testen.
+// - Für die Oberfläche: Konfiguration ansehen und ändern, per SSO anmelden, Verbindung testen,
+//   Änderungen des Agenten ansehen und rückgängig machen.
 // - Intern für die ADT-MCP-Prozesse: Konfiguration und SSO-Cookie. Nur mit dem Schlüssel aus der
 //   Zugangsdatei (adt-einrichten.ts) – das Cookie bekommt sonst niemand, auch keine Webseite im Browser.
 import path from "node:path";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import type { AdtLaufzeitKonfiguration, AdtUebersicht } from "../../gemeinsam/typen.ts";
 import { adtOrdner } from "../adt/adt-einrichten.ts";
+import type { AenderungenDienst } from "../adt/aenderungen-dienst.ts";
 import { ladeKonfiguration, pruefeKonfiguration, speichereKonfiguration } from "../adt/adt-konfiguration.ts";
 import type { SsoAnmeldung } from "../adt/sso-anmeldung.ts";
 import { testeVerbindung } from "../adt/verbindung-testen.ts";
@@ -18,7 +20,14 @@ import { Fehler } from "../fehler.ts";
 /** Muss zu mcp/adt/app-zugang.ts passen */
 const schluesselKopf = "x-harness-schluessel";
 
-export function routenAdt(db: Datenbank, einstellungen: Einstellungen, chat: ChatDienst, sso: SsoAnmeldung, schluessel: string): Router {
+export function routenAdt(
+  db: Datenbank,
+  einstellungen: Einstellungen,
+  chat: ChatDienst,
+  sso: SsoAnmeldung,
+  schluessel: string,
+  aenderungen: AenderungenDienst,
+): Router {
   const router = Router();
   const uebersicht = (): AdtUebersicht => ({ konfiguration: ladeKonfiguration(db), anmeldung: sso.anmeldung() });
 
@@ -54,6 +63,16 @@ export function routenAdt(db: Datenbank, einstellungen: Einstellungen, chat: Cha
 
   router.post("/verbindung-testen", async (_anfrage, antwort) => {
     antwort.json({ text: await testeVerbindung(ladeKonfiguration(db), sso), uebersicht: uebersicht() });
+  });
+
+  // Änderungssatz für den Vergleich nebeneinander im Chat
+  router.get("/aenderungen/:id", (anfrage, antwort) => {
+    antwort.json(aenderungen.hole(anfrage.params.id));
+  });
+
+  // Rückgängig (E-31): alten Stand zurückschreiben und aktivieren bzw. neu angelegtes Objekt löschen
+  router.post("/aenderungen/:id/zuruecknehmen", async (anfrage, antwort) => {
+    antwort.json(await aenderungen.nimmZurueck(anfrage.params.id, String(anfrage.body?.aufgabeId ?? "")));
   });
 
   // --- Intern, nur für die ADT-MCP-Prozesse ---

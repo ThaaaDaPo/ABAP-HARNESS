@@ -219,6 +219,43 @@
     ]
   },
   {
+    "beschreibung": "ADT: Report anlegen, ändern, speichern, aktivieren (Vergleich und Rückgängig im Chat)",
+    "wennEnthaelt": [
+      "report"
+    ],
+    "schritte": [
+      {
+        "tool": "adt-anlegen",
+        "argumente": {
+          "art": "programm",
+          "name": "ZHARNESS_DEMO",
+          "beschreibung": "Demo aus der Simulation"
+        }
+      },
+      {
+        "datei": "abap/zharness_demo.prog.abap",
+        "inhalt": "REPORT zharness_demo.\n\nPARAMETERS p_name TYPE string DEFAULT 'Welt'.\n\nSTART-OF-SELECTION.\n  WRITE: / |Hallo { p_name }|.\n"
+      },
+      {
+        "tool": "adt-speichern",
+        "argumente": {
+          "name": "ZHARNESS_DEMO"
+        }
+      },
+      {
+        "tool": "adt-aktivieren",
+        "argumente": {
+          "namen": [
+            "ZHARNESS_DEMO"
+          ]
+        }
+      },
+      {
+        "text": "**ZHARNESS_DEMO** ist angelegt, gespeichert und aktiv. Unter den Tool-Karten siehst du den Vergleich; mit *Rückgängig* bzw. *Objekt löschen* nimmst du es zurück."
+      }
+    ]
+  },
+  {
     "beschreibung": "Rückfrage: im Chat wartet der Aufruf auf die Antwort im Eingabefeld",
     "wennEnthaelt": [
       "rückfrage",
@@ -420,7 +457,7 @@
     "wennEnthaelt": [],
     "schritte": [
       {
-        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (Agent: {agent}, Modell: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern*, *langsam*, *Wer bist du* oder für ADT *entwickle*, *Syntaxfehler*, *Kundenliste*, *Testklasse*."
+        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (Agent: {agent}, Modell: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern*, *langsam*, *Wer bist du* oder für ADT *entwickle*, *Syntaxfehler*, *Kundenliste*, *Testklasse*, *Report*."
       }
     ]
   }

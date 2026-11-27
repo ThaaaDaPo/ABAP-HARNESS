@@ -1,7 +1,7 @@
 // Prüft Chats löschen, das Aufräumen leerer Chats und die Modellwahl je Chat. npm test
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { holeAlleAufgaben } from "../datenbank/aufgaben.ts";
+import { holeAlleAufgaben, merkeHinweisFuerAgent } from "../datenbank/aufgaben.ts";
 import { aufbauen, warteBis } from "../testhilfe.ts";
 
 test("Neuer Chat räumt leere Chats weg, Chats mit Inhalt bleiben", async () => {
@@ -66,3 +66,17 @@ test("Modellwahl wird geprüft und gilt ab der nächsten Nachricht", async () =>
 function pick(e: { modell: string; denkaufwand: string; kontext: string }) {
   return { modell: e.modell, denkaufwand: e.denkaufwand, kontext: e.kontext };
 }
+
+test("Ein Hinweis der App (z. B. Rückgängig) steht einmal vor der nächsten Nachricht an den Agenten", async () => {
+  const { db, chat, gesendet, status } = aufbauen();
+  const { id } = await chat.neueAufgabe();
+  merkeHinweisFuerAgent(db, id, "Änderung A rückgängig.");
+  merkeHinweisFuerAgent(db, id, "Änderung B rückgängig.");
+  assert.equal(chat.istBeschaeftigt(id), false);
+  chat.nimmNachrichtAn(id, "weiter");
+  await warteBis(() => status(id) === "bereit");
+  chat.nimmNachrichtAn(id, "noch mal");
+  await warteBis(() => gesendet.length === 2 && status(id) === "bereit");
+  assert.equal(gesendet[0], "[Hinweis der App: Änderung A rückgängig.\nÄnderung B rückgängig.]\n\nweiter");
+  assert.equal(gesendet[1], "noch mal");
+});

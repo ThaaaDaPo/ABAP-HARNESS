@@ -16,7 +16,10 @@ Instructions/Skills, Verbrauchsanzeige, Einrichtungsseite, Markdown, Änderungsw
 Abnahme am Firmenrechner nach der Checkliste in 08-phase-1.md, „Abnahme Schritt 4“, steht aus.
 **Phase 2 übersprungen (E-62). Phase 3 gestartet (2026-11-25)**: ADT-MCP unter `mcp/adt/`,
 eingebaut und in der App konfigurierbar, Anmeldung nur per SSO (E-63), mit Übungssystem statt SAP –
-Stand und Abnahme-Checkliste in [docs/09-phase-3.md](docs/09-phase-3.md). Offen: „Rückgängig“ (M1).
+Stand und Abnahme-Checkliste in [docs/09-phase-3.md](docs/09-phase-3.md). Am Firmenrechner bestätigt
+(2026-11-25): SSO-Anmeldung, Anlegen, Speichern, Aktivieren (nach zwei Korrekturen, siehe „Befunde“).
+Seit 2026-11-27 im Chat: Vergleich vorher/nachher nebeneinander und „Rückgängig“ bzw. „Objekt
+löschen“ (E-64, E-65). Offen: Abnahmepunkte 8–13 und 15–17 (09-phase-3.md), danach Phase 4.
 Stand, Erkenntnisse und bekannte Lücken in
 [docs/08-phase-1.md](docs/08-phase-1.md).
 Aufbau des Codes: [README.md](README.md).

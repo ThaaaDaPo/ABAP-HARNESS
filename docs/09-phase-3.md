@@ -1,9 +1,11 @@
 # 09 – Phase 3: ADT-MCP und ABAP-Entwickler
 
-Status: **gestartet 2026-11-25. ADT-MCP gebaut (Übungssystem auf dem Privatrechner geprüft),
-Abnahme am Firmenrechner steht aus – Checkliste unten.** Phase 2 ist übersprungen (E-62).
+Status: **gestartet 2026-11-25. ADT-MCP gebaut, am Firmenrechner bestätigt: SSO, Anlegen,
+Speichern, Aktivieren (Punkte 1–7). Seit 2026-11-27 dazu Vergleich nebeneinander und
+„Rückgängig“ im Chat (E-64, E-65). Offen: Abnahmepunkte 8–13 und 15–17 – Checkliste unten.**
+Phase 2 ist übersprungen (E-62).
 Grundlage: [03-adt-integration](03-adt-integration.md), Entscheidungen E-11 bis E-14, E-20,
-E-26 bis E-28, E-31, E-38, E-39, E-63.
+E-26 bis E-28, E-31, E-38, E-39, E-63 bis E-65.
 
 ## Stand (2026-11-25)
 
@@ -25,7 +27,10 @@ heißen für den Agenten `adt-…`.
 
 - **Paket-Sperre** (V-11, E-28): anlegen, speichern, aktivieren nur in den eingestellten Paketen
   (Start `$TMP`) – im Tool geprüft, nicht im Prompt. Lesen und Auschecken gehen überall.
-- **Vorher-Stand** jedes Speicherns liegt unter `abap/.adt/verlauf/` (für „Rückgängig“, E-31).
+- **Änderungssätze**: Jedes Speichern und Anlegen legt unter `abap/.adt/aenderungen/<nr>.json`
+  Vorher und Nachher ab ([aenderungen.ts](../mcp/adt/aenderungen.ts)). Im Ergebnis steht nur
+  die Nummer („Änderung 20261127-143205-a1b2 …“) – der Agent bekommt den Quelltext nicht doppelt.
+  (Ersetzt den früheren Ordner `abap/.adt/verlauf/`.)
 - **Gegenstelle austauschbar** (V-12): das SAP-System über `abap-adt-api` 10.0.0
   ([sap-gegenstelle.ts](../mcp/adt/sap-gegenstelle.ts), nach dem Prüfpaket) oder ein
   **Übungssystem** ([simulierte-gegenstelle.ts](../mcp/adt/simulierte-gegenstelle.ts)) mit
@@ -52,10 +57,41 @@ heißen für den Agenten `adt-…`.
   spielen ADT-Abläufe gegen das Übungssystem ab; das Drehbuch kann dafür Dateien im Workspace
   schreiben (wie das Datei-Werkzeug von Copilot).
 
+### Vergleich und Rückgängig im Chat (E-64, E-65, seit 2026-11-27)
+
+- Unter jedem erfolgreichen `adt-speichern` steht der **Vergleich nebeneinander**: links vorher
+  (gelöschte Zeilen rot), rechts nachher (hinzugefügte Zeilen grün), mit Zeilennummern; je
+  geändertem Teil (bei Klassen z. B. Hauptteil und Testklassen) ein Vergleich. Gleiche Abschnitte
+  sind bis auf 3 Zeilen um jede Änderung zugeklappt und lassen sich aufklappen
+  ([Nebeneinander.tsx](../oberflaeche/komponenten/Nebeneinander.tsx),
+  [AenderungsKarte.tsx](../oberflaeche/komponenten/AenderungsKarte.tsx)). Das gilt auch, wenn
+  `speichern` über einen Vorschlag freigegeben wurde.
+- Knopf **Rückgängig** (nach Sicherheitsabfrage, ohne KI): schreibt den alten Stand zurück und
+  aktiviert ihn; die Datei im Workspace wird mit zurückgesetzt. Unter `adt-anlegen` heißt der Knopf
+  **Objekt löschen** und löscht das Objekt im System – samt späterer Änderungen, die Abfrage sagt das.
+- **Abgelehnt** wird, wenn das Objekt seit der Änderung noch einmal geändert wurde (vom Agenten
+  oder in Eclipse): „Erst die neuere Änderung rückgängig machen.“ Dann ist im System nichts
+  verändert. Ebenso außerhalb der freigegebenen Pakete und wenn die Änderung schon zurückgenommen ist.
+- Gesperrt, solange der Agent in dem Chat arbeitet, wartet oder eingereiht ist – sonst schrieben
+  App und Agent womöglich gleichzeitig.
+- Im Verlauf steht danach eine Zeile („… zurückgeschrieben und aktiviert.“). Der Agent erfährt es
+  mit Davids nächster Nachricht (`[Hinweis der App: …]` davor), damit er nicht mit dem alten Stand
+  weiterarbeitet.
+- Technik: Ausgeführt wird im ADT-MCP (Tool `zuruecknehmen`,
+  [zuruecknehmen.ts](../mcp/adt/zuruecknehmen.ts)), damit SAP-Zugriff, Paket-Sperre und Workspace an
+  einer Stelle bleiben. Das Tool gibt es nur, wenn die App den Server mit `--app` startet; Copilot
+  startet ihn ohne, **der Agent sieht es nie**. Gelöscht wird wie im Prüfpaket (sperren,
+  `deleteObject`).
+- Drehbuch: Stichwort *Report* legt `ZHARNESS_DEMO` an, ändert, speichert und aktiviert – zum
+  Ausprobieren von Vergleich, Rückgängig und Löschen im Übungssystem.
+
 Auf dem Privatrechner geprüft (nur Übungssystem und Simulation, in einer getrennten Kopie mit
 eigenem Datenordner): alle vier Drehbuch-Abläufe über den echten MCP-Prozess und das Gateway,
 ADT-Formular mit Eingabeprüfung, Anmelden ohne Edge (verständlicher Fehler), interne Routen ohne
 Schlüssel gesperrt, Auswahl der Cookies mit Chrome (headless). `npm test`: 61 Tests.
+Am 2026-11-27 ebenso geprüft: Ablauf *Report* mit Freigabe, Vergleich unter Tool-Karte und
+Vorschlagskarte, Rückgängig und Löschen (Knopf im Browser, Abfrage, Vermerk im Verlauf, Hinweis
+an den Agenten), doppelter Klick, ungültige Nummer. `npm test`: 67 Tests.
 
 ### Festlegungen (Vorschlag)
 
@@ -71,8 +107,9 @@ Schlüssel gesperrt, Auswahl der Cookies mit Chrome (headless). `npm test`: 61 T
   eine SAP-Sitzung (und deren Sperren) teilen.
 - **Kein Agent bekommt den ADT-MCP automatisch.** Empfohlene Regeln für einen ABAP-Entwickler
   (E-12, E-20): alle Tools *Erlauben*, `speichern` und `anlegen` *Erlauben + melden*.
-- **Rückgängig** in der App ist noch nicht gebaut (offene Frage M1); der Vorher-Stand wird schon
-  abgelegt, Vorher/Nachher steht im Ergebnis von `speichern`.
+- **Der ADT-MCP holt die Konfiguration bei jedem Aufruf** und baut sich bei einer Änderung neu
+  auf. Copilot startet ihn je Sitzung neu, die App hält ihre eigenen Prozesse aber offen
+  (Simulation, Freigaben, Rückgängig) – so gilt z. B. der Wechsel Übungssystem → SAP sofort.
 
 ### Annahmen, die erst am Firmenrechner geprüft werden können
 
@@ -93,10 +130,16 @@ Neu und ungeprüft:
 - Abgelaufenes Cookie: Die Bibliothek erkennt es, die App öffnet Edge erneut, der Aufruf läuft
   danach weiter.
 - Copilot startet den ADT-MCP mit vollem Node-Pfad (`process.execPath`) und dem Projektpfad.
+- **Rückgängig**: Zurückschreiben und Aktivieren eines älteren Stands; bei neu angelegten
+  Testklassen wird das Include mit leerem Quelltext gespeichert (ob SAP das annimmt, ist offen).
+- **Löschen** (`deleteObject` nach Sperre) für Klasse, Programm, Funktionsbaustein und
+  Funktionsgruppe – im Prüfpaket nur für ein Programm erprobt.
 
 ### Bekannte Lücken
 
-- „Rückgängig“ in der App (E-31) fehlt noch.
+- „Rückgängig“ gibt es im Chat, im Postfach (Workflows) erst mit Phase 4.
+- Rückgängig betrifft nur Änderungen über `adt-speichern`/`adt-anlegen`. Was der Agent nur im
+  Workspace geändert und nicht gespeichert hat, zeigt kein Vergleich (E-65).
 - Transporte und Pakete außer `$TMP` erst nach Abstimmung (E-13, E-28).
 - Parallele Chats teilen sich den Workspace; arbeiten zwei Chats am selben Objekt, schützt die
   Konflikterkennung beim Speichern, nicht aber die Dateien im Workspace.
@@ -120,7 +163,8 @@ Neu im Hauptprojekt, aber schon vom Prüfpaket über Nexus geladen: `abap-adt-ap
   **Aktivieren** scheiterte mit „Prüfung der Bedingung fehlgeschlagen“ (von Hand ging es). Ursache
   vermutlich die Listenform von `activate` mit leerer `parentUri`. Umgestellt auf die im Prüfpaket
   bewährte Form (Name und URL, je Objekt); weitere inaktive Teile, die SAP nennt, werden mit SAPs
-  eigenen Angaben nachaktiviert.
+  eigenen Angaben nachaktiviert. **Danach geht es** (Rückmeldung David, 2026-11-25): Anlegen,
+  Speichern und Aktivieren am echten System bestätigt.
 
 ## Abnahme ADT-MCP auf dem Firmenrechner
 
@@ -169,7 +213,18 @@ Sinnvoll nach der Abnahme von Schritt 4 (08-phase-1.md) oder zusammen damit.
     Edge geht höchstens einmal auf.
 13. App neu starten, dann im Chat etwas speichern lassen → Edge geht auf (neue Anmeldung), danach
     läuft der Aufruf weiter.
-14. Aufräumen: Die Testobjekte in Eclipse löschen (der ADT-MCP kann nicht löschen).
+14. Aufräumen: Die Testobjekte in Eclipse löschen (oder mit Punkt 17).
 
-**Bitte zurückmelden** (je Nummer ok / nicht ok): 1–14. Fotos: 1, 4, 9, bei Fehlern Terminal und
-Browser (die Tool-Karte zeigt die Fehlermeldung von SAP).
+**C. Vergleich und Rückgängig (E-64, E-65)** – nach `git pull` und Neustart der App
+
+15. Im Chat aus Punkt 8: unter `adt-speichern` steht der Vergleich nebeneinander, links rot was
+    weg ist, rechts grün was neu ist → **Foto**.
+16. **Rückgängig** an der letzten Speicherung von ZCL_HARNESS_ADT_TEST → Abfrage bestätigen →
+    „… zurückgeschrieben und aktiviert.“; in Eclipse der alte Stand, aktiv. Dann Rückgängig an
+    einer **älteren** Speicherung desselben Objekts, nachdem es in Eclipse geändert wurde →
+    „Erst die neuere Änderung rückgängig machen“, nichts überschrieben.
+17. **Objekt löschen** unter dem `adt-anlegen` von ZHARNESS_ADT_TEST → Abfrage → gelöscht, in
+    Eclipse weg. Danach im Chat „Was ist der Stand?“ – der Agent weiß, dass das Objekt gelöscht ist.
+
+**Bitte zurückmelden** (je Nummer ok / nicht ok): 1–17. Fotos: 1, 4, 9, 15, bei Fehlern Terminal
+und Browser (die Tool-Karte bzw. die Änderungskarte zeigt die Fehlermeldung von SAP).

@@ -5,8 +5,10 @@
 // - anlegen, speichern, aktivieren nur in den freigegebenen Paketen (V-11, E-28)
 // - speichern bricht ab, wenn das Objekt seit dem Auschecken im System geändert wurde
 // Die Texte sind für den Agenten geschrieben: was passiert ist und was als Nächstes zu tun ist.
-import type { AdtLaufzeitKonfiguration } from "../../gemeinsam/typen.ts";
+import type { AdtAenderung, AdtLaufzeitKonfiguration } from "../../gemeinsam/typen.ts";
 import { ToolFehler, type ToolDefinition } from "../gemeinsam/mini-server.ts";
+import { aenderungsHinweis } from "../../gemeinsam/aenderungs-hinweis.ts";
+import { neueAenderungsId } from "./aenderungen.ts";
 import type { AdtGegenstelle, AdtObjekt, Meldung } from "./gegenstelle.ts";
 import { alleArten, arten, istArt, teilBeschreibung, type ObjektArt, type Teil } from "./objektarten.ts";
 import { vergleiche } from "./vergleich.ts";
@@ -35,7 +37,7 @@ function name(wert: unknown): string {
   return text;
 }
 
-async function findeOderFehler(k: AdtKontext, objektName: string, objektArt?: ObjektArt): Promise<AdtObjekt> {
+export async function findeOderFehler(k: AdtKontext, objektName: string, objektArt?: ObjektArt): Promise<AdtObjekt> {
   const objekt = await k.gegenstelle.finde(objektName, objektArt);
   if (!objekt) throw new ToolFehler(`${objektName} gibt es im System nicht. Neu anlegen geht mit dem Tool anlegen.`);
   return objekt;
@@ -46,7 +48,7 @@ function darfAendern(k: AdtKontext, paket: string): boolean {
   return k.konfiguration.pakete.some((p) => p.toUpperCase() === paket.toUpperCase());
 }
 
-function pruefePaket(k: AdtKontext, objekt: AdtObjekt): void {
+export function pruefePaket(k: AdtKontext, objekt: AdtObjekt): void {
   if (!darfAendern(k, objekt.paket)) {
     throw new ToolFehler(
       `${objekt.name} liegt im Paket ${objekt.paket || "(unbekannt)"}. Ändern darf ich nur in: ${k.konfiguration.pakete.join(", ")}. ` +
@@ -129,6 +131,30 @@ async function auschecken(k: AdtKontext, objekt: AdtObjekt, ueberschreiben: bool
       "Für dieses Objekt gilt die Datei im Workspace, nicht die aktive Version im System.",
     ...hinweise,
   ].join("\n");
+}
+
+/** Legt den Änderungssatz an (aenderungen.ts) – Grundlage für Vergleich und Rückgängig in der App. */
+function halteFest(
+  k: AdtKontext,
+  art: AdtAenderung["art"],
+  objekt: AdtObjekt,
+  teile: { teil: Teil; vorher: string; nachher: string }[],
+): AdtAenderung {
+  const aenderung: AdtAenderung = {
+    id: neueAenderungsId(),
+    zeit: new Date().toISOString(),
+    art,
+    objekt: { name: objekt.name, art: objekt.art, paket: objekt.paket },
+    teile: teile.map(({ teil, vorher, nachher }) => ({
+      teil,
+      beschreibung: teilBeschreibung(teil),
+      datei: k.workspace.anzeige(k.workspace.pfad(objekt.name, objekt.art, teil)),
+      vorher: einheitlich(vorher),
+      nachher: einheitlich(nachher),
+    })),
+  };
+  k.workspace.schreibeAenderung(aenderung);
+  return aenderung;
 }
 
 export function erstelleWerkzeuge(kontext: () => Promise<AdtKontext>): ToolDefinition[] {
@@ -227,13 +253,10 @@ export function erstelleWerkzeuge(kontext: () => Promise<AdtKontext>): ToolDefin
           if (meldungen.length > 0) berichte.push(`${datei}:\n${meldungsText(meldungen, quelltext)}`);
         }
 
-        for (const { teil } of geaendert) {
-          const vorher = imSystem.get(teil) ?? "";
-          if (vorher) k.workspace.sichereVorher(objekt.name, teil, vorher);
-        }
         await k.gegenstelle.schreibe(objekt, geaendert);
         for (const { teil, quelltext } of geaendert) stand.teile[teil] = pruefsumme(quelltext);
         k.workspace.schreibeStand(stand);
+        const aenderung = halteFest(k, "gespeichert", objekt, geaendert.map(({ teil, quelltext }) => ({ teil, vorher: imSystem.get(teil) ?? "", nachher: quelltext })));
 
         const aenderungen = geaendert.map(
           ({ teil, quelltext }) => `${teilBeschreibung(teil)}: ${vergleiche(einheitlich(imSystem.get(teil) ?? ""), einheitlich(quelltext))}`,
@@ -243,6 +266,7 @@ export function erstelleWerkzeuge(kontext: () => Promise<AdtKontext>): ToolDefin
           ...(berichte.length > 0 ? ["Warnungen:", ...berichte] : []),
           "Vorher/Nachher:",
           ...aenderungen,
+          aenderungsHinweis(aenderung.id),
         ].join("\n");
       },
     },
@@ -307,8 +331,13 @@ export function erstelleWerkzeuge(kontext: () => Promise<AdtKontext>): ToolDefin
           throw new ToolFehler(`Anlegen ist nur in diesen Paketen erlaubt: ${k.konfiguration.pakete.join(", ")}. Gewählt war: ${paket || "(keins)"}.`);
         }
         const objekt = await k.gegenstelle.legeAn(objektArt, objektName, beschreibung, paket, gruppe);
-        if (!arten[objektArt].bearbeitbar) return `Funktionsgruppe ${objekt.name} in ${paket} angelegt. Jetzt Funktionsbausteine darin anlegen.`;
-        return `${objekt.name} in ${paket} angelegt (inaktiv).\n${await auschecken(k, objekt, true)}`;
+        if (!arten[objektArt].bearbeitbar) {
+          const aenderung = halteFest(k, "angelegt", objekt, []);
+          return `Funktionsgruppe ${objekt.name} in ${paket} angelegt. Jetzt Funktionsbausteine darin anlegen.\n${aenderungsHinweis(aenderung.id)}`;
+        }
+        const ausgecheckt = await auschecken(k, objekt, true);
+        const aenderung = halteFest(k, "angelegt", objekt, lokaleTeile(k, objekt).map(({ teil, quelltext }) => ({ teil, vorher: "", nachher: quelltext })));
+        return `${objekt.name} in ${paket} angelegt (inaktiv).\n${ausgecheckt}\n${aenderungsHinweis(aenderung.id)}`;
       },
     },
     {

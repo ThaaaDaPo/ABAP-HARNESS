@@ -1,5 +1,6 @@
 // Einstieg: npm start
 import { richteAdtEin } from "./adt/adt-einrichten.ts";
+import { AenderungenDienst } from "./adt/aenderungen-dienst.ts";
 import { ladeKonfiguration } from "./adt/adt-konfiguration.ts";
 import { SsoAnmeldung } from "./adt/sso-anmeldung.ts";
 import { richteStandardAgentenEin } from "./agenten/agenten-dienst.ts";
@@ -26,7 +27,9 @@ const aufrufer = new McpAufrufer();
 const laufzeit = await erstelleLaufzeit(einstellungen, aufrufer);
 const chat = new ChatDienst(db, laufzeit, einstellungen);
 const postfach = new PostfachDienst(db, chat, aufrufer);
-const { app, vite } = await erstelleHttpServer(einstellungen, db, laufzeit, chat, postfach, { sso, schluessel: adtSchluessel });
+// Vergleich und Rückgängig für Änderungen des ADT-MCP im Chat
+const aenderungen = new AenderungenDienst(db, einstellungen, chat, aufrufer);
+const { app, vite } = await erstelleHttpServer(einstellungen, db, laufzeit, chat, postfach, { sso, schluessel: adtSchluessel, aenderungen });
 
 // Nur auf diesem Rechner erreichbar (127.0.0.1), nicht im Netzwerk.
 const server = app.listen(einstellungen.port, "127.0.0.1", () => {
