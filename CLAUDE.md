@@ -23,6 +23,10 @@ löschen“ (E-64, E-65). Offen: Abnahmepunkte 8–13 und 15–17 (09-phase-3.md
 **Phase 4 gebaut (2026-11-27)**: Workflows (feste Abläufe aus Tool-, KI- und Steuerschritten,
 JSON-Dateien im Workflow-Ordner, Start manuell/durch Agent/Zeitplan, Postfach freigeschaltet,
 E-66 bis E-72) – Stand und Abnahme-Checkliste in [docs/10-phase-4.md](docs/10-phase-4.md).
+**Sprechen gebaut (2026-11-27)**: Voice Agent „Sprachassistent“ auf eigener Seite, nur reden, ohne
+Tools; Erkennung und Stimme lokal über sherpa-onnx 1.13.8 (Parakeet v3, Piper Thorsten), Antworten
+über Copilot mit wählbarem Modell (E-73 bis E-78) – Stand und Abnahme in
+[docs/11-sprechen.md](docs/11-sprechen.md). Hier mit echten Modellen und Chrome getestet.
 Stand, Erkenntnisse und bekannte Lücken in
 [docs/08-phase-1.md](docs/08-phase-1.md).
 Aufbau des Codes: [README.md](README.md).
@@ -45,7 +49,8 @@ Zuerst diese Dateien lesen, in dieser Reihenfolge:
 3. [docs/05-offene-fragen.md](docs/05-offene-fragen.md) – was noch geklärt werden muss
 4. Bei Bedarf: [02-architektur](docs/02-architektur.md), [03-adt-integration](docs/03-adt-integration.md),
    [04-freigabe-postfach](docs/04-freigabe-postfach.md), [07-roadmap](docs/07-roadmap.md),
-   Stand je Phase: [08-phase-1](docs/08-phase-1.md), [09-phase-3](docs/09-phase-3.md), [10-phase-4](docs/10-phase-4.md)
+   Stand je Phase: [08-phase-1](docs/08-phase-1.md), [09-phase-3](docs/09-phase-3.md), [10-phase-4](docs/10-phase-4.md),
+   [11-sprechen](docs/11-sprechen.md)
 
 ## Referenzcode
 

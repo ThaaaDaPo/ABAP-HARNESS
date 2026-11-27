@@ -77,6 +77,11 @@ aus Tool-, KI- und Steuerschritten (E-66 bis E-72), Start manuell, durch einen A
 Zeitplan. Läuft nur, wenn der Rechner an und die SAP-Anmeldung gültig ist. Freigaben im
 **Postfach** (E-52), bei Läufen aus einem Chat im Chat (E-68).
 
+## Zwischendurch – Sprechen (Voice Agent)
+
+Eigene Seite „Sprechen“ mit lokalem Erkennen und Sprechen, Antworten über Copilot (E-73 bis E-78).
+Stand und Abnahme-Checkliste: [11-sprechen](11-sprechen.md).
+
 ## Phase 5 – Orchestrator und parallele Läufe
 
 ## Übergabe an den Firmenrechner

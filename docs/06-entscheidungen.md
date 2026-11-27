@@ -76,6 +76,12 @@
 | E-70 | 2026-11-27 | **Verpasste Zeitpunkte werden verworfen**, nicht nachgeholt (Prototyp, Credits sparen) | Antwort David, Frage 5 |
 | E-71 | 2026-11-27 | **Agent startet Workflow**: bekommt das Ergebnis (Standard: wartet bis zum Ende), kann den Stand abfragen (`workflow_stand`) und erfährt im Chat, wenn ein Lauf ohne Warten fertig ist. Nur Workflows mit „Start durch Agent“, die ihm auf der Agenten-Seite zugeordnet sind | Antwort David, Frage 3 |
 | E-72 | 2026-11-27 | **Auch Workflows warten im Aufruf** auf Freigaben und Rückfragen (wie E-54 im Chat), egal ob David im Postfach oder im Chat entscheidet. Ersetzt für Workflows E-44/E-45 (Vorschlag ablegen und weiterarbeiten): Ein fester Ablauf kann ohne das Ergebnis nicht weiter. Nach einem Neustart sind wartende Läufe unterbrochen und lassen sich fortsetzen | Claude, folgt aus E-66 bis E-68 |
+| E-73 | 2026-11-27 | **Voice Agent wird immer mitgeliefert** (Agent „Sprachassistent“, Kennung `sprache`, nicht löschbar). Vorerst **eigene Seite „Sprechen“**, nicht im Chat, und **nur reden** – keine Tools, keine MCP-Server. Ein- und Ausgabe Deutsch, soll sich wie ein Gespräch mit ChatGPT anfühlen | Vorgabe David |
+| E-74 | 2026-11-27 | Das Sprachmodell läuft **über das Copilot SDK**; Modell (und Thinking Effort) ist **wie bei den anderen Agenten wählbar**, damit David durchprobieren kann | Antwort David |
+| E-75 | 2026-11-27 | **Erkennung und Stimme laufen vollständig lokal und kostenlos** über `sherpa-onnx-node` (fertig gebaut für Windows, keine Installation, wenig Rechenleistung). Stimme: Piper `de_DE-thorsten-medium`. Statt des vorgeschlagenen Pakets `pipertts`, weil das unter Windows ein separat installiertes espeak-ng braucht und onnxruntime-node (rund 300 MB) und pyodide mitzieht. David hat die Wahl Claude überlassen | Antwort David, Wahl Claude |
+| E-76 | 2026-11-27 | Erkennung mit **Parakeet TDT 0.6B v3** (Deutsch, schnell auf der CPU, erfindet bei Geräuschen kaum Text). Sprechpausen mit Silero VAD | Wahl Claude („Hauptsache lokal und direkt im Projekt“) |
+| E-77 | 2026-11-27 | Modelle werden **beim ersten Start geladen** (in `daten/modelle`). Scheitert der Download, zeigt die App, wie es von Hand geht; weitere Wege klären wir dann | Antwort David |
+| E-78 | 2026-11-27 | Unterbrechen: neue Äußerung und Knopf brechen die Antwort ab. **Durch Sprechen unterbrechen** ist abschaltbar und steht standardmäßig aus (ohne Headset unterbricht sich die Stimme sonst selbst) | Claude, folgt aus E-73 |
 
 ## Erkenntnisse aus Phase 0 (Privatrechner, 2026-11-13)
 

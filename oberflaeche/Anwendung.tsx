@@ -12,6 +12,7 @@ import { EinrichtungSeite } from "./seiten/EinrichtungSeite.tsx";
 import { InstructionsSeite } from "./seiten/InstructionsSeite.tsx";
 import { McpSeite } from "./seiten/McpSeite.tsx";
 import { PostfachSeite } from "./seiten/PostfachSeite.tsx";
+import { SprechenSeite } from "./seiten/SprechenSeite.tsx";
 import { VerbrauchSeite } from "./seiten/VerbrauchSeite.tsx";
 import { WorkflowsSeite } from "./seiten/WorkflowsSeite.tsx";
 
@@ -47,6 +48,7 @@ export function Anwendung() {
       <Navigation aktiv={seite} waehle={setSeite} status={status} offenImPostfach={offenImPostfach} />
       <main className="inhalt">
         {seite === "chat" && <ChatSeite gewaehlteId={chatId} waehle={setChatId} zeigeLauf={zeigeLauf} />}
+        {seite === "sprechen" && <SprechenSeite />}
         {seite === "workflows" && <WorkflowsSeite laufNr={laufNr} waehleLauf={setLaufNr} zeigeChat={zeigeChat} />}
         {seite === "agenten" && <AgentenSeite />}
         {seite === "instructions" && <InstructionsSeite />}

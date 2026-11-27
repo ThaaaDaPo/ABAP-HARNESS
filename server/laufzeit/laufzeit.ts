@@ -33,6 +33,11 @@ export interface SitzungsEinstellungen {
    * Workflows. Sonst (alte Aufgaben ohne Lauf) wird der Vorschlag abgelegt und der Agent arbeitet weiter.
    */
   wartetImAufruf: boolean;
+  /**
+   * Voice Agent: nur reden. Keine Tools, keine MCP-Server, keine Skills; der Auftrag ersetzt den
+   * Systemprompt von Copilot ganz (kürzer = schnellere Antwort, und er ist aufs Programmieren ausgelegt).
+   */
+  nurGespraech?: boolean;
 }
 
 /** Bekommt jedes Ereignis der Sitzung, sobald es passiert. */

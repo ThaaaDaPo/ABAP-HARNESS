@@ -7,7 +7,8 @@ Stand: **Phase 1, Schritt 4** – Agenten mit eigenem Auftrag, Modell, MCP-Serve
 Instructions und Skills; Chats mit Live-Ansicht (Markdown), Agent und Modell je Chat wählbar,
 Chats laufen gleichzeitig; Freigaben und Rückfragen im Chat; Verbrauchsanzeige; Einrichtungsseite;
 Simulation und Copilot-Anbindung. Dazu **Phase 3**: der ADT-MCP zum Entwickeln von ABAP, und
-**Phase 4**: Workflows mit Postfach und Zeitsteuerung (siehe unten).
+**Phase 4**: Workflows mit Postfach und Zeitsteuerung, und die Seite **Sprechen** mit einem Voice
+Agent (siehe unten).
 Planung und Entscheidungen stehen in [docs/](docs/).
 
 ## Starten
@@ -79,6 +80,15 @@ wenn ein Agent den Workflow dort gestartet hat. Jeder Lauf hat ein Protokoll je 
 sich nach einem Neustart fortsetzen. Beim ersten Start entsteht das Beispiel *Tickets einschätzen*.
 Details: [docs/10-phase-4.md](docs/10-phase-4.md).
 
+### Sprechen (Voice Agent)
+
+Auf der Seite **Sprechen** redet man mit dem mitgelieferten Agenten **Sprachassistent** – auf
+Deutsch, ohne Tools, zum Ausprobieren (noch nicht im Chat). Erkennung (Parakeet v3) und Stimme
+(Piper Thorsten) laufen lokal über `sherpa-onnx-node`; die Antworten kommen vom gewählten Modell.
+Die Modelle (rund 530 MB) lädt die App beim Start nach `daten/modelle`, wenn sie fehlen; klappt der
+Download nicht, steht auf der Seite, wie es von Hand geht. Edge fragt beim Start nach dem Mikrofon.
+Details: [docs/11-sprechen.md](docs/11-sprechen.md).
+
 Beim ersten Start sind zwei Stellvertreter-Server eingetragen (SAP, Jira/Confluence) mit
 Beispieldaten. Sie funktionieren in der Simulation und mit echtem Copilot und können gelöscht
 werden.
@@ -89,7 +99,7 @@ werden.
 |---|---|
 | `npm start` | App starten |
 | `npm run entwickeln` | wie `start`, startet bei Änderungen am Server neu |
-| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions, Verbrauch, den ADT-MCP samt Rückgängig und die Workflows |
+| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions, Verbrauch, den ADT-MCP samt Rückgängig, die Workflows und das Sprechen (ohne Modelle) |
 | `npm run typpruefung` | TypeScript-Prüfung von Server und Oberfläche |
 
 ## Ordner
@@ -112,16 +122,18 @@ server/                 Backend (Node, TypeScript – wird ohne Bau-Schritt dire
   postfach/             Aktionen im Postfach (freigeben, verwerfen, antworten), Plattform-Tools des Agenten
   chat/                 Ablauf Nachricht → Warteschlange → Agent → Anzeige, Live-Verteilung
   workflows/            Workflows: Dateien, Prüfung, Platzhalter, Ablauf, Schritte je Art, Zeitsteuerung
+  sprache/              Voice Agent: Modelle laden, Erkennung/Stimme/VAD (sherpa-onnx), Gesprächsablauf
   http/                 HTTP-Server und Routen
 oberflaeche/            React-Oberfläche
   seiten/               ganze Seiten
   komponenten/          Bausteine der Seiten (workflow/: Editor, Schrittliste, Lauf-Ansicht)
+  sprache/              Mikrofon, Wiedergabe und Gesprächslogik der Seite „Sprechen“
   live/                 Live-Ereignisse vom Server
 gemeinsam/              Typen, die Server und Oberfläche teilen
 mcp/                    MCP-Server, je einer pro Unterordner (Stellvertreter, später ADT)
 pruefpaket/             Phase 0: Prüfung von Copilot und ADT auf dem Firmenrechner
 docs/                   Planung, Entscheidungen, offene Fragen
-daten/                  Datenbank, Standard-Workspace, Standard-Instructions- und -Workflow-Ordner (wird angelegt, nicht im Repo)
+daten/                  Datenbank, Standard-Workspace, Standard-Instructions- und -Workflow-Ordner, Sprachmodelle (wird angelegt, nicht im Repo)
 ```
 
 ## Pakete für Nexus
@@ -133,3 +145,5 @@ Neben den Paketen aus `package.json` lädt npm plattformabhängige Pakete. Unter
 Neu in Schritt 4 (Markdown im Chat): `marked` 18.2.1, `dompurify` 3.4.18 und dessen Abhängigkeit
 `@types/trusted-types` 2.0.7. Neu in Phase 3 (ADT): `abap-adt-api` 10.0.0 und `playwright-core`
 1.65.0 – beide kamen schon mit dem Prüfpaket über Nexus. Phase 4 (Workflows) braucht keine neuen Pakete.
+Neu fürs Sprechen: `sherpa-onnx-node` 1.13.8 und unter Windows `sherpa-onnx-win-x64` 1.13.8 (rund
+23 MB, bringt die fertige Bibliothek mit). Bewusst nicht 2.x: Dort fehlt die Aussprache für Piper-Stimmen.

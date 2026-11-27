@@ -14,6 +14,8 @@ import { richteStellvertreterEin } from "./mcp/stellvertreter.ts";
 import { PostfachDienst } from "./postfach/postfach-dienst.ts";
 import { WorkflowDienst } from "./workflows/workflow-dienst.ts";
 import { richteOrdnerEin } from "./workflows/workflow-ordner.ts";
+import { SprachDienst } from "./sprache/sprach-dienst.ts";
+import { richteSprachAgentenEin } from "./sprache/sprach-agent.ts";
 import { Zeitsteuerung } from "./workflows/zeitsteuerung.ts";
 
 const einstellungen = ladeEinstellungen();
@@ -21,6 +23,8 @@ const db = oeffneDatenbank(einstellungen.datenOrdner);
 await richteStellvertreterEin(db);
 // Danach, damit der Standard-Agent beim allerersten Start auch die Stellvertreter bekommt.
 richteStandardAgentenEin(db, einstellungen);
+// Der Voice Agent wird immer mitgeliefert (Seite „Sprechen“).
+richteSprachAgentenEin(db);
 // ADT-MCP (mcp/adt/) als eingebauter Server; er bekommt keinen Agenten automatisch.
 const adtSchluessel = await richteAdtEin(db, einstellungen);
 // Die SSO-Anmeldung am SAP-System gibt es einmal für alle ADT-MCP-Prozesse.
@@ -36,7 +40,19 @@ const workflows = new WorkflowDienst(db, einstellungen.workflowOrdner, chat, auf
 const zeitsteuerung = new Zeitsteuerung(workflows.zeitplanQuelle());
 // Vergleich und Rückgängig für Änderungen des ADT-MCP im Chat
 const aenderungen = new AenderungenDienst(db, einstellungen, chat, aufrufer);
-const { app, vite } = await erstelleHttpServer(einstellungen, db, laufzeit, chat, postfach, { sso, schluessel: adtSchluessel, aenderungen }, workflows);
+// Sprechen: Erkennung und Stimme lokal; fehlende Modelle lädt die App beim Start im Hintergrund.
+const sprache = new SprachDienst(db, laufzeit, einstellungen);
+sprache.ladeModelleImHintergrund();
+const { app, vite } = await erstelleHttpServer(
+  einstellungen,
+  db,
+  laufzeit,
+  chat,
+  postfach,
+  { sso, schluessel: adtSchluessel, aenderungen },
+  workflows,
+  sprache,
+);
 
 // Nur auf diesem Rechner erreichbar (127.0.0.1), nicht im Netzwerk.
 const server = app.listen(einstellungen.port, "127.0.0.1", () => {
@@ -53,6 +69,7 @@ async function herunterfahren() {
   console.log("\nFahre herunter …");
   server.close();
   zeitsteuerung.beende();
+  await sprache.beendeAlle();
   await chat.beenden();
   await aufrufer.schliesseAlle();
   await vite.close();

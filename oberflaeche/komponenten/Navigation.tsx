@@ -1,7 +1,7 @@
 // Linke Leiste: Seiten der App, Zahl der offenen Postfach-Einträge und Modus-Anzeige.
 import type { StatusAntwort } from "../../gemeinsam/typen.ts";
 
-export type SeitenName = "chat" | "workflows" | "postfach" | "agenten" | "instructions" | "mcp" | "verbrauch" | "einrichtung";
+export type SeitenName = "chat" | "sprechen" | "workflows" | "postfach" | "agenten" | "instructions" | "mcp" | "verbrauch" | "einrichtung";
 
 interface Eintrag {
   name: SeitenName;
@@ -12,6 +12,8 @@ interface Eintrag {
 
 const eintraege: Eintrag[] = [
   { name: "chat", titel: "Chat" },
+  // Voice Agent zum Ausprobieren – eigene Seite, bis er gut genug für den Chat ist.
+  { name: "sprechen", titel: "Sprechen" },
   { name: "workflows", titel: "Workflows" },
   // Das Postfach ist für Workflows, die ohne David laufen (E-52, E-68). Freigaben aus Chats gibt er im Chat.
   { name: "postfach", titel: "Postfach" },

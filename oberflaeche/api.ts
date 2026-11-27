@@ -15,6 +15,7 @@ import type {
   ModellWahl,
   PostfachEintrag,
   ServerRegeln,
+  SprachStatus,
   StatusAntwort,
   ToolRegel,
   VerbrauchSumme,
@@ -183,3 +184,34 @@ export const setzeLaufFort = (nr: number) => anfrage<WorkflowLauf>(`/workflow-la
 
 /** Live-Hinweise: Aufgaben oder Postfach haben sich geändert */
 export const uebersichtAdresse = "/api/uebersicht/live";
+
+// Sprechen (Voice Agent): Modelle, Gespräche, Mikrofon
+export const holeSprachStatus = () => anfrage<SprachStatus>("/sprache");
+
+export const ladeSprachModelle = () => anfrage<SprachStatus>("/sprache/modelle/laden", { method: "POST" });
+
+export const starteGespraech = () => anfrage<{ id: string }>("/sprache/gespraeche", { method: "POST" });
+
+export const gespraechLiveAdresse = (id: string) => `/api/sprache/gespraeche/${id}/live`;
+
+export const sendeGespraechsText = (id: string, text: string) =>
+  anfrage(`/sprache/gespraeche/${id}/text`, { method: "POST", body: JSON.stringify({ text }) });
+
+export const unterbrecheGespraech = (id: string) => anfrage(`/sprache/gespraeche/${id}/unterbrechen`, { method: "POST" });
+
+export const schalteGespraechStumm = (id: string) => anfrage(`/sprache/gespraeche/${id}/stumm`, { method: "POST" });
+
+export const setzeSprechTempo = (id: string, tempo: number) =>
+  anfrage(`/sprache/gespraeche/${id}/tempo`, { method: "PUT", body: JSON.stringify({ tempo }) });
+
+export const beendeGespraech = (id: string) => anfrage(`/sprache/gespraeche/${id}`, { method: "DELETE" });
+
+/** Mikrofon-Audio als rohe Float32-Werte (16 kHz) */
+export async function sendeAudio(id: string, samples: Float32Array): Promise<void> {
+  const antwort = await fetch(`/api/sprache/gespraeche/${id}/audio`, {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: samples.slice().buffer,
+  });
+  if (!antwort.ok) throw new Error((await antwort.json().catch(() => ({}))).meldung ?? `Fehler ${antwort.status}`);
+}

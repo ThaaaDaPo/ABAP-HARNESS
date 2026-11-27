@@ -71,6 +71,7 @@ export function AgentenSeite() {
           >
             <span className="chat-titel">{a.name}</span>
             {a.id === "standard" && <span className="status-marke">Standard</span>}
+            {a.id === "sprache" && <span className="status-marke">Sprechen</span>}
           </button>
         ))}
       </aside>
@@ -87,7 +88,7 @@ export function AgentenSeite() {
                 <button className="knopf" onClick={() => aendere(() => api.kopiereAgent(aktuell.id))} disabled={beschaeftigt} title="Neuer Agent mit denselben Einstellungen und Regeln">
                   Kopieren
                 </button>
-                {aktuell.id !== "standard" && (
+                {aktuell.id !== "standard" && aktuell.id !== "sprache" && (
                   <button className="knopf" onClick={() => loesche(aktuell)} disabled={beschaeftigt}>
                     Löschen
                   </button>

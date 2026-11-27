@@ -16,6 +16,13 @@ Runden 1–3 und die Freigabe sind erledigt (E-06 bis E-39).
   SAP-MCP-Proxys (wie im Prüfpaket) oder direkt `https://<host>:<port>/sap/bc/adt/`? Klärt sich
   bei der Abnahme (09-phase-3.md, Punkt 3).
 
+- **N1 – Downloads am Firmenrechner** (Sprechen, E-77): Kommt die App an GitHub heran
+  (`github.com/k2-fsa/sherpa-onnx/releases`)? Falls nicht: Welcher Weg für rund 530 MB Modelle –
+  zweites ZIP, Netzlaufwerk, Proxy-Einstellung? Klärt sich bei der Abnahme (11-sprechen.md, Punkt 2–4).
+
+- **N2 – Voice Agent in den Chat**: Wann und wie (Mikrofon-Knopf im Chat, eigener Agent mit
+  Tools)? Erst wenn die Testseite gut funktioniert (E-73).
+
 ## Zurückgestellt
 
 - Transporte und Arbeiten außerhalb `$TMP`: nach Abstimmung im Unternehmen (E-13, E-28).

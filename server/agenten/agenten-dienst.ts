@@ -6,6 +6,7 @@ import { holeAlleServer } from "../datenbank/mcp-server.ts";
 import { holeRegeln } from "../datenbank/tool-regeln.ts";
 import type { Einstellungen } from "../einstellungen.ts";
 import { Fehler } from "../fehler.ts";
+import { sprachAgentId } from "../sprache/sprach-agent.ts";
 
 /**
  * Beim ersten Start (auch auf einer Datenbank aus Schritt 3) entsteht aus einstellungen.json der
@@ -78,6 +79,7 @@ export function kopiere(db: Datenbank, id: string): Agent {
 export function loesche(db: Datenbank, id: string): void {
   holeVorhandenen(db, id);
   if (id === agenten.standardAgentId) throw new Fehler(409, "Der Standard-Agent lässt sich nicht löschen.");
+  if (id === sprachAgentId) throw new Fehler(409, "Der Sprachassistent gehört zur Seite „Sprechen“ und lässt sich nicht löschen.");
   agenten.loescheAgent(db, id);
 }
 

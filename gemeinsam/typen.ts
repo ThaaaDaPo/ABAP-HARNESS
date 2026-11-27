@@ -595,3 +595,58 @@ export interface LaufMitSchritten {
   /** Freigaben, Rückfragen und Meldungen des Laufs */
   postfach: PostfachEintrag[];
 }
+
+// ---------------------------------------------------------------------------------------------
+// Sprechen: Voice Agent zum Ausprobieren, eigene Seite, nicht im Chat. Erkennung und Stimme laufen
+// lokal (sherpa-onnx), das Sprachmodell über die Agenten-Laufzeit wie bei den anderen Agenten.
+// ---------------------------------------------------------------------------------------------
+
+/** Ein Modell für Erkennung oder Stimme – und wie weit es ist */
+export interface SprachModellStand {
+  name: "erkennung" | "stimme" | "sprachende";
+  titel: string;
+  /** Größe des Downloads in MB, zur Anzeige */
+  groesseMb: number;
+  zustand: "vorhanden" | "fehlt" | "laedt" | "entpackt" | "fehler";
+  /** Beim Laden: wie viel schon da ist */
+  geladenMb: number;
+  fehler: string | null;
+  /** Woher es kommt – für den Fall, dass David es von Hand holen muss */
+  adresse: string;
+  /** Wo es liegen muss */
+  ordner: string;
+}
+
+/** Antwort von GET /api/sprache */
+export interface SprachStatus {
+  modelle: SprachModellStand[];
+  /** Alle Modelle da und die Bibliothek ließ sich laden (oder ist noch nicht versucht) */
+  bereit: boolean;
+  /** Fehler beim Laden der Bibliothek oder der Modelle in den Speicher */
+  fehler: string | null;
+  modellOrdner: string;
+  /** Der mitgelieferte Voice Agent */
+  agent: Agent;
+}
+
+/** Wie weit eine Runde im Gespräch ist. „spricht“ kennt nur der Browser (er spielt ab). */
+export type GespraechsZustand = "hoert" | "erkennt" | "denkt";
+
+/** Live-Ereignisse eines Gesprächs (Server-Sent Events) */
+export type SprachEreignis =
+  | { art: "zustand"; zustand: GespraechsZustand }
+  /** Die VAD hört Sprache – zum Unterbrechen der Wiedergabe */
+  | { art: "nutzer_spricht" }
+  /** Erkannter Text; leer = nichts verstanden (Geräusch) */
+  | { art: "erkannt"; runde: number; text: string; dauerMs: number }
+  | { art: "antwort_teil"; runde: number; textTeil: string }
+  /** Die Antwort ist fertig und alle Sätze sind als Audio verschickt */
+  | { art: "antwort_fertig"; runde: number; text: string }
+  /** Ein gesprochener Satz als WAV (Base64) */
+  | { art: "audio"; runde: number; nr: number; text: string; wav: string }
+  /** Messwerte der Runde: ab Ende des Sprechens bis zum ersten Text bzw. ersten Ton */
+  | { art: "zeiten"; runde: number; ersterTextMs: number | null; ersterTonMs: number | null }
+  /** Die Runde wurde abgebrochen (neue Äußerung oder Knopf) – ihre Audios verwerfen */
+  | { art: "unterbrochen"; runde: number }
+  | { art: "modell"; modell: string }
+  | { art: "fehler"; meldung: string };

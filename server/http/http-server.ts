@@ -22,6 +22,8 @@ import { routenPostfach } from "./routen-postfach.ts";
 import type { PostfachDienst } from "../postfach/postfach-dienst.ts";
 import type { WorkflowDienst } from "../workflows/workflow-dienst.ts";
 import { routenLaeufe, routenWorkflows } from "./routen-workflows.ts";
+import { routenSprache } from "./routen-sprache.ts";
+import type { SprachDienst } from "../sprache/sprach-dienst.ts";
 
 export async function erstelleHttpServer(
   einstellungen: Einstellungen,
@@ -31,6 +33,7 @@ export async function erstelleHttpServer(
   postfach: PostfachDienst,
   adt: { sso: SsoAnmeldung; schluessel: string; aenderungen: AenderungenDienst },
   workflows: WorkflowDienst,
+  sprache: SprachDienst,
 ) {
   const app = express();
   app.use(express.json({ limit: "2mb" }));
@@ -53,6 +56,7 @@ export async function erstelleHttpServer(
   app.use("/api/postfach", routenPostfach(postfach));
   app.use("/api/workflows", routenWorkflows(workflows, einstellungen.workflowOrdner, chat));
   app.use("/api/workflow-laeufe", routenLaeufe(workflows, db));
+  app.use("/api/sprache", routenSprache(sprache));
 
   app.get("/api/verbrauch", (_anfrage, antwort) => {
     antwort.json(verbrauchsUebersicht(db));
@@ -60,7 +64,9 @@ export async function erstelleHttpServer(
 
   // Einrichtung prüfen. ?mcp=starten startet die MCP-Server dabei wirklich (kann dauern).
   app.get("/api/einrichtung", async (anfrage, antwort) => {
-    antwort.json(await pruefeEinrichtung(einstellungen, db, laufzeit, adt.sso, anfrage.query.mcp === "starten"));
+    const bericht = await pruefeEinrichtung(einstellungen, db, laufzeit, adt.sso, anfrage.query.mcp === "starten");
+    bericht.pruefungen.push(sprache.pruefung());
+    antwort.json(bericht);
   });
 
   // Live-Hinweise für alle Fenster: Aufgaben oder Postfach haben sich geändert

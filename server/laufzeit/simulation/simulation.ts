@@ -81,7 +81,7 @@ class SimulationsSitzung implements AgentenSitzung {
     this.ergebnisGemeldet = false;
     const modell = this.einstellungen.modell || "sim-automatisch";
     this.empfaenger({ art: "modell", modell });
-    const geschrieben = await this.spiele(text);
+    const geschrieben = this.einstellungen.nurGespraech ? await this.antworteImGespraech(text) : await this.spiele(text);
     await this.meldeBeispielergebnis();
     this.empfaenger({ art: "verbrauch", ...erfundenerVerbrauch(modell, this.einstellungen.auftrag.length + text.length, geschrieben) });
   }
@@ -117,6 +117,19 @@ class SimulationsSitzung implements AgentenSitzung {
       }
     }
     return geschrieben;
+  }
+
+  /**
+   * Voice Agent: kein Drehbuch, sondern eine kurze gesprochene Antwort auf das Erkannte. So lassen
+   * sich Erkennung und Stimme ohne Copilot ausprobieren.
+   */
+  private async antworteImGespraech(text: string): Promise<number> {
+    await this.warte(300);
+    const antwort =
+      `Simulation. Ich habe verstanden: ${text.replace(/[.!?]+$/, "")}. ` +
+      `Ich bin kein echtes Sprachmodell, aber Erkennung und Stimme laufen wirklich auf diesem Rechner.`;
+    await this.schreibe(antwort);
+    return antwort.length;
   }
 
   /** Damit man in der Simulation sieht, dass die Modellwahl des Chats ankommt. */

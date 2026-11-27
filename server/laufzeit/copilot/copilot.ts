@@ -76,7 +76,23 @@ function plattformTools(einstellungen: SitzungsEinstellungen): Tool<any>[] {
   );
 }
 
+/** Voice Agent: nur Modell und Auftrag, sonst nichts. Dateizugriffe lehnt die Berechtigungsprüfung trotzdem ab. */
+function gespraechsKonfiguration(einstellungen: SitzungsEinstellungen): SessionConfig {
+  return {
+    ...(einstellungen.modell ? { model: einstellungen.modell } : {}),
+    ...(einstellungen.denkaufwand ? { reasoningEffort: einstellungen.denkaufwand } : {}),
+    contextTier: einstellungen.kontext === "lang" ? "long_context" : "default",
+    workingDirectory: einstellungen.workspaceOrdner,
+    systemMessage: { mode: "replace", content: einstellungen.auftrag },
+    streaming: true,
+    // Leere Liste = kein einziges Tool, auch keine eingebauten (Dateien, Suche …).
+    availableTools: [],
+    onPermissionRequest: erstelleBerechtigungsPruefung(einstellungen.workspaceOrdner, einstellungen.gateway),
+  };
+}
+
 function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionConfig {
+  if (einstellungen.nurGespraech) return gespraechsKonfiguration(einstellungen);
   const { gateway } = einstellungen;
   // Verbotene Tools gar nicht erst anbieten; abgelehnt werden sie trotzdem, falls doch aufgerufen.
   const verboten = gateway.verboteneTools(einstellungen.mcpServer).map((adresse) => `mcp:${laufzeitName(adresse)}`);
