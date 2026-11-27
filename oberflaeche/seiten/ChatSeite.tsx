@@ -26,9 +26,10 @@ import { tokenText, creditText } from "../verbrauch-text.ts";
 interface Eigenschaften {
   gewaehlteId: string | null;
   waehle: (id: string | null) => void;
+  zeigeLauf: (nr: number) => void;
 }
 
-export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
+export function ChatSeite({ gewaehlteId, waehle, zeigeLauf }: Eigenschaften) {
   const [aufgaben, setAufgaben] = useState<Aufgabe[]>([]);
   const [ereignisse, setEreignisse] = useState<Ereignis[]>([]);
   const [laufenderText, setLaufenderText] = useState("");
@@ -169,12 +170,14 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
   });
 
   const aktuell = aufgaben.find((a) => a.id === gewaehlteId) ?? null;
-  const offen = (art: PostfachEintrag["art"]) => eintraege.some((e) => e.art === art && (e.status === "offen" || e.status === "fehlgeschlagen"));
-  const hinweisEingabe = offen("rueckfrage")
+  const offene = eintraege.filter((e) => e.status === "offen" || e.status === "fehlgeschlagen");
+  const hinweisEingabe = offene.some((e) => e.art === "rueckfrage")
     ? "Deine Antwort auf die Rückfrage"
-    : offen("freigabe")
+    : offene.some((e) => e.art === "freigabe" && !e.ohneKi)
       ? "Änderungswunsch zum Vorschlag – oder oben freigeben bzw. verwerfen"
-      : undefined;
+      : offene.some((e) => e.art === "freigabe")
+        ? "Ein fester Workflow-Schritt wartet: oben freigeben oder verwerfen"
+        : undefined;
 
   async function sende(text: string) {
     if (!gewaehlteId) return;
@@ -227,6 +230,7 @@ export function ChatSeite({ gewaehlteId, waehle }: Eigenschaften) {
               eintraege={eintraege}
               aktionen={aktionen}
               beschaeftigt={beschaeftigt}
+              zeigeLauf={zeigeLauf}
             />
             {fehler && <div className="fehlerleiste">{fehler}</div>}
             <Eingabefeld status={status} hinweis={hinweisEingabe} sende={sende} brecheAb={() => api.brecheAb(gewaehlteId)} />

@@ -28,8 +28,11 @@ export interface SitzungsEinstellungen {
   skillOrdner: string[];
   /** Namen der Skills, die dieser Agent nicht benutzen soll (nicht zugeordnet) */
   abgeschalteteSkills: string[];
-  /** David ist dabei (Chat): Freigaben und Rückfragen warten auf ihn (E-54). Sonst Workflow. */
-  imChat: boolean;
+  /**
+   * Freigaben und Rückfragen warten im Aufruf auf David (E-54) – im Chat und in KI-Schritten von
+   * Workflows. Sonst (alte Aufgaben ohne Lauf) wird der Vorschlag abgelegt und der Agent arbeitet weiter.
+   */
+  wartetImAufruf: boolean;
 }
 
 /** Bekommt jedes Ereignis der Sitzung, sobald es passiert. */

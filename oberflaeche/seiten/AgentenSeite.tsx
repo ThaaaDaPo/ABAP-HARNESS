@@ -1,6 +1,6 @@
 // Agenten-Seite: links die Agenten, rechts der gewählte mit Formular und Regeln je Tool.
 import { useEffect, useState } from "react";
-import type { Agent, AgentDaten, InstructionsUebersicht, McpServer, ModellInfo } from "../../gemeinsam/typen.ts";
+import type { Agent, AgentDaten, InstructionsUebersicht, McpServer, ModellInfo, WorkflowInfo } from "../../gemeinsam/typen.ts";
 import * as api from "../api.ts";
 import { AgentFormular } from "../komponenten/AgentFormular.tsx";
 import { AgentRegeln } from "../komponenten/AgentRegeln.tsx";
@@ -11,6 +11,7 @@ export function AgentenSeite() {
   const [modelle, setModelle] = useState<ModellInfo[]>([]);
   const [server, setServer] = useState<McpServer[]>([]);
   const [instructions, setInstructions] = useState<InstructionsUebersicht | null>(null);
+  const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
   const [beschaeftigt, setBeschaeftigt] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
 
@@ -25,6 +26,7 @@ export function AgentenSeite() {
     api.holeModelle().then(setModelle).catch((e) => setFehler(`Modelle: ${e.message}`));
     api.holeMcpServer().then(setServer).catch((e) => setFehler(e.message));
     api.holeInstructions().then(setInstructions).catch((e) => setFehler(e.message));
+    api.holeWorkflows().then((antwort) => setWorkflows(antwort.workflows)).catch((e) => setFehler(e.message));
   }, []);
 
   /** Führt eine Änderung aus und lädt danach die Liste neu. */
@@ -99,6 +101,7 @@ export function AgentenSeite() {
               modelle={modelle}
               server={server}
               instructions={instructions}
+              workflows={workflows}
               speichere={(daten: AgentDaten) => aendere(() => api.speichereAgent(aktuell.id, daten))}
               beschaeftigt={beschaeftigt}
             />

@@ -1,7 +1,7 @@
 // Linke Leiste: Seiten der App, Zahl der offenen Postfach-Einträge und Modus-Anzeige.
 import type { StatusAntwort } from "../../gemeinsam/typen.ts";
 
-export type SeitenName = "chat" | "agenten" | "instructions" | "mcp" | "verbrauch" | "einrichtung" | "postfach";
+export type SeitenName = "chat" | "workflows" | "postfach" | "agenten" | "instructions" | "mcp" | "verbrauch" | "einrichtung";
 
 interface Eintrag {
   name: SeitenName;
@@ -12,13 +12,14 @@ interface Eintrag {
 
 const eintraege: Eintrag[] = [
   { name: "chat", titel: "Chat" },
+  { name: "workflows", titel: "Workflows" },
+  // Das Postfach ist für Workflows, die ohne David laufen (E-52, E-68). Freigaben aus Chats gibt er im Chat.
+  { name: "postfach", titel: "Postfach" },
   { name: "agenten", titel: "Agenten" },
   { name: "instructions", titel: "Instructions & Skills" },
   { name: "mcp", titel: "MCP-Server" },
   { name: "verbrauch", titel: "Verbrauch" },
   { name: "einrichtung", titel: "Einrichtung" },
-  // Das Postfach ist für Workflows, die ohne David laufen (E-52). Freigaben aus Chats gibt er im Chat.
-  { name: "postfach", titel: "Postfach", kommtIn: "Phase 4 (Workflows)" },
 ];
 
 interface Eigenschaften {

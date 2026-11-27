@@ -48,9 +48,16 @@ starteMcpServer("stellvertreter-jira-confluence", [
     name: "tickets_suchen",
     beschreibung: "Listet Jira-Tickets, optional nur mit einem bestimmten Status.",
     nurLesend: true,
-    parameter: { type: "object", properties: { status: { type: "string", description: "z. B. Offen" } } },
-    ausfuehren: ({ status }) => {
+    parameter: {
+      type: "object",
+      properties: {
+        status: { type: "string", description: "z. B. Offen" },
+        format: { type: "string", enum: ["text", "json"], description: "json: Liste mit schluessel, titel, status, beschreibung (für Workflows)" },
+      },
+    },
+    ausfuehren: ({ status, format }) => {
       const liste = Object.entries(tickets).filter(([, t]) => !status || t.status === status);
+      if (format === "json") return JSON.stringify(liste.map(([schluessel, t]) => ({ schluessel, ...t })));
       return liste.map(([id, t]) => `${id}  [${t.status}]  ${t.titel}`).join("\n") || "Keine Tickets.";
     },
   },

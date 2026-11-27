@@ -1,7 +1,7 @@
-// Formular eines Agenten: Name, Auftrag, Standardmodell, MCP-Server, Instructions und Skills.
+// Formular eines Agenten: Name, Auftrag, Standardmodell, MCP-Server, Instructions, Skills und Workflows.
 // Gespeichert wird mit „Speichern“; die Regeln je Tool darunter (AgentRegeln) wirken sofort.
 import { useState } from "react";
-import type { Agent, AgentDaten, InstructionsUebersicht, McpServer, ModellInfo } from "../../gemeinsam/typen.ts";
+import type { Agent, AgentDaten, InstructionsUebersicht, McpServer, ModellInfo, WorkflowInfo } from "../../gemeinsam/typen.ts";
 import { ModellWahl } from "./ModellWahl.tsx";
 
 interface Eigenschaften {
@@ -10,6 +10,7 @@ interface Eigenschaften {
   server: McpServer[];
   /** Null, solange noch nicht geladen */
   instructions: InstructionsUebersicht | null;
+  workflows: WorkflowInfo[];
   speichere: (daten: AgentDaten) => void;
   beschaeftigt: boolean;
 }
@@ -19,7 +20,7 @@ function umschalten(liste: string[], wert: string, an: boolean): string[] {
   return an ? [...liste, wert] : liste.filter((w) => w !== wert);
 }
 
-export function AgentFormular({ agent, modelle, server, instructions, speichere, beschaeftigt }: Eigenschaften) {
+export function AgentFormular({ agent, modelle, server, instructions, workflows, speichere, beschaeftigt }: Eigenschaften) {
   const { id: _id, erstelltAm: _erstellt, ...gespeichert } = agent;
   const [daten, setDaten] = useState<AgentDaten>(gespeichert);
   const geaendert = JSON.stringify(daten) !== JSON.stringify(gespeichert);
@@ -28,6 +29,9 @@ export function AgentFormular({ agent, modelle, server, instructions, speichere,
   // Zugeordnet, aber im Ordner nicht (mehr) da – z. B. umbenannt oder anderer Ordner eingetragen
   const fehlendeInstructions = instructions ? daten.instructions.filter((p) => !instructions.instructions.some((i) => i.pfad === p)) : [];
   const fehlendeSkills = instructions ? daten.skills.filter((p) => !instructions.skills.some((s) => s.pfad === p)) : [];
+  // Nur Workflows mit „Start durch Agent“ sind wählbar; zugeordnete ohne diesen Haken werden angezeigt, damit man sie abwählen kann.
+  const startbar = workflows.filter((w) => w.definition?.start.durchAgent);
+  const nichtStartbar = daten.workflows.filter((id) => !startbar.some((w) => w.id === id));
 
   return (
     <form
@@ -117,6 +121,29 @@ export function AgentFormular({ agent, modelle, server, instructions, speichere,
           <label key={pfad} className="haken fehlt">
             <input type="checkbox" checked onChange={() => setze({ skills: umschalten(daten.skills, pfad, false) })} />
             <code>{pfad}</code> <span className="fehler-text">Ordner fehlt</span>
+          </label>
+        ))}
+      </fieldset>
+
+      <fieldset className="feld">
+        <legend className="feld-titel">Workflows</legend>
+        <span className="hinweis">Diese Workflows darf der Agent über das Tool workflow_starten starten. Wählbar sind nur Workflows mit „Start durch Agent“.</span>
+        {startbar.length === 0 && <span className="leer">Keine Workflows mit „Start durch Agent“.</span>}
+        {startbar.map((w) => (
+          <label key={w.id} className="haken">
+            <input
+              type="checkbox"
+              checked={daten.workflows.includes(w.id)}
+              onChange={(e) => setze({ workflows: umschalten(daten.workflows, w.id, e.target.checked) })}
+            />
+            {w.definition!.name} <code>{w.id}</code>
+            {w.definition!.beschreibung && <span className="hinweis">{w.definition!.beschreibung}</span>}
+          </label>
+        ))}
+        {nichtStartbar.map((id) => (
+          <label key={id} className="haken fehlt">
+            <input type="checkbox" checked onChange={() => setze({ workflows: umschalten(daten.workflows, id, false) })} />
+            <code>{id}</code> <span className="fehler-text">fehlt oder ohne „Start durch Agent“</span>
           </label>
         ))}
       </fieldset>

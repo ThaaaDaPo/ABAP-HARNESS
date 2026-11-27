@@ -4,8 +4,11 @@ Status: **Grundzüge bestätigt durch E-43 bis E-48 (2026-11-24), umgesetzt in P
 **Wo freigegeben wird (E-52, E-54):** Im Chat wartet der Agent mitten im Tool-Aufruf auf David:
 Die Vorschlagskarte erscheint sofort, nach *Freigeben* läuft das Tool und der Agent macht mit dem
 Ergebnis weiter; eine Nachricht im Eingabefeld ist der Änderungswunsch bzw. die Antwort auf eine
-Rückfrage. Was unten steht (Vorschlag statt Ausführung, Abschluss ohne KI, Weitermachen über die
-Warteschlange), gilt für Workflows, die ohne David laufen – mit dem Postfach ab Phase 4.
+Rückfrage. **Seit Phase 4 (E-72) warten auch Workflows im Aufruf**; entschieden wird im Postfach
+oder – wenn ein Agent den Workflow im Chat gestartet hat – im Chat (E-68), siehe
+[10-phase-4](10-phase-4.md). Was unten steht (Vorschlag statt Ausführung, Abschluss ohne KI,
+Weitermachen über die Warteschlange), war der ursprüngliche Plan für Workflows und gilt nur noch
+für Aufgaben aus der Zeit davor.
 Was noch Vorschlag ist, steht in [08-phase-1](08-phase-1.md) unter „Festlegungen in Schritt 3“.
 
 ## Problem

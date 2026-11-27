@@ -27,6 +27,8 @@ interface PostfachZeile {
   weiter_nach_freigabe: number;
   erstellt_am: string;
   erledigt_am: string | null;
+  workflow_lauf: number | null;
+  ohne_ki: number;
 }
 
 /** Diese Status heißen: David muss noch etwas tun. */
@@ -49,10 +51,22 @@ function ausZeile(zeile: PostfachZeile): PostfachEintrag {
     weiterNachFreigabe: zeile.weiter_nach_freigabe === 1,
     erstelltAm: zeile.erstellt_am,
     erledigtAm: zeile.erledigt_am,
+    workflowLauf: zeile.workflow_lauf,
+    ohneKi: zeile.ohne_ki === 1,
   };
 }
 
-const auswahl = `SELECT p.*, a.titel AS aufgabe_titel FROM postfach p JOIN aufgaben a ON a.id = p.aufgabe_id`;
+// Ohne KI: Der Eintrag hängt an der Aufgabe eines Laufs selbst – das sind die festen Tool-Schritte.
+const auswahl = `SELECT p.*, a.titel AS aufgabe_titel, a.workflow_lauf,
+    EXISTS (SELECT 1 FROM workflow_laeufe l WHERE l.aufgabe_id = p.aufgabe_id) AS ohne_ki
+  FROM postfach p JOIN aufgaben a ON a.id = p.aufgabe_id`;
+
+/**
+ * Wo David einen Eintrag erledigt (E-52, E-68): Einträge aus Chats im Chat, ebenso die aus Workflows,
+ * die ein Agent im Chat gestartet hat. Alles andere aus Workflows im Postfach.
+ */
+const imChatSql = `(a.herkunft = 'chat' OR EXISTS (
+    SELECT 1 FROM workflow_laeufe l JOIN aufgaben c ON c.id = l.chat_aufgabe_id WHERE l.nr = a.workflow_lauf))`;
 
 /** Legt den Eintrag ab und gibt seine Nummer zurück. */
 export function legeAb(db: Datenbank, eintrag: NeuerEintrag): number {
@@ -77,8 +91,7 @@ export function legeAb(db: Datenbank, eintrag: NeuerEintrag): number {
 }
 
 function kommtAusChat(db: Datenbank, aufgabeId: string): boolean {
-  const zeile = db.prepare(`SELECT herkunft FROM aufgaben WHERE id = ?`).get(aufgabeId) as { herkunft: string } | undefined;
-  return zeile?.herkunft !== "workflow";
+  return !!db.prepare(`SELECT 1 FROM aufgaben a WHERE a.id = ? AND ${imChatSql}`).get(aufgabeId);
 }
 
 /** Offene zuerst, darin die ältesten oben; danach die erledigten, neueste oben. */
@@ -88,14 +101,25 @@ export function holeAlleEintraege(db: Datenbank): PostfachEintrag[] {
   return (db.prepare(`${auswahl} ${reihenfolge}`).all() as unknown as PostfachZeile[]).map(ausZeile);
 }
 
-/** Einträge aus Workflows – nur die gehören ins Postfach (E-52). */
+/** Was ins Postfach gehört: Einträge aus Workflows, die nicht aus einem Chat gestartet wurden (E-52, E-68). */
 export function holeWorkflowEintraege(db: Datenbank): PostfachEintrag[] {
-  return (db.prepare(`${auswahl} WHERE a.herkunft = 'workflow' ${reihenfolge}`).all() as unknown as PostfachZeile[]).map(ausZeile);
+  return (db.prepare(`${auswahl} WHERE NOT ${imChatSql} ${reihenfolge}`).all() as unknown as PostfachZeile[]).map(ausZeile);
 }
 
-/** Einträge eines Chats, in der Reihenfolge, in der sie entstanden sind. */
+/**
+ * Einträge eines Chats, in der Reihenfolge, in der sie entstanden sind – samt denen der Workflows,
+ * die ein Agent in diesem Chat gestartet hat (deren Freigaben erledigt David im Chat, E-68).
+ */
 export function holeEintraegeDerAufgabe(db: Datenbank, aufgabeId: string): PostfachEintrag[] {
-  return (db.prepare(`${auswahl} WHERE p.aufgabe_id = ? ORDER BY p.nr`).all(aufgabeId) as unknown as PostfachZeile[]).map(ausZeile);
+  const zeilen = db
+    .prepare(`${auswahl} WHERE p.aufgabe_id = ? OR a.workflow_lauf IN (SELECT nr FROM workflow_laeufe WHERE chat_aufgabe_id = ?) ORDER BY p.nr`)
+    .all(aufgabeId, aufgabeId) as unknown as PostfachZeile[];
+  return zeilen.map(ausZeile);
+}
+
+/** Alle Einträge eines Workflow-Laufs (feste Schritte und KI-Schritte) – für die Lauf-Ansicht. */
+export function holeEintraegeDesLaufs(db: Datenbank, laufNr: number): PostfachEintrag[] {
+  return (db.prepare(`${auswahl} WHERE a.workflow_lauf = ? ORDER BY p.nr`).all(laufNr) as unknown as PostfachZeile[]).map(ausZeile);
 }
 
 /** Offene Rückfragen der Aufgabe. Im Chat beantwortet David sie im normalen Eingabefeld. */
@@ -111,10 +135,10 @@ export function holeEintrag(db: Datenbank, nr: number): PostfachEintrag | null {
   return zeile ? ausZeile(zeile) : null;
 }
 
-/** Offene Einträge aus Workflows (Zähler in der Navigation) */
+/** Offene Einträge im Postfach (Zähler in der Navigation) */
 export function zaehleOffene(db: Datenbank): number {
   return (
-    db.prepare(`SELECT COUNT(*) AS anzahl FROM postfach p JOIN aufgaben a ON a.id = p.aufgabe_id WHERE a.herkunft = 'workflow' AND p.${offenSql}`).get() as {
+    db.prepare(`SELECT COUNT(*) AS anzahl FROM postfach p JOIN aufgaben a ON a.id = p.aufgabe_id WHERE NOT ${imChatSql} AND p.${offenSql}`).get() as {
       anzahl: number;
     }
   ).anzahl;

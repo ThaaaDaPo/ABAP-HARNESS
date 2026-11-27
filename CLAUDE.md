@@ -19,7 +19,10 @@ eingebaut und in der App konfigurierbar, Anmeldung nur per SSO (E-63), mit Übun
 Stand und Abnahme-Checkliste in [docs/09-phase-3.md](docs/09-phase-3.md). Am Firmenrechner bestätigt
 (2026-11-25): SSO-Anmeldung, Anlegen, Speichern, Aktivieren (nach zwei Korrekturen, siehe „Befunde“).
 Seit 2026-11-27 im Chat: Vergleich vorher/nachher nebeneinander und „Rückgängig“ bzw. „Objekt
-löschen“ (E-64, E-65). Offen: Abnahmepunkte 8–13 und 15–17 (09-phase-3.md), danach Phase 4.
+löschen“ (E-64, E-65). Offen: Abnahmepunkte 8–13 und 15–17 (09-phase-3.md).
+**Phase 4 gebaut (2026-11-27)**: Workflows (feste Abläufe aus Tool-, KI- und Steuerschritten,
+JSON-Dateien im Workflow-Ordner, Start manuell/durch Agent/Zeitplan, Postfach freigeschaltet,
+E-66 bis E-72) – Stand und Abnahme-Checkliste in [docs/10-phase-4.md](docs/10-phase-4.md).
 Stand, Erkenntnisse und bekannte Lücken in
 [docs/08-phase-1.md](docs/08-phase-1.md).
 Aufbau des Codes: [README.md](README.md).
@@ -42,7 +45,7 @@ Zuerst diese Dateien lesen, in dieser Reihenfolge:
 3. [docs/05-offene-fragen.md](docs/05-offene-fragen.md) – was noch geklärt werden muss
 4. Bei Bedarf: [02-architektur](docs/02-architektur.md), [03-adt-integration](docs/03-adt-integration.md),
    [04-freigabe-postfach](docs/04-freigabe-postfach.md), [07-roadmap](docs/07-roadmap.md),
-   Stand je Phase: [08-phase-1](docs/08-phase-1.md), [09-phase-3](docs/09-phase-3.md)
+   Stand je Phase: [08-phase-1](docs/08-phase-1.md), [09-phase-3](docs/09-phase-3.md), [10-phase-4](docs/10-phase-4.md)
 
 ## Referenzcode
 

@@ -3,6 +3,8 @@
 // Tool-Aufrufe aus dem Drehbuch gehen wie bei Copilot durch das Tool-Gateway und werden,
 // wenn es sie erlaubt, wirklich beim eingetragenen MCP-Server ausgeführt. Die Plattform-Tools
 // (Rückfrage, auf Freigabe warten) laufen ebenfalls echt.
+// KI-Schritte von Workflows: Bietet die Sitzung ergebnis_melden an und ruft das Drehbuch es nicht auf,
+// meldet die Simulation am Ende selbst ein Beispielergebnis – so laufen Workflows auch ohne Copilot durch.
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -64,6 +66,8 @@ class SimulationsSitzung implements AgentenSitzung {
   private empfaenger: EreignisEmpfaenger;
   private aufrufer: McpAufrufer;
   private abgebrochen = false;
+  /** Hat das Drehbuch in diesem Lauf schon ergebnis_melden aufgerufen? */
+  private ergebnisGemeldet = false;
 
   constructor(id: string, einstellungen: SitzungsEinstellungen, empfaenger: EreignisEmpfaenger, aufrufer: McpAufrufer) {
     this.id = id;
@@ -74,9 +78,11 @@ class SimulationsSitzung implements AgentenSitzung {
 
   async sende(text: string): Promise<void> {
     this.abgebrochen = false;
+    this.ergebnisGemeldet = false;
     const modell = this.einstellungen.modell || "sim-automatisch";
     this.empfaenger({ art: "modell", modell });
     const geschrieben = await this.spiele(text);
+    await this.meldeBeispielergebnis();
     this.empfaenger({ art: "verbrauch", ...erfundenerVerbrauch(modell, this.einstellungen.auftrag.length + text.length, geschrieben) });
   }
 
@@ -126,7 +132,10 @@ class SimulationsSitzung implements AgentenSitzung {
     const { gateway, mcpServer, plattformTools } = this.einstellungen;
 
     const plattformTool = plattformTools.find((t) => t.name === schritt.tool);
-    if (plattformTool) return { erfolgreich: true, ergebnis: await plattformTool.fuehreAus(schritt.argumente ?? {}) };
+    if (plattformTool) {
+      if (schritt.tool === "ergebnis_melden") this.ergebnisGemeldet = true;
+      return { erfolgreich: true, ergebnis: await plattformTool.fuehreAus(schritt.argumente ?? {}) };
+    }
 
     const adresse = gateway.zerlege(schritt.tool);
 
@@ -145,6 +154,18 @@ class SimulationsSitzung implements AgentenSitzung {
     } catch (fehler) {
       return { erfolgreich: false, ergebnis: (fehler as Error).message };
     }
+  }
+
+  /** Ruft ergebnis_melden mit Beispielwerten passend zu den Feldern auf, falls das Drehbuch es nicht getan hat. */
+  private async meldeBeispielergebnis(): Promise<void> {
+    const werkzeug = this.einstellungen.plattformTools.find((t) => t.name === "ergebnis_melden");
+    if (!werkzeug || this.ergebnisGemeldet || this.abgebrochen) return;
+    const felder = (werkzeug.parameter.properties ?? {}) as Record<string, { type?: string; description?: string }>;
+    const argumente = Object.fromEntries(Object.entries(felder).map(([name, feld]) => [name, beispielWert(name, feld)]));
+    const aufrufId = randomUUID();
+    this.empfaenger({ art: "tool_start", aufrufId, toolName: werkzeug.name, argumente });
+    await pause(200);
+    this.empfaenger({ art: "tool_ende", aufrufId, erfolgreich: true, ergebnis: await werkzeug.fuehreAus(argumente) });
   }
 
   /**
@@ -186,6 +207,20 @@ class SimulationsSitzung implements AgentenSitzung {
   }
 
   async trennen(): Promise<void> {}
+}
+
+/** Beispielwert für ein Ergebnisfeld: ja/nein immer ja, Zahlen 1, Texte mit Hinweis auf die Simulation. */
+function beispielWert(name: string, feld: { type?: string; description?: string }): unknown {
+  switch (feld.type) {
+    case "boolean":
+      return true;
+    case "number":
+      return 1;
+    case "array":
+      return ["(Simulation) Eintrag 1", "(Simulation) Eintrag 2"];
+    default:
+      return `(Simulation) ${feld.description || name}`;
+  }
 }
 
 export class SimulationsLaufzeit implements AgentenLaufzeit {

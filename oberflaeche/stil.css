@@ -560,3 +560,95 @@ button:disabled { cursor: default; }
   font-size: 12px;
 }
 .nebeneinander tr.zugeklappt button:hover { text-decoration: underline; }
+
+/* Workflows (Phase 4) */
+.formular select { font: inherit; font-weight: normal; padding: 7px 10px; border: 1px solid var(--rand); border-radius: var(--radius); background: var(--flaeche); }
+.formular input.code, .formular textarea.code { font-family: Consolas, monospace; font-size: 13px; }
+.formular label.schmal { flex: 0 0 180px; }
+.workflow-editor { max-width: 980px; }
+.knopf-klein {
+  padding: 2px 8px;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  background: var(--flaeche);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: normal;
+}
+.knopf-klein:hover:not(:disabled) { background: var(--hintergrund); }
+.knopf-klein:disabled { opacity: 0.35; }
+.zeile-klein { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.zeile-klein input { flex: 1; min-width: 120px; }
+.zeile-klein input.code { flex: 0 0 160px; }
+.formular .argument { gap: 2px; }
+.formular .argument > span { font-weight: normal; font-size: 13px; }
+.zeitplan { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-left: 24px; }
+.zeitplan input[type="number"] { width: 90px; }
+
+.schritt-liste { display: flex; flex-direction: column; gap: 8px; }
+.neuer-schritt { align-self: flex-start; color: var(--akzent); border-style: dashed !important; }
+.schritt-karte { border: 1px solid var(--rand); border-left: 4px solid var(--text-leise); border-radius: var(--radius); background: var(--flaeche); }
+.schritt-karte.art-tool { border-left-color: var(--akzent); }
+.schritt-karte.art-ki { border-left-color: #7c3aed; }
+.schritt-karte.art-wenn, .schritt-karte.art-fuer_jedes { border-left-color: var(--warnung); }
+.schritt-karte.art-beenden { border-left-color: var(--ok); }
+.schritt-kopf { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--rand); background: var(--hintergrund); border-radius: 0 var(--radius) 0 0; }
+.schritt-art { font-size: 12px; font-weight: 600; color: var(--text-leise); text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+.formular input.schritt-titel { flex: 1; padding: 3px 8px; font-weight: 600; }
+.schritt-id { font-size: 11px; color: var(--text-leise); }
+.schritt-inhalt { padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.unterschritte { border-left: 2px dashed var(--rand); padding-left: 12px; display: flex; flex-direction: column; gap: 6px; }
+.unterschritte-titel { font-size: 12px; font-weight: 600; color: var(--text-leise); }
+
+.reiter { display: flex; gap: 4px; border-bottom: 1px solid var(--rand); }
+.reiter-knopf { background: none; border: none; padding: 8px 14px; border-bottom: 2px solid transparent; color: var(--text-leise); }
+.reiter-knopf.aktiv { border-bottom-color: var(--akzent); color: var(--text); font-weight: 600; }
+.tabelle tr.klickbar { cursor: pointer; }
+.tabelle tr.klickbar:hover td { background: var(--hintergrund); }
+.ordner-hinweis { margin-top: auto; padding: 8px 10px; word-break: break-all; }
+.start-formular { padding: 12px 14px; background: var(--akzent-hell); border-radius: var(--radius); }
+
+.lauf-status { font-size: 12px; padding: 1px 8px; border-radius: 4px; background: var(--hintergrund); color: var(--text-leise); white-space: nowrap; }
+.lauf-status.laeuft { background: var(--akzent-hell); color: var(--akzent); }
+.lauf-status.wartet, .lauf-status.unterbrochen { background: #fff7ed; color: var(--warnung); }
+.lauf-status.erfolgreich { background: #ecfdf5; color: var(--ok); }
+.lauf-status.fehlgeschlagen, .lauf-status.abgebrochen { background: var(--fehler-hell); color: var(--fehler); }
+.lauf-ansicht { max-width: 1100px; }
+.lauf-ansicht pre, .lauf-details pre { margin: 4px 0 0; padding: 8px; background: var(--hintergrund); border-radius: 6px; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto; font-size: 12px; }
+.lauf-kennzahlen { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 13px; color: var(--text-leise); }
+.lauf-ergebnis { background: var(--flaeche); border: 1px solid var(--rand); border-left: 4px solid var(--ok); border-radius: var(--radius); padding: 8px 12px; }
+.lauf-schritte { display: flex; flex-direction: column; gap: 6px; }
+.lauf-schritt { background: var(--flaeche); border: 1px solid var(--rand); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.lauf-schritt.wartet { border-left: 4px solid var(--warnung); }
+.lauf-schritt.fehler { border-left: 4px solid var(--fehler); }
+.lauf-schritt-kopf { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.schritt-punkt { width: 10px; height: 10px; border-radius: 50%; background: var(--rand); flex-shrink: 0; }
+.schritt-punkt.laeuft { background: var(--akzent); animation: pulsieren 1s infinite alternate; }
+.schritt-punkt.wartet { background: var(--warnung); }
+.schritt-punkt.fertig { background: var(--ok); }
+.schritt-punkt.fehler, .schritt-punkt.abgebrochen { background: var(--fehler); }
+.lauf-details summary { cursor: pointer; }
+.ki-verlauf { border: 1px solid var(--rand); border-radius: var(--radius); background: var(--hintergrund); max-height: 600px; overflow-y: auto; }
+.ki-verlauf .verlauf { padding: 12px; }
+
+/* Karte im Chat: Workflow, den der Agent gestartet hat */
+.workflow-lauf-karte {
+  align-self: flex-start;
+  max-width: 760px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--rand);
+  border-left: 4px solid var(--akzent);
+  border-radius: var(--radius);
+  background: var(--flaeche);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.workflow-lauf-karte.erfolgreich { border-left-color: var(--ok); }
+.workflow-lauf-karte.wartet, .workflow-lauf-karte.unterbrochen { border-left-color: var(--warnung); }
+.workflow-lauf-karte.fehlgeschlagen, .workflow-lauf-karte.abgebrochen { border-left-color: var(--fehler); }
+.workflow-lauf-kopf { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.zeile-klein input[type="checkbox"] { flex: 0 0 auto; min-width: 0; }
+.zeile-klein .haken { flex: 0 0 auto; }

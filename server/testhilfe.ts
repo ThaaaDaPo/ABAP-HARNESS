@@ -91,11 +91,11 @@ export function aufbauen(verhalten: Verhalten = () => {}, ordner = fs.mkdtempSyn
   const chat = new ChatDienst(db, laufzeit, einstellungen);
   const postfach = new PostfachDienst(db, chat, aufrufer);
   const status = (id: string) => holeAufgabe(db, id)?.status;
-  return { db, ordner, einstellungen, chat, postfach, gesendet, sitzungsStarts, geloescht, status, abbrueche: () => abbrueche };
+  return { db, ordner, einstellungen, chat, postfach, aufrufer, gesendet, sitzungsStarts, geloescht, status, abbrueche: () => abbrueche };
 }
 
-/** Wartet, bis die Bedingung erfüllt ist (die Läufe laufen im Hintergrund). */
-export async function warteBis(bedingung: () => boolean): Promise<void> {
-  for (let i = 0; i < 200 && !bedingung(); i++) await new Promise((r) => setTimeout(r, 10));
+/** Wartet, bis die Bedingung erfüllt ist (die Läufe laufen im Hintergrund). Standard: höchstens 2 s. */
+export async function warteBis(bedingung: () => boolean, hoechstensMs = 2000): Promise<void> {
+  for (let i = 0; i < hoechstensMs / 10 && !bedingung(); i++) await new Promise((r) => setTimeout(r, 10));
   assert.ok(bedingung(), "Bedingung nicht erreicht");
 }

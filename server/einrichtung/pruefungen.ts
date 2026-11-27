@@ -35,6 +35,7 @@ export async function pruefeEinrichtung(
     await pruefeModelle(laufzeit),
     pruefeOrdner("Workspace-Ordner", einstellungen.workspaceOrdner, "workspaceOrdner"),
     pruefeInstructions(einstellungen.instructionsOrdner),
+    pruefeOrdner("Workflow-Ordner", einstellungen.workflowOrdner, "workflowOrdner"),
     ...pruefeAdt(ladeKonfiguration(db), sso),
     ...(mcpStarten ? await starteMcpServer(db) : letzterMcpStand(db)),
   ];
@@ -46,6 +47,7 @@ export async function pruefeEinrichtung(
       { name: "Port", wert: String(einstellungen.port) },
       { name: "Workspace-Ordner", wert: einstellungen.workspaceOrdner },
       { name: "Instructions-Ordner", wert: einstellungen.instructionsOrdner },
+      { name: "Workflow-Ordner", wert: einstellungen.workflowOrdner },
       { name: "Daten-Ordner", wert: einstellungen.datenOrdner },
     ],
   };

@@ -1,5 +1,7 @@
 // Ein Eintrag im Postfach: was der Agent vorschlägt, fragt oder gemeldet hat, und die passenden Aktionen.
 // Unter den Knöpfen steht jeweils, was passiert – damit klar ist, wann die KI wieder ins Spiel kommt.
+// Einträge aus Workflows: Der Lauf wartet im Aufruf (wie im Chat). Feste Tool-Schritte haben keine KI
+// dahinter – dort gibt es nur Freigeben oder Verwerfen.
 import { useState } from "react";
 import type { PostfachEintrag, PostfachStatus } from "../../gemeinsam/typen.ts";
 
@@ -10,6 +12,8 @@ export interface PostfachAktionen {
   antworten: (text: string) => void;
   /** Nur auf der Postfach-Seite */
   zeigeChat?: () => void;
+  /** Eintrag aus einem Workflow-Lauf: zur Lauf-Ansicht */
+  zeigeLauf?: () => void;
 }
 
 interface Eigenschaften {
@@ -39,7 +43,26 @@ const statusTexte: Record<PostfachStatus, string> = {
 function artText(eintrag: PostfachEintrag): string {
   if (eintrag.art === "rueckfrage") return "Rückfrage";
   if (eintrag.art === "meldung") return "Meldung";
+  if (eintrag.ohneKi) return "Freigabe (fester Schritt)";
+  if (eintrag.workflowLauf !== null) return "Freigabe nötig";
   return eintrag.weiterNachFreigabe ? "Freigabe zum Weitermachen" : "Freigabe zum Abschluss";
+}
+
+/** Was Freigeben und Verwerfen bewirken – je nachdem, wer wartet */
+function freigabeHinweis(eintrag: PostfachEintrag, imChat: boolean): string {
+  if (eintrag.ohneKi) return "Fester Workflow-Schritt ohne KI: Freigeben führt den Aufruf aus und der Workflow läuft weiter. Verwerfen bricht den Lauf ab.";
+  if (eintrag.workflowLauf !== null) {
+    return "Der Workflow wartet: Freigeben führt den Aufruf aus, der Agent macht mit dem Ergebnis weiter. Verwerfen bricht den Lauf ab. Einen Änderungswunsch schreibst du darunter – der Agent legt dann neu vor.";
+  }
+  if (imChat) {
+    return "Freigeben führt den Aufruf aus, der Agent macht mit dem Ergebnis weiter. Verwerfen bricht ab. Einen Änderungswunsch schreibst du hier darunter oder ins Eingabefeld – der Agent legt dann neu vor.";
+  }
+  return (
+    (eintrag.weiterNachFreigabe
+      ? "Freigeben führt den Aufruf aus; danach macht der Agent mit dem Ergebnis weiter, sobald er frei ist."
+      : "Freigeben führt den Aufruf aus, ohne KI – danach ist die Aufgabe erledigt.") +
+    " Verwerfen bricht die Aufgabe ab. Bei Änderungswünschen überarbeitet der Agent den Vorschlag."
+  );
 }
 
 export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false, ausfuehrung }: Eigenschaften) {
@@ -55,12 +78,15 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false,
   }
 
   function verwirf() {
-    if (confirm(`Eintrag #${eintrag.nr} verwerfen? Die Aufgabe „${eintrag.aufgabeTitel}“ wird damit abgebrochen.`)) aktionen.verwerfen();
+    const was = eintrag.workflowLauf !== null ? `Der Workflow-Lauf #${eintrag.workflowLauf}` : `Die Aufgabe „${eintrag.aufgabeTitel}“`;
+    if (confirm(`Eintrag #${eintrag.nr} verwerfen? ${was} wird damit abgebrochen.`)) aktionen.verwerfen();
   }
 
   // Bei offenen Freigaben und Rückfragen ist das Antwortfeld immer da, sonst auf Knopfdruck.
   // Im Chat nur beim Vorschlag (E-55); eine Rückfrage beantwortet David im normalen Eingabefeld.
-  const antwortImmerDa = offen && (imChat ? eintrag.art === "freigabe" : eintrag.art !== "meldung");
+  // Feste Workflow-Schritte (ohne KI) und abgeschlossene Workflow-Einträge haben kein Antwortfeld.
+  const antwortImmerDa = offen && !eintrag.ohneKi && (imChat ? eintrag.art === "freigabe" : eintrag.art !== "meldung");
+  const antwortMoeglich = !eintrag.ohneKi && eintrag.workflowLauf === null;
 
   // Im Chat zählt, was beim wirklichen Aufruf herauskam; im Postfach das gespeicherte Ergebnis.
   const ergebnis = eintrag.ergebnis ?? (ausfuehrung && eintrag.status === "freigegeben" ? ausfuehrung.ergebnis : null);
@@ -72,7 +98,7 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false,
     <article className={`postfach-karte${offen ? " offen" : ""}${imChat ? " im-chat" : ""}`}>
       <header className="karten-kopf">
         <span className="karten-nr">{eintrag.art === "freigabe" ? "Vorschlag " : ""}#{eintrag.nr}</span>
-        {(!imChat || offen) && <span className={`karten-art ${eintrag.art}`}>{imChat ? "Freigabe nötig" : artText(eintrag)}</span>}
+        {(!imChat || offen) && <span className={`karten-art ${eintrag.art}`}>{imChat && !eintrag.ohneKi ? "Freigabe nötig" : artText(eintrag)}</span>}
         <span className={`karten-status ${fehlgeschlagen ? "fehlgeschlagen" : eintrag.status}`}>{statusText}</span>
         {!imChat && <span className="karten-zeit">{new Date(eintrag.erstelltAm).toLocaleString("de-DE")}</span>}
       </header>
@@ -80,6 +106,11 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false,
       {aktionen.zeigeChat && (
         <button className="karten-chat" onClick={aktionen.zeigeChat} title="Zum Chat">
           Chat: {eintrag.aufgabeTitel}
+        </button>
+      )}
+      {aktionen.zeigeLauf && (
+        <button className="karten-chat" onClick={aktionen.zeigeLauf} title="Zur Lauf-Ansicht">
+          {eintrag.aufgabeTitel.includes("Lauf #") ? eintrag.aufgabeTitel : `${eintrag.aufgabeTitel} · Lauf #${eintrag.workflowLauf}`}
         </button>
       )}
 
@@ -119,14 +150,7 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false,
               Verwerfen
             </button>
           </div>
-          <p className="hinweis">
-            {imChat
-              ? "Freigeben führt den Aufruf aus, der Agent macht mit dem Ergebnis weiter. Verwerfen bricht ab. Einen Änderungswunsch schreibst du hier darunter oder ins Eingabefeld – der Agent legt dann neu vor."
-              : (eintrag.weiterNachFreigabe
-                  ? "Freigeben führt den Aufruf aus; danach macht der Agent mit dem Ergebnis weiter, sobald er frei ist."
-                  : "Freigeben führt den Aufruf aus, ohne KI – danach ist die Aufgabe erledigt.") +
-                " Verwerfen bricht die Aufgabe ab. Bei Änderungswünschen überarbeitet der Agent den Vorschlag."}
-          </p>
+          <p className="hinweis">{freigabeHinweis(eintrag, imChat)}</p>
         </>
       )}
       {offen && eintrag.art === "rueckfrage" && (
@@ -141,12 +165,14 @@ export function PostfachKarte({ eintrag, aktionen, beschaeftigt, imChat = false,
           <button className="knopf" onClick={aktionen.zurKenntnis} disabled={beschaeftigt}>
             Zur Kenntnis genommen
           </button>
-          <button className="knopf" onClick={() => setAntwortOffen(true)} disabled={beschaeftigt}>
-            Antworten
-          </button>
+          {antwortMoeglich && (
+            <button className="knopf" onClick={() => setAntwortOffen(true)} disabled={beschaeftigt}>
+              Antworten
+            </button>
+          )}
         </div>
       )}
-      {!offen && !antwortOffen && !imChat && (
+      {!offen && !antwortOffen && !imChat && antwortMoeglich && (
         <div className="knopfreihe">
           <button className="knopf" onClick={() => setAntwortOffen(true)}>
             Antworten

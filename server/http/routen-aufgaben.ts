@@ -12,9 +12,9 @@ import { summeDerAufgabe } from "../datenbank/verbrauch.ts";
 export function routenAufgaben(db: Datenbank, chat: ChatDienst, postfach: PostfachDienst): Router {
   const router = Router();
 
-  // Alle Aufgaben, neueste zuerst
+  // Alle Chats, neueste zuerst. Aufgaben von Workflows zeigt die Lauf-Ansicht.
   router.get("/", (_anfrage, antwort) => {
-    antwort.json(aufgaben.holeAlleAufgaben(db).map(aufgaben.oeffentlich));
+    antwort.json(aufgaben.holeChats(db).map(aufgaben.oeffentlich));
   });
 
   // Neue Aufgabe anlegen (leere Chats werden dabei weggeräumt). Ohne Angabe: Standard-Agent.

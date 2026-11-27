@@ -10,6 +10,7 @@ import { AenderungsKarte } from "./AenderungsKarte.tsx";
 import { Markdown } from "./Markdown.tsx";
 import { PostfachKarte, type PostfachAktionen } from "./PostfachKarte.tsx";
 import { ToolAufruf, type ToolAufrufDaten } from "./ToolAufruf.tsx";
+import { WorkflowLaufKarte } from "./WorkflowLaufKarte.tsx";
 
 /** Was im Verlauf als eigener Block erscheint */
 type Block =
@@ -20,6 +21,7 @@ type Block =
   | { art: "postfach"; nr: number; eintragsArt: PostfachArt; ausfuehrung?: ToolAufrufDaten }
   | { art: "postfach_aktion"; text: string; details?: string }
   | { art: "zurueckgenommen"; text: string }
+  | { art: "workflow"; laufNr: number; workflowName: string }
   /** Kleine graue Zeile: welches Modell bzw. welcher Agent */
   | { art: "modell"; text: string }
   | { art: "verbrauch"; summe: VerbrauchSumme }
@@ -77,6 +79,9 @@ function bildeBloecke(ereignisse: Ereignis[]): Block[] {
       case "adt_zurueckgenommen":
         bloecke.push({ art: "zurueckgenommen", text: ereignis.text });
         break;
+      case "workflow_lauf":
+        bloecke.push({ art: "workflow", laufNr: ereignis.laufNr, workflowName: ereignis.workflowName });
+        break;
       case "modell":
         // Nur anzeigen, wenn sich das Modell ändert – sonst stünde es nach jedem Aufruf da.
         if (ereignis.modell !== letztesModell) bloecke.push({ art: "modell", text: `Modell: ${ereignis.modell}` });
@@ -121,9 +126,11 @@ interface Eigenschaften {
   aktionen: (eintrag: PostfachEintrag) => PostfachAktionen;
   /** Nummer des Eintrags, für den gerade eine Aktion läuft */
   beschaeftigt: number | null;
+  /** Zur Lauf-Ansicht eines Workflows, den der Agent gestartet hat */
+  zeigeLauf?: (nr: number) => void;
 }
 
-export function Verlauf({ aufgabeId, ereignisse, laufenderText, status, eintraege, aktionen, beschaeftigt }: Eigenschaften) {
+export function Verlauf({ aufgabeId, ereignisse, laufenderText, status, eintraege, aktionen, beschaeftigt, zeigeLauf }: Eigenschaften) {
   const ende = useRef<HTMLDivElement>(null);
 
   // Bei neuen Inhalten nach unten scrollen
@@ -190,6 +197,8 @@ export function Verlauf({ aufgabeId, ereignisse, laufenderText, status, eintraeg
             );
           case "zurueckgenommen":
             return <div key={index} className="postfach-aktion">{block.text}</div>;
+          case "workflow":
+            return <WorkflowLaufKarte key={index} laufNr={block.laufNr} workflowName={block.workflowName} zeigeLauf={zeigeLauf} />;
           case "fehler":
             return <div key={index} className="nachricht fehler">{block.text}</div>;
           case "modell":

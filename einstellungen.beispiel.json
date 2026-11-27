@@ -4,6 +4,7 @@
   "workspaceOrdner": "./daten/workspace",
   "datenOrdner": "./daten",
   "instructionsOrdner": "./daten/instructions",
+  "workflowOrdner": "./daten/workflows",
   "modell": "",
   "agent": {
     "name": "Assistent",

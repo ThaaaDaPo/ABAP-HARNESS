@@ -82,10 +82,11 @@ Antwort, je Chat, Seite „Verbrauch“). Ein Limit je Lauf und ein Monatsbudget
 |---|---|
 | Chat | David schreibt direkt mit einem Agenten, Antwort live |
 | Zeitgesteuert | gespeicherter Auftrag mit Zeitplan |
-| Workflow | gespeicherter Ablauf mit präziser Anweisung und Parametern, manuell oder zeitgesteuert gestartet |
+| Workflow | fester Ablauf aus Tool-, KI- und Steuerschritten, manuell, durch einen Agenten oder zeitgesteuert gestartet (E-66, [10-phase-4](10-phase-4.md)) |
 
-Alle drei erzeugen intern dasselbe: eine Aufgabe mit einem Lauf. Chat ist nur eine Aufgabe, bei
-der David live mitliest und antwortet.
+Chat und KI-Schritte eines Workflows sind intern dasselbe: eine Aufgabe mit einer Sitzung des
+Agenten. Ein Workflow-Lauf führt seine Schritte selbst aus; für jeden KI-Schritt entsteht eine
+eigene Aufgabe mit frischer Sitzung.
 
 ### Instructions und Skills (E-18)
 Die bestehenden Dateien werden nicht in die Datenbank kopiert, sondern bleiben Dateien in einem

@@ -21,7 +21,7 @@ function aufbauen() {
     { name: "ticket_loeschen", beschreibung: "", nurLesend: false },
   ]);
   // Der Agent darf den Server benutzen (Agenten-Seite)
-  const agent = { auftrag: "", modellWahl: { modell: "", denkaufwand: "", kontext: "standard" as const }, instructions: [], skills: [] };
+  const agent = { auftrag: "", modellWahl: { modell: "", denkaufwand: "", kontext: "standard" as const }, instructions: [], skills: [], workflows: [] };
   legeAgentAn(db, { ...agent, name: "Standard", mcpServer: ["jira"] }, "standard");
   legeAgentAn(db, { ...agent, name: "Ohne Server", mcpServer: [] }, "ohne");
   const gemeldet: Ereignis[] = [];

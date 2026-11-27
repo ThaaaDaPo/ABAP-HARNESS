@@ -72,10 +72,10 @@ speichern/aktivieren, Unit-Tests, ATC, Paket-Sperre, Vergleich vorher/nachher ne
 
 ## Phase 4 – Zeitsteuerung und Workflows
 
-Gespeicherte Abläufe mit Zeitplan. Läuft nur, wenn der Rechner an und die SAP-Anmeldung gültig ist.
-Dazu das **Postfach** (E-52): Freigaben, Rückfragen und Meldungen aus Workflows, die ohne David
-laufen. Gebaut und getestet ist es seit Phase 1, Schritt 3; es zeigt nur Aufgaben mit Herkunft
-`workflow` und ist bis dahin in der Navigation ausgegraut.
+**Gebaut 2026-11-27**, Stand und Abnahme-Checkliste in [10-phase-4](10-phase-4.md). Feste Abläufe
+aus Tool-, KI- und Steuerschritten (E-66 bis E-72), Start manuell, durch einen Agenten oder nach
+Zeitplan. Läuft nur, wenn der Rechner an und die SAP-Anmeldung gültig ist. Freigaben im
+**Postfach** (E-52), bei Läufen aus einem Chat im Chat (E-68).
 
 ## Phase 5 – Orchestrator und parallele Läufe
 

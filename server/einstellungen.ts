@@ -13,6 +13,8 @@ export interface Einstellungen {
   datenOrdner: string;
   /** Ordner mit *.instructions.md und Skill-Ordnern (je mit SKILL.md), E-30/E-58. */
   instructionsOrdner: string;
+  /** Ordner mit den Workflows, je Workflow eine Datei <kennung>.workflow.json (E-66). */
+  workflowOrdner: string;
   /**
    * Nur beim allerersten Start: Daraus entsteht der Agent "standard" (Modell leer = automatisch).
    * Danach stellt David Agenten in der App ein; diese Werte liest die App dann nicht mehr.
@@ -32,6 +34,7 @@ const standard: Einstellungen = {
   workspaceOrdner: "./daten/workspace",
   datenOrdner: "./daten",
   instructionsOrdner: "./daten/instructions",
+  workflowOrdner: "./daten/workflows",
   modell: "",
   agent: {
     name: "Assistent",
@@ -57,6 +60,7 @@ export function ladeEinstellungen(): Einstellungen {
   einstellungen.workspaceOrdner = path.resolve(projektOrdner, einstellungen.workspaceOrdner);
   einstellungen.datenOrdner = path.resolve(projektOrdner, einstellungen.datenOrdner);
   einstellungen.instructionsOrdner = path.resolve(projektOrdner, einstellungen.instructionsOrdner);
+  einstellungen.workflowOrdner = path.resolve(projektOrdner, einstellungen.workflowOrdner);
   fs.mkdirSync(einstellungen.workspaceOrdner, { recursive: true });
   fs.mkdirSync(einstellungen.datenOrdner, { recursive: true });
   // Einen eingetragenen Instructions-Ordner nicht anlegen: Fehlt er, ist meist der Pfad falsch, und

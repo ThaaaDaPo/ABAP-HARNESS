@@ -65,15 +65,17 @@ export class PostfachDienst {
     const server = holeServer(this.db, eintrag.server);
     if (!server) throw new Fehler(409, `Der Server ${eintrag.server} ist nicht mehr eingetragen.`);
     // Hat David das Tool inzwischen verboten, gilt das auch für alte Vorschläge – nach den Regeln
-    // des Agenten, der den Chat gerade bearbeitet.
+    // des Agenten, der den Chat gerade bearbeitet. Feste Workflow-Schritte haben ihre eigene Regel (E-67).
     const agentId = holeAufgabe(this.db, eintrag.aufgabeId)?.agentId ?? standardAgentId;
     const gateway = new ToolGateway({ db: this.db, agentId, aufgabeId: eintrag.aufgabeId, melde: () => {} });
-    if (gateway.regel(eintrag) === "verbieten") {
+    if (!eintrag.ohneKi && gateway.regel(eintrag) === "verbieten") {
       throw new Fehler(409, `Das Tool ${laufzeitName(eintrag)} ist inzwischen verboten. Bitte verwerfen oder die Regel ändern.`);
     }
 
-    // Der Agent wartet im Chat: Das Tool läuft dort ganz normal weiter.
+    // Der Agent bzw. Workflow wartet: Das Tool läuft dort ganz normal weiter.
     if (this.chat.entscheide(nr, { art: "freigegeben" })) return;
+    // Ein Workflow, der nicht mehr wartet (z. B. abgebrochen), führt nichts mehr aus.
+    if (eintrag.workflowLauf !== null) throw new Fehler(409, `Der Workflow-Lauf #${eintrag.workflowLauf} wartet nicht mehr auf Vorschlag #${nr}.`);
 
     this.inAusfuehrung.add(nr);
     let text: string;
@@ -137,12 +139,17 @@ export class PostfachDienst {
     const eintrag = postfach.holeEintrag(this.db, nr);
     if (!eintrag) throw new Fehler(404, `Eintrag #${nr} nicht gefunden.`);
     if (this.inAusfuehrung.has(nr)) throw new Fehler(409, `Vorschlag #${nr} wird gerade ausgeführt.`);
+    if (eintrag.ohneKi) throw new Fehler(400, "Fester Workflow-Schritt ohne KI: nur freigeben oder verwerfen.");
     const offen = postfach.offeneStatus.includes(eintrag.status);
     // Im Chat (Änderungswunsch in der Vorschlagskarte, E-55) steht die Antwort wie eine normale
-    // Nachricht im Verlauf – genauso, als hätte David sie ins Eingabefeld geschrieben.
-    const imChat = holeAufgabe(this.db, eintrag.aufgabeId)?.herkunft === "chat";
-    if (imChat) this.chat.melde(eintrag.aufgabeId, { art: "nutzer_nachricht", text });
+    // Nachricht im Verlauf – genauso, als hätte David sie ins Eingabefeld geschrieben. Das gilt auch
+    // für Workflows, die ein Agent im Chat gestartet hat (E-68).
+    const ort = this.chat.entscheidungsOrt(eintrag.aufgabeId);
+    const imChat = holeAufgabe(this.db, ort)?.herkunft === "chat";
+    if (imChat) this.chat.melde(ort, { art: "nutzer_nachricht", text });
     if (offen && this.chat.entscheide(nr, { art: "antwort", text })) return;
+    // Workflow-Schritte sind abgeschlossen, sobald niemand mehr wartet – eine neue Runde gäbe es nur außerhalb des Laufs.
+    if (eintrag.workflowLauf !== null) throw new Fehler(409, `Der Workflow-Lauf #${eintrag.workflowLauf} wartet hier nicht mehr auf eine Antwort.`);
     const name = eintrag.art === "rueckfrage" ? "" : ` (${laufzeitName(eintrag)})`;
 
     let anAgent: string;

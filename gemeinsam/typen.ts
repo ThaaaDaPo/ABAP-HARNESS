@@ -13,7 +13,7 @@
  */
 export type AufgabenStatus = "bereit" | "eingereiht" | "arbeitet" | "wartet" | "erledigt" | "abgebrochen";
 
-/** Eine Aufgabe ist ein Gespräch mit einem Agenten (später auch zeitgesteuert oder aus einem Workflow). */
+/** Eine Aufgabe ist ein Gespräch mit einem Agenten: ein Chat oder ein KI-Schritt eines Workflows. */
 export interface Aufgabe {
   id: string;
   titel: string;
@@ -86,6 +86,8 @@ export type Ereignis =
   | { art: "abbruch"; text: string }
   /** Statuswechsel der Aufgabe. Wird nur live gezeigt, nicht gespeichert. */
   | { art: "status"; status: AufgabenStatus }
+  /** Der Agent hat aus dem Chat einen Workflow gestartet – im Chat steht dann eine Karte mit dem Stand. */
+  | { art: "workflow_lauf"; laufNr: number; workflowName: string }
   /** David hat eine Änderung des ADT-MCP im Chat rückgängig gemacht bzw. das neue Objekt gelöscht. */
   | { art: "adt_zurueckgenommen"; aenderungId: string; text: string }
   | { art: "fehler"; meldung: string };
@@ -159,10 +161,14 @@ export interface PostfachEintrag {
   weiterNachFreigabe: boolean;
   erstelltAm: string;
   erledigtAm: string | null;
+  /** Gehört zu diesem Workflow-Lauf (fester Schritt oder KI-Schritt). Null bei Chats. */
+  workflowLauf: number | null;
+  /** Fester Tool-Schritt eines Workflows: keine KI dahinter, also nur freigeben oder verwerfen. */
+  ohneKi: boolean;
 }
 
 /** Live-Hinweis an alle Fenster: Aufgaben oder Postfach haben sich geändert, bitte neu laden. */
-export type UebersichtsEreignis = { bereich: "aufgaben" } | { bereich: "postfach" } | { bereich: "adt" };
+export type UebersichtsEreignis = { bereich: "aufgaben" } | { bereich: "postfach" } | { bereich: "adt" } | { bereich: "workflows" };
 
 /** Ein Tool, wie der MCP-Server es beim Auslesen beschreibt. */
 export interface McpTool {
@@ -170,6 +176,16 @@ export interface McpTool {
   beschreibung: string;
   /** Der Server sagt, das Tool ändert nichts (MCP-Angabe readOnlyHint). Nur ein Hinweis. */
   nurLesend: boolean;
+  /** Parameter laut inputSchema, falls der Server sie beim Auslesen genannt hat (für den Workflow-Editor). */
+  parameter?: ToolParameter[];
+}
+
+export interface ToolParameter {
+  name: string;
+  /** JSON-Schema-Typ, z. B. "string", "number", "array". Leer, wenn unbekannt */
+  typ: string;
+  beschreibung: string;
+  pflicht: boolean;
 }
 
 /** Ein eingetragener MCP-Server (Start als Unterprozess über stdio). */
@@ -226,6 +242,8 @@ export interface AgentDaten {
   instructions: string[];
   /** Zugeordnete Skills (Ordner relativ zum Instructions-Ordner) */
   skills: string[];
+  /** Workflows, die der Agent starten darf (Kennung = Dateiname ohne .workflow.json). Nur mit „Start durch Agent“. */
+  workflows: string[];
 }
 
 export interface Agent extends AgentDaten {
@@ -393,4 +411,187 @@ export interface AdtAenderung {
   teile: { teil: string; beschreibung: string; datei: string; vorher: string; nachher: string }[];
   /** Gesetzt, sobald die Änderung zurückgenommen ist */
   zurueckgenommen?: { zeit: string; text: string };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Workflows (Phase 4): fester Ablauf mit Tool-Schritten, KI-Schritten, Bedingungen und Schleifen.
+// Gespeichert als JSON-Datei im Workflow-Ordner – die Datei ist die Wahrheit, wie bei den Instructions.
+// ---------------------------------------------------------------------------------------------
+
+/** Typ einer Eingabe des Workflows oder eines Ergebnisfelds eines KI-Schritts. */
+export type WertTyp = "text" | "zahl" | "ja_nein" | "liste";
+
+/** Was beim Start mitgegeben wird. In Schritten erreichbar als {{eingaben.<name>}}. */
+export interface WorkflowEingabe {
+  name: string;
+  beschreibung: string;
+  typ: WertTyp;
+  pflicht: boolean;
+  /** Als Text, wie im Formular. Gilt, wenn nichts mitgegeben wird – bei zeitgesteuerten Läufen immer. */
+  standard: string;
+}
+
+/**
+ * uhrzeit: an den angehakten Wochentagen (0 = Sonntag … 6 = Samstag, wie in JavaScript) zur Uhrzeit.
+ * intervall: alle N Minuten, gezählt ab dem Start der App.
+ * Verpasste Zeitpunkte (Rechner aus, App beendet) werden verworfen, nicht nachgeholt (E-70).
+ */
+export type Zeitplan = { art: "uhrzeit"; uhrzeit: string; wochentage: number[] } | { art: "intervall"; minuten: number };
+
+/** Wie ein Workflow gestartet werden darf – mehrere Wege gleichzeitig möglich (E-66). */
+export interface WorkflowStart {
+  manuell: boolean;
+  /** Ein Agent darf ihn als Tool starten, wenn er ihm zugeordnet ist (Agenten-Seite). */
+  durchAgent: boolean;
+  zeitplan: Zeitplan | null;
+}
+
+/** Ein Feld im Ergebnis eines KI-Schritts. Der Agent meldet es über das Tool ergebnis_melden. */
+export interface ErgebnisFeld {
+  name: string;
+  typ: WertTyp;
+  beschreibung: string;
+}
+
+export type Vergleich = "gleich" | "ungleich" | "enthaelt" | "groesser" | "kleiner" | "leer" | "nicht_leer" | "wahr" | "falsch";
+
+export interface Bedingung {
+  /** Text mit Platzhaltern, z. B. {{einschaetzung.umsetzbar}} */
+  links: string;
+  vergleich: Vergleich;
+  /** Bei leer, nicht_leer, wahr und falsch ohne Bedeutung */
+  rechts: string;
+}
+
+/** Wie ein fester Tool-Schritt ausgeführt wird. David legt das je Schritt fest (E-67). */
+export type SchrittRegel = "erlauben" | "melden" | "freigabe";
+
+interface SchrittBasis {
+  /** Eindeutig im Workflow; daran hängt das Protokoll eines Laufs */
+  id: string;
+  /** Kurzer Name für die Anzeige. Leer = Art des Schritts */
+  titel: string;
+}
+
+export type ToolSchrittDaten = SchrittBasis & {
+  art: "tool";
+  server: string;
+  tool: string;
+  /** Je Parameter ein Text mit Platzhaltern. Steht dort nur ein Platzhalter, bleibt der Typ erhalten (Liste, Zahl …). */
+  argumente: Record<string, string>;
+  regel: SchrittRegel;
+  /** Name der Variablen für das Ergebnis. Leer = nicht speichern */
+  ergebnis: string;
+  /** weiter: Das Ergebnis ist dann { fehler: "…" } und der Lauf geht weiter */
+  beiFehler: "abbrechen" | "weiter";
+};
+
+export type KiSchrittDaten = SchrittBasis & {
+  art: "ki";
+  agentId: string;
+  auftrag: string;
+  /** Leer: Ergebnis ist die Antwort als Text. Sonst ein Objekt mit genau diesen Feldern. */
+  felder: ErgebnisFeld[];
+  ergebnis: string;
+};
+
+export type WorkflowSchritt =
+  | ToolSchrittDaten
+  | KiSchrittDaten
+  | (SchrittBasis & { art: "wenn"; bedingung: Bedingung; dann: WorkflowSchritt[]; sonst: WorkflowSchritt[] })
+  | (SchrittBasis & { art: "fuer_jedes"; liste: string; als: string; hoechstens: number; schritte: WorkflowSchritt[] })
+  | (SchrittBasis & { art: "setzen"; name: string; wert: string })
+  | (SchrittBasis & { art: "workflow"; workflowId: string; eingaben: Record<string, string>; ergebnis: string })
+  | (SchrittBasis & { art: "beenden"; ergebnis: string });
+
+export type SchrittArt = WorkflowSchritt["art"];
+
+/** Inhalt einer Workflow-Datei */
+export interface WorkflowDefinition {
+  name: string;
+  /** Wofür der Workflow da ist. Bekommt der Agent zu lesen, wenn er ihn starten darf. */
+  beschreibung: string;
+  start: WorkflowStart;
+  eingaben: WorkflowEingabe[];
+  schritte: WorkflowSchritt[];
+  /** Was der Aufrufer am Ende bekommt (Text mit Platzhaltern). Leer = nichts Besonderes. */
+  ergebnis: string;
+  /** Höchstverbrauch eines Laufs in AI-Credits (E-69, Startwert 500). Wird er überschritten, bricht der Lauf ab. */
+  creditLimit: number;
+}
+
+/** Ein Workflow in der Liste */
+export interface WorkflowInfo {
+  /** Dateiname ohne .workflow.json */
+  id: string;
+  /** Null, wenn die Datei nicht lesbar ist – dann steht der Grund in fehler */
+  definition: WorkflowDefinition | null;
+  fehler: string | null;
+  /** Hinweise, z. B. ein Agent oder Tool, das es nicht mehr gibt */
+  warnungen: string[];
+  /** Agenten, die ihn starten dürfen */
+  agenten: string[];
+  letzterLauf: { nr: number; status: LaufStatus; gestartetAm: string } | null;
+}
+
+/**
+ * laeuft:        arbeitet gerade
+ * wartet:        wartet auf eine Freigabe oder Antwort (im Postfach oder im Chat)
+ * erfolgreich, fehlgeschlagen, abgebrochen: fertig
+ * unterbrochen:  die App wurde beendet; lässt sich fortsetzen (fertige Schritte werden nicht wiederholt)
+ */
+export type LaufStatus = "laeuft" | "wartet" | "erfolgreich" | "fehlgeschlagen" | "abgebrochen" | "unterbrochen";
+
+export type LaufAusloeser = "manuell" | "agent" | "zeitplan" | "workflow";
+
+export interface WorkflowLauf {
+  nr: number;
+  workflowId: string;
+  workflowName: string;
+  ausloeser: LaufAusloeser;
+  status: LaufStatus;
+  eingaben: Record<string, unknown>;
+  /** Woran der Lauf gerade ist (Titel des Schritts) */
+  aktuellerSchritt: string;
+  ergebnis: unknown;
+  fehler: string | null;
+  gestartetAm: string;
+  beendetAm: string | null;
+  /** Aus diesem Chat gestartet: Freigaben erscheinen dort (E-68) */
+  chatAufgabeId: string | null;
+  elternLauf: number | null;
+  creditLimit: number;
+  verbrauch: VerbrauchSumme;
+}
+
+export type SchrittStatus = "laeuft" | "wartet" | "fertig" | "fehler" | "abgebrochen";
+
+/** Eine Ausführung eines Schritts – in Schleifen gibt es je Durchlauf eine. */
+export interface LaufSchritt {
+  nr: number;
+  schrittId: string;
+  art: SchrittArt;
+  titel: string;
+  /** Wo in Schleifen, z. B. "ticket 2/5". Leer außerhalb von Schleifen */
+  durchlauf: string;
+  /** Verschachtelungstiefe (für die Einrückung in der Anzeige) */
+  tiefe: number;
+  status: SchrittStatus;
+  eingabe: unknown;
+  ergebnis: unknown;
+  /** Fehler oder Hinweis */
+  meldung: string | null;
+  /** KI-Schritt: die Aufgabe mit dem Verlauf des Agenten */
+  aufgabeId: string | null;
+  postfachNr: number | null;
+  gestartetAm: string;
+  beendetAm: string | null;
+}
+
+/** Antwort von GET /api/workflow-laeufe/:nr */
+export interface LaufMitSchritten {
+  lauf: WorkflowLauf;
+  schritte: LaufSchritt[];
+  /** Freigaben, Rückfragen und Meldungen des Laufs */
+  postfach: PostfachEintrag[];
 }

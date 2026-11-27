@@ -7,12 +7,17 @@
 //
 // Freigaben und Rückfragen im Chat (E-54): Der Agent wartet mitten im Tool-Aufruf auf David. Hat
 // David entschieden, geht der Aufruf an genau der Stelle weiter.
+//
+// Workflows (Phase 4): KI-Schritte sind ebenfalls Aufgaben und laufen hier (arbeiteAn). Ihre Freigaben
+// warten genauso im Aufruf – entschieden wird im Postfach oder, wenn ein Agent den Workflow im Chat
+// gestartet hat, in diesem Chat (E-68).
 import { randomUUID } from "node:crypto";
 import type { AufgabenStatus, Ereignis, ModellInfo, ModellWahl } from "../../gemeinsam/typen.ts";
 import { holeAgent, standardAgentId } from "../datenbank/agenten.ts";
+import { chatDesLaufs } from "../datenbank/workflow-laeufe.ts";
 import * as aufgaben from "../datenbank/aufgaben.ts";
 import type { Datenbank } from "../datenbank/datenbank.ts";
-import { sollGespeichertWerden, speichereEreignis } from "../datenbank/ereignisse.ts";
+import { holeEreignisse, sollGespeichertWerden, speichereEreignis } from "../datenbank/ereignisse.ts";
 import { holeAlleServer } from "../datenbank/mcp-server.ts";
 import { hatOffeneFreigabeOderRueckfrage, holeEintrag, offeneRueckfragen, schliesseAb } from "../datenbank/postfach.ts";
 import { speichereVerbrauch, summeDesLaufs } from "../datenbank/verbrauch.ts";
@@ -22,11 +27,29 @@ import type { Einstellungen } from "../einstellungen.ts";
 import { instructionsText, skillsFuerSitzung } from "../instructions/instructions-ordner.ts";
 import type { AgentenLaufzeit, AgentenSitzung, SitzungsEinstellungen } from "../laufzeit/laufzeit.ts";
 import { WartendeEntscheidungen, type NutzerEntscheidung } from "../postfach/entscheidungen.ts";
-import { erstellePlattformTools } from "../postfach/plattform-tools.ts";
+import { erstellePlattformTools, type PlattformTool } from "../postfach/plattform-tools.ts";
 import { Fehler } from "../fehler.ts";
 import { meldeUebersicht, verteile } from "./live-verteiler.ts";
 
 const neuerTitel = "Neuer Chat";
+
+/** Was die Workflows dem Chat-Dienst hinzufügen. Steht als Schnittstelle hier, damit es keinen Kreis gibt. */
+export interface ChatErgaenzung {
+  /** Zusätzliche Tools der Sitzung (workflow_starten, ergebnis_melden …) */
+  zusatzWerkzeuge(aufgabe: aufgaben.AufgabeIntern): PlattformTool[];
+  /** Nach jedem gemeldeten Modellaufruf, z. B. für das Credit-Limit eines Laufs */
+  verbrauchGemeldet(aufgabeId: string): void;
+}
+
+/** Ergebnis eines Laufs für einen KI-Schritt */
+export interface SchrittAntwort {
+  /** Letzte Antwort des Agenten */
+  text: string;
+  /** Gesetzt, wenn der Lauf mit einem Fehler endete */
+  fehler: string | null;
+  /** Abgebrochen oder verworfen */
+  abgebrochen: boolean;
+}
 
 export class ChatDienst {
   private db: Datenbank;
@@ -44,11 +67,16 @@ export class ChatDienst {
   private abgebrochenNachLauf = new Set<string>();
   /** Je laufendem Chat: Kennung des Laufs und Agent – damit der Verbrauch einer Nachricht zusammenbleibt */
   private laeufe = new Map<string, { lauf: string; agentId: string }>();
+  private ergaenzung: ChatErgaenzung | null = null;
 
   constructor(db: Datenbank, laufzeit: AgentenLaufzeit, einstellungen: Einstellungen) {
     this.db = db;
     this.laufzeit = laufzeit;
     this.einstellungen = einstellungen;
+  }
+
+  setzeErgaenzung(ergaenzung: ChatErgaenzung): void {
+    this.ergaenzung = ergaenzung;
   }
 
   /** Nach dem Start: Was beim Beenden lief, bekommt einen Hinweis und seinen Status neu; was eingereiht war, kommt dran. */
@@ -77,7 +105,7 @@ export class ChatDienst {
     // Wartet der Agent hier auf David, gilt der Vorschlag als verworfen und der Lauf endet.
     const wartetHier = this.wartetAufDavid(aufgabeId);
     if (this.laufend.has(aufgabeId) && !wartetHier) throw new Fehler(409, "Der Agent arbeitet gerade an diesem Chat. Bitte erst abbrechen.");
-    for (const nr of this.entscheidungen.vonAufgabe(aufgabeId)) this.entscheidungen.nimm(nr)?.loese({ art: "verworfen" });
+    for (const nr of this.entscheidungen.vonAufgabe(aufgabeId)) this.entscheide(nr, { art: "verworfen" });
 
     const sitzung = this.sitzungen.get(aufgabeId);
     this.sitzungen.delete(aufgabeId);
@@ -151,7 +179,12 @@ export class ChatDienst {
   nimmNachrichtAn(aufgabeId: string, text: string): void {
     const aufgabe = aufgaben.holeAufgabe(this.db, aufgabeId);
     if (!aufgabe) throw new Fehler(404, "Aufgabe nicht gefunden");
-    const wartend = this.entscheidungen.vonAufgabe(aufgabeId);
+    // Feste Schritte eines Workflows haben keine KI dahinter – dazu gibt es keinen Änderungswunsch.
+    const alleWartenden = this.entscheidungen.vonAufgabe(aufgabeId);
+    const wartend = alleWartenden.filter((nr) => !holeEintrag(this.db, nr)?.ohneKi);
+    if (alleWartenden.length > 0 && wartend.length === 0) {
+      throw new Fehler(409, "Ein fester Workflow-Schritt wartet auf dich: bitte oben freigeben oder verwerfen. Eine Nachricht ändert daran nichts.");
+    }
     if ((this.laufend.has(aufgabeId) && wartend.length === 0) || aufgabe.status === "eingereiht") {
       throw new Fehler(409, "Der Agent ist mit diesem Chat noch beschäftigt. Bitte warten oder abbrechen.");
     }
@@ -204,20 +237,38 @@ export class ChatDienst {
     }
     meldeUebersicht({ bereich: "postfach" });
 
-    if (entscheidung.art === "verworfen") this.abgebrochenNachLauf.add(aufgabeId);
+    // Verworfen: Wer wartet, soll nichts mehr schreiben – laufende Läufe gleich anhalten. Bei einem
+    // Workflow aus dem Chat sind das der Chat und der KI-Schritt, in dem der Aufruf wartet.
+    const betroffen = [...new Set([aufgabeId, wartend.herkunftId])].filter((id) => this.laufend.has(id));
+    if (entscheidung.art === "verworfen") for (const id of betroffen) this.abgebrochenNachLauf.add(id);
     wartend.loese(entscheidung);
-    // Verworfen: Der Agent soll nichts mehr schreiben – Lauf gleich anhalten.
-    if (entscheidung.art === "verworfen") void this.sitzungen.get(aufgabeId)?.abbrechen();
+    if (entscheidung.art === "verworfen") for (const id of betroffen) void this.sitzungen.get(id)?.abbrechen();
     // Hat der Agent mehrere Aufrufe gleichzeitig gestellt, wartet er ggf. noch auf die übrigen.
-    this.setzeStatus(aufgabeId, this.wartetAufDavid(aufgabeId) ? "wartet" : "arbeitet");
+    if (this.laufend.has(aufgabeId)) this.setzeStatus(aufgabeId, this.wartetAufDavid(aufgabeId) ? "wartet" : "arbeitet");
+    else this.aktualisiereStatus(aufgabeId);
+    if (wartend.herkunftId !== aufgabeId && this.laufend.has(wartend.herkunftId) && entscheidung.art !== "verworfen") {
+      this.setzeStatus(wartend.herkunftId, "arbeitet");
+    }
     return true;
   }
 
-  /** Der Agent wartet im Chat auf David. Der Lauf bleibt bestehen, nur der Status zeigt „wartet“. */
-  private warteAufDavid(aufgabeId: string, nr: number): Promise<NutzerEntscheidung> {
-    const entscheidung = this.entscheidungen.warte(nr, aufgabeId);
-    this.setzeStatus(aufgabeId, "wartet");
+  /**
+   * Wartet, bis David über den Eintrag entschieden hat. Bei Aufgaben eines Workflows, den ein Agent im
+   * Chat gestartet hat, entscheidet David in diesem Chat (E-68) – dort zählt der Eintrag dann als offen.
+   */
+  warteAufEntscheidung(aufgabeId: string, nr: number): Promise<NutzerEntscheidung> {
+    const ziel = this.entscheidungsOrt(aufgabeId);
+    const entscheidung = this.entscheidungen.warte(nr, ziel, aufgabeId);
+    this.setzeStatus(ziel, "wartet");
+    if (ziel !== aufgabeId && this.laufend.has(aufgabeId)) this.setzeStatus(aufgabeId, "wartet");
     return entscheidung;
+  }
+
+  /** Wo über Einträge dieser Aufgabe entschieden wird: im Chat, aus dem ihr Workflow kommt, sonst bei ihr selbst. */
+  entscheidungsOrt(aufgabeId: string): string {
+    const laufNr = aufgaben.holeAufgabe(this.db, aufgabeId)?.workflowLauf;
+    const chatId = laufNr ? chatDesLaufs(this.db, laufNr) : null;
+    return chatId && aufgaben.holeAufgabe(this.db, chatId) ? chatId : aufgabeId;
   }
 
   private wartetAufDavid(aufgabeId: string): boolean {
@@ -276,11 +327,12 @@ export class ChatDienst {
     }
   }
 
-  private starteLauf(aufgabe: aufgaben.AufgabeIntern, text: string): void {
+  /** Startet den Lauf; das Versprechen ist erfüllt, wenn er fertig ist (Fehler stehen dann im Verlauf). */
+  private starteLauf(aufgabe: aufgaben.AufgabeIntern, text: string): Promise<void> {
     this.laufend.add(aufgabe.id);
     this.laeufe.set(aufgabe.id, { lauf: randomUUID(), agentId: aufgabe.agentId });
     this.setzeStatus(aufgabe.id, "arbeitet");
-    this.lasseAgentArbeiten(aufgabe, text)
+    return this.lasseAgentArbeiten(aufgabe, text)
       .catch((fehler) => this.melde(aufgabe.id, { art: "fehler", meldung: String(fehler?.message ?? fehler) }))
       .finally(() => {
         this.laufend.delete(aufgabe.id);
@@ -288,6 +340,36 @@ export class ChatDienst {
         this.aktualisiereStatus(aufgabe.id, this.abgebrochenNachLauf.delete(aufgabe.id) ? "abgebrochen" : "bereit");
         this.arbeiteWeiter();
       });
+  }
+
+  /**
+   * Für KI-Schritte von Workflows: schickt den Text an den Agenten der Aufgabe und wartet, bis er fertig
+   * ist. Liefert seine letzte Antwort. Der Verlauf steht wie bei einem Chat in der Aufgabe.
+   */
+  async arbeiteAn(aufgabeId: string, text: string): Promise<SchrittAntwort> {
+    const aufgabe = aufgaben.holeAufgabe(this.db, aufgabeId);
+    if (!aufgabe) throw new Fehler(404, "Aufgabe nicht gefunden");
+    if (this.istBeschaeftigt(aufgabeId)) throw new Fehler(409, "Der Agent arbeitet schon an dieser Aufgabe.");
+    this.melde(aufgabeId, { art: "nutzer_nachricht", text });
+    const vorher = holeEreignisse(this.db, aufgabeId).at(-1)?.nr ?? 0;
+    await this.starteLauf(aufgabe, text);
+
+    const neu = holeEreignisse(this.db, aufgabeId).filter((e) => e.nr > vorher);
+    const antwort = neu.findLast((e) => e.art === "agent_nachricht");
+    const fehler = neu.findLast((e) => e.art === "fehler");
+    return {
+      text: antwort?.art === "agent_nachricht" ? antwort.text : "",
+      fehler: fehler?.art === "fehler" ? fehler.meldung : null,
+      abgebrochen: aufgaben.holeAufgabe(this.db, aufgabeId)?.status === "abgebrochen" || neu.some((e) => e.art === "abbruch"),
+    };
+  }
+
+  /** Nach einem KI-Schritt: Sitzung aus dem Speicher nehmen (bei Copilot hält sie sonst Ressourcen). Sie bleibt gespeichert. */
+  async gibSitzungFrei(aufgabeId: string): Promise<void> {
+    if (this.laufend.has(aufgabeId)) return;
+    const sitzung = this.sitzungen.get(aufgabeId);
+    this.sitzungen.delete(aufgabeId);
+    await sitzung?.trennen().catch(() => {});
   }
 
   private async lasseAgentArbeiten(aufgabe: aufgaben.AufgabeIntern, text: string): Promise<void> {
@@ -356,13 +438,14 @@ export class ChatDienst {
   private sitzungsEinstellungen(aufgabe: aufgaben.AufgabeIntern): SitzungsEinstellungen {
     const aufgabeId = aufgabe.id;
     const agent = this.agentDer(aufgabe);
-    // Im Chat warten Freigaben und Rückfragen auf David; ohne ihn (Workflow) wird nicht gewartet.
-    const imChat = aufgabe.herkunft === "chat";
+    // Im Chat und in KI-Schritten von Workflows warten Freigaben und Rückfragen im Aufruf auf David.
+    // Nur alte Aufgaben ohne Lauf (Herkunft workflow aus der Zeit vor Phase 4) legen ab und arbeiten weiter.
+    const wartetImAufruf = aufgabe.herkunft === "chat" || aufgabe.workflowLauf !== null;
     const kontext = {
       db: this.db,
       aufgabeId,
       melde: (ereignis: Ereignis) => this.melde(aufgabeId, ereignis),
-      ...(imChat ? { warteAufNutzer: (nr: number) => this.warteAufDavid(aufgabeId, nr) } : {}),
+      ...(wartetImAufruf ? { warteAufNutzer: (nr: number) => this.warteAufEntscheidung(aufgabeId, nr) } : {}),
     };
     // Hat der Chat ein eigenes Modell gewählt, gilt das (E-51); sonst das Standardmodell des Agenten.
     const wahl = aufgabe.modellWahl.modell ? aufgabe.modellWahl : agent.modellWahl;
@@ -378,10 +461,10 @@ export class ChatDienst {
       workspaceOrdner: this.einstellungen.workspaceOrdner,
       mcpServer: holeAlleServer(this.db).filter((s) => agent.mcpServer.includes(s.schluessel)),
       gateway: new ToolGateway({ ...kontext, agentId: agent.id }),
-      plattformTools: erstellePlattformTools(kontext),
+      plattformTools: [...erstellePlattformTools(kontext), ...(this.ergaenzung?.zusatzWerkzeuge(aufgabe) ?? [])],
       skillOrdner: skills.ordner,
       abgeschalteteSkills: skills.abgeschaltet,
-      imChat,
+      wartetImAufruf,
     };
   }
 
@@ -399,11 +482,17 @@ export class ChatDienst {
       const lauf = this.laeufe.get(aufgabeId);
       const agentId = lauf?.agentId ?? aufgaben.holeAufgabe(this.db, aufgabeId)?.agentId ?? standardAgentId;
       speichereVerbrauch(this.db, { ...werte, aufgabeId, agentId, lauf: lauf?.lauf ?? "ohne-lauf" });
+      this.ergaenzung?.verbrauchGemeldet(aufgabeId);
       return;
     }
     // Ein inzwischen gelöschter Chat bekommt nichts mehr gespeichert (z. B. Ende einer Freigabe).
     if (sollGespeichertWerden(ereignis) && aufgaben.holeAufgabe(this.db, aufgabeId)) speichereEreignis(this.db, aufgabeId, ereignis);
     verteile(aufgabeId, ereignis);
-    if (ereignis.art === "postfach") meldeUebersicht({ bereich: "postfach" });
+    if (ereignis.art === "postfach") {
+      meldeUebersicht({ bereich: "postfach" });
+      // Eintrag eines Workflows aus einem Chat: Die Karte erscheint auch in diesem Chat (E-68).
+      const ort = this.entscheidungsOrt(aufgabeId);
+      if (ort !== aufgabeId) this.melde(ort, ereignis);
+    }
   }
 }

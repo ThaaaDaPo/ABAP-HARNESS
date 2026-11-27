@@ -20,7 +20,7 @@ import { erstelleGatewayHooks } from "./gateway-hooks.ts";
 
 // Steht immer im Auftrag. Ohne diesen Hinweis probiert der Agent gesperrte Wege mehrfach aus
 // (am Firmenrechner beobachtet: fünf Versuche für `dir`) und verbraucht dabei Credits.
-// Freigaben und Rückfragen laufen im Chat anders als ohne Nutzer (Workflow), daher zwei Fassungen.
+// Freigaben und Rückfragen warten im Aufruf (Chat, KI-Schritte) oder werden abgelegt – daher zwei Fassungen.
 function umgebungsRegeln(imChat: boolean): string {
   return [
     "Regeln dieser Umgebung:",
@@ -88,7 +88,7 @@ function sitzungsKonfiguration(einstellungen: SitzungsEinstellungen): SessionCon
     // "default" ausdrücklich (laut SDK erlaubt), damit ein Chat beim Zurückstellen nicht lang bleibt.
     contextTier: einstellungen.kontext === "lang" ? "long_context" : "default",
     workingDirectory: einstellungen.workspaceOrdner,
-    systemMessage: { mode: "append", content: `${einstellungen.auftrag}\n\n${umgebungsRegeln(einstellungen.imChat)}` },
+    systemMessage: { mode: "append", content: `${einstellungen.auftrag}\n\n${umgebungsRegeln(einstellungen.wartetImAufruf)}` },
     streaming: true,
     tools: plattformTools(einstellungen),
     mcpServers: mcpKonfiguration(einstellungen),

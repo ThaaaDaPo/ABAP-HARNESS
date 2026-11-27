@@ -110,6 +110,53 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
       schluessel TEXT PRIMARY KEY,
       wert       TEXT NOT NULL
     );
+
+    -- Läufe von Workflows (seit Phase 4). definition ist der Stand der Workflow-Datei beim Start,
+    -- damit eine spätere Änderung der Datei einen laufenden Lauf nicht durcheinanderbringt.
+    -- aufgabe_id: Aufgabe des Laufs, an der Freigaben der festen Tool-Schritte hängen.
+    -- chat_aufgabe_id: aus diesem Chat gestartet – Freigaben erscheinen dort statt im Postfach (E-68).
+    CREATE TABLE IF NOT EXISTS workflow_laeufe (
+      nr                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      workflow_id         TEXT NOT NULL,
+      workflow_name       TEXT NOT NULL,
+      definition          TEXT NOT NULL,
+      ausloeser           TEXT NOT NULL,
+      eingaben            TEXT NOT NULL,
+      status              TEXT NOT NULL,
+      aktueller_schritt   TEXT NOT NULL DEFAULT '',
+      ergebnis            TEXT,
+      fehler              TEXT,
+      aufgabe_id          TEXT NOT NULL,
+      aufrufer_aufgabe_id TEXT,
+      chat_aufgabe_id     TEXT,
+      eltern_lauf         INTEGER,
+      benachrichtigen     INTEGER NOT NULL DEFAULT 0,
+      gestartet_am        TEXT NOT NULL,
+      beendet_am          TEXT
+    );
+
+    -- Protokoll eines Laufs: je ausgeführtem Schritt (in Schleifen je Durchlauf) eine Zeile.
+    -- schluessel ist die Stelle im Ablauf, z. B. "schleife[2]/tool1". Beim Fortsetzen nach einer
+    -- Unterbrechung werden fertige Tool-, KI- und Workflow-Schritte daraus übernommen statt wiederholt.
+    CREATE TABLE IF NOT EXISTS workflow_schritte (
+      nr           INTEGER PRIMARY KEY AUTOINCREMENT,
+      lauf_nr      INTEGER NOT NULL,
+      schluessel   TEXT NOT NULL,
+      schritt_id   TEXT NOT NULL,
+      art          TEXT NOT NULL,
+      titel        TEXT NOT NULL,
+      durchlauf    TEXT NOT NULL,
+      tiefe        INTEGER NOT NULL,
+      status       TEXT NOT NULL,
+      eingabe      TEXT,
+      ergebnis     TEXT,
+      meldung      TEXT,
+      aufgabe_id   TEXT,
+      postfach_nr  INTEGER,
+      gestartet_am TEXT NOT NULL,
+      beendet_am   TEXT,
+      UNIQUE (lauf_nr, schluessel)
+    );
   `);
 
   // Seit Schritt 3. Bestehende Datenbanken (Firmenrechner) bekommen die Spalten nachgerüstet.
@@ -120,7 +167,7 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
   ergaenzeSpalte(db, "aufgaben", "modell", "TEXT NOT NULL DEFAULT ''");
   ergaenzeSpalte(db, "aufgaben", "denkaufwand", "TEXT NOT NULL DEFAULT ''");
   ergaenzeSpalte(db, "aufgaben", "kontext", "TEXT NOT NULL DEFAULT 'standard'");
-  // Woher die Aufgabe kommt: "chat" (David ist dabei) oder später "workflow" (läuft ohne ihn).
+  // Woher die Aufgabe kommt: "chat" (David ist dabei) oder "workflow" (Teil eines Workflow-Laufs).
   // Freigaben aus Chats werden im Chat erledigt, nur die aus Workflows im Postfach (E-52).
   ergaenzeSpalte(db, "aufgaben", "herkunft", "TEXT NOT NULL DEFAULT 'chat'");
   // Agent je Chat (seit Schritt 4). Bestehende Chats gehören dem Agenten, der aus einstellungen.json entsteht.
@@ -130,6 +177,10 @@ export function oeffneDatenbank(datenOrdner: string): Datenbank {
   // Was der Agent mit der nächsten Nachricht erfahren soll, z. B. dass David eine ADT-Änderung
   // rückgängig gemacht hat (seit Phase 3). Leer = nichts.
   ergaenzeSpalte(db, "aufgaben", "hinweis_fuer_agent", "TEXT NOT NULL DEFAULT ''");
+  // Seit Phase 4: Aufgaben eines Workflow-Laufs (Aufgabe des Laufs und KI-Schritte) tragen seine Nummer.
+  ergaenzeSpalte(db, "aufgaben", "workflow_lauf", "INTEGER");
+  // Workflows, die ein Agent starten darf (JSON-Liste der Kennungen)
+  ergaenzeSpalte(db, "agenten", "workflows", "TEXT NOT NULL DEFAULT '[]'");
 
   return db;
 }

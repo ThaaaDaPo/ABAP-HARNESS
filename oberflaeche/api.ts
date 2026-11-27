@@ -19,6 +19,10 @@ import type {
   ToolRegel,
   VerbrauchSumme,
   VerbrauchUebersicht,
+  LaufMitSchritten,
+  WorkflowDefinition,
+  WorkflowInfo,
+  WorkflowLauf,
 } from "../gemeinsam/typen.ts";
 
 async function anfrage<T>(pfad: string, optionen: RequestInit = {}): Promise<T> {
@@ -150,6 +154,32 @@ export const zurKenntnis = (nr: number) => anfrage<PostfachEintrag[]>(`/postfach
 
 export const antworten = (nr: number, text: string) =>
   anfrage<PostfachEintrag[]>(`/postfach/${nr}/antworten`, { method: "POST", body: JSON.stringify({ text }) });
+
+// Workflows und ihre Läufe
+
+export const holeWorkflows = () => anfrage<{ ordner: string; workflows: WorkflowInfo[] }>("/workflows");
+
+export const legeWorkflowAn = (name: string) => anfrage<{ id: string }>("/workflows", { method: "POST", body: JSON.stringify({ name }) });
+
+export const holeWorkflow = (id: string) => anfrage<WorkflowDefinition>(`/workflows/${id}`);
+
+export const speichereWorkflow = (id: string, definition: unknown) =>
+  anfrage<WorkflowDefinition>(`/workflows/${id}`, { method: "PUT", body: JSON.stringify(definition) });
+
+export const loescheWorkflow = (id: string) => anfrage(`/workflows/${id}`, { method: "DELETE" });
+
+export const starteWorkflow = (id: string, eingaben: Record<string, unknown>) =>
+  anfrage<WorkflowLauf>(`/workflows/${id}/starten`, { method: "POST", body: JSON.stringify({ eingaben }) });
+
+export const holeLaeufeDesWorkflows = (id: string) => anfrage<WorkflowLauf[]>(`/workflows/${id}/laeufe`);
+
+export const holeAlleLaeufe = () => anfrage<WorkflowLauf[]>("/workflow-laeufe");
+
+export const holeLauf = (nr: number) => anfrage<LaufMitSchritten>(`/workflow-laeufe/${nr}`);
+
+export const brecheLaufAb = (nr: number) => anfrage(`/workflow-laeufe/${nr}/abbrechen`, { method: "POST" });
+
+export const setzeLaufFort = (nr: number) => anfrage<WorkflowLauf>(`/workflow-laeufe/${nr}/fortsetzen`, { method: "POST" });
 
 /** Live-Hinweise: Aufgaben oder Postfach haben sich geändert */
 export const uebersichtAdresse = "/api/uebersicht/live";

@@ -3,7 +3,7 @@
 // Im Copilot-Modus startet Copilot die Server selbst; dieser Client ist dann nur fürs Auslesen da.
 import { spawn, type ChildProcess } from "node:child_process";
 import readline from "node:readline";
-import type { McpTool } from "../../gemeinsam/typen.ts";
+import type { McpTool, ToolParameter } from "../../gemeinsam/typen.ts";
 
 export interface StartAngaben {
   befehl: string;
@@ -52,6 +52,17 @@ function starteProzess(angaben: StartAngaben): ChildProcess {
     return spawn(zeile, { ...optionen, shell: true });
   }
   return spawn(angaben.befehl, angaben.argumente, optionen);
+}
+
+/** Die Parameter aus dem inputSchema eines Tools – nur, was der Workflow-Editor zum Vorbelegen braucht. */
+function parameterAus(schema: any): ToolParameter[] {
+  const pflicht: string[] = Array.isArray(schema?.required) ? schema.required : [];
+  return Object.entries(schema?.properties ?? {}).map(([name, angaben]: [string, any]) => ({
+    name,
+    typ: typeof angaben?.type === "string" ? angaben.type : "",
+    beschreibung: String(angaben?.description ?? ""),
+    pflicht: pflicht.includes(name),
+  }));
 }
 
 export class McpVerbindung {
@@ -106,6 +117,7 @@ export class McpVerbindung {
           name: String(tool.name),
           beschreibung: String(tool.description ?? ""),
           nurLesend: tool.annotations?.readOnlyHint === true,
+          parameter: parameterAus(tool.inputSchema),
         });
       }
       cursor = seite?.nextCursor;

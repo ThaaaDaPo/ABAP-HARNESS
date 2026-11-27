@@ -59,6 +59,20 @@ export function summeDerAufgabe(db: Datenbank, aufgabeId: string): VerbrauchSumm
   return summeAus(db.prepare(`SELECT ${summenSql} FROM verbrauch WHERE aufgabe_id = ?`).get(aufgabeId) as unknown as SummenZeile);
 }
 
+/** Alles, was die KI-Schritte eines Workflow-Laufs verbraucht haben (Credit-Limit je Lauf, E-69). */
+export function summeDesWorkflowLaufs(db: Datenbank, laufNr: number): VerbrauchSumme {
+  return summeAus(
+    db
+      .prepare(`SELECT ${summenSql} FROM verbrauch WHERE aufgabe_id IN (SELECT id FROM aufgaben WHERE workflow_lauf = ?)`)
+      .get(laufNr) as unknown as SummenZeile,
+  );
+}
+
+/** AI-Credits aus Nano-AI-Units (wie in der Oberfläche, verbrauch-text.ts) */
+export function credits(summe: VerbrauchSumme): number {
+  return summe.nanoAiu / 1e9;
+}
+
 /** Gesamt und aufgeteilt nach Agent, Modell und Monat – für die Seite „Verbrauch“. */
 export function verbrauchsUebersicht(db: Datenbank): VerbrauchUebersicht {
   const gruppiert = (spalte: string, von = "verbrauch") =>

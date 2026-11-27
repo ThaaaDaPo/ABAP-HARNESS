@@ -14,13 +14,16 @@ interface AufgabenZeile {
   kontext: ModellWahl["kontext"];
   herkunft: "chat" | "workflow";
   agent_id: string;
+  workflow_lauf: number | null;
 }
 
 export interface AufgabeIntern extends Aufgabe {
   /** Id der Agenten-Sitzung, damit sie nach einem Neustart fortgesetzt werden kann. */
   sitzungId: string | null;
-  /** "chat": David ist dabei. "workflow" (ab Phase 4): läuft ohne ihn. */
+  /** "chat": David ist dabei. "workflow": Teil eines Workflow-Laufs (Aufgabe des Laufs oder KI-Schritt). */
   herkunft: "chat" | "workflow";
+  /** Nummer des Workflow-Laufs, zu dem die Aufgabe gehört. Null bei Chats. */
+  workflowLauf: number | null;
 }
 
 function ausZeile(zeile: AufgabenZeile): AufgabeIntern {
@@ -30,6 +33,7 @@ function ausZeile(zeile: AufgabenZeile): AufgabeIntern {
     status: zeile.status,
     sitzungId: zeile.sitzung_id,
     herkunft: zeile.herkunft,
+    workflowLauf: zeile.workflow_lauf,
     erstelltAm: zeile.erstellt_am,
     agentId: zeile.agent_id,
     modellWahl: { modell: zeile.modell, denkaufwand: zeile.denkaufwand, kontext: zeile.kontext },
@@ -38,19 +42,22 @@ function ausZeile(zeile: AufgabenZeile): AufgabeIntern {
 
 /** Ohne interne Felder, für die Oberfläche. */
 export function oeffentlich(aufgabe: AufgabeIntern): Aufgabe {
-  const { sitzungId: _sitzung, herkunft: _herkunft, ...rest } = aufgabe;
+  const { sitzungId: _sitzung, herkunft: _herkunft, workflowLauf: _lauf, ...rest } = aufgabe;
   return rest;
 }
 
-export function legeAufgabeAn(db: Datenbank, titel: string, agentId: string): AufgabeIntern {
+/** Ohne `workflowLauf` ein Chat, sonst eine Aufgabe dieses Workflow-Laufs. */
+export function legeAufgabeAn(db: Datenbank, titel: string, agentId: string, workflowLauf: number | null = null): AufgabeIntern {
   const id = randomUUID();
-  db.prepare(`INSERT INTO aufgaben (id, titel, status, sitzung_id, erstellt_am, agent_id) VALUES (?, ?, 'bereit', NULL, ?, ?)`).run(
-    id,
-    titel,
-    new Date().toISOString(),
-    agentId,
-  );
+  db.prepare(
+    `INSERT INTO aufgaben (id, titel, status, sitzung_id, erstellt_am, agent_id, herkunft, workflow_lauf) VALUES (?, ?, 'bereit', NULL, ?, ?, ?, ?)`,
+  ).run(id, titel, new Date().toISOString(), agentId, workflowLauf === null ? "chat" : "workflow", workflowLauf);
   return holeAufgabe(db, id)!;
+}
+
+/** Die Aufgabe des Laufs entsteht vor dem Lauf und bekommt seine Nummer danach. */
+export function setzeWorkflowLauf(db: Datenbank, id: string, laufNr: number): void {
+  db.prepare(`UPDATE aufgaben SET workflow_lauf = ?, herkunft = 'workflow' WHERE id = ?`).run(laufNr, id);
 }
 
 export function holeAufgabe(db: Datenbank, id: string): AufgabeIntern | null {
@@ -63,12 +70,17 @@ export function holeAlleAufgaben(db: Datenbank): AufgabeIntern[] {
   return zeilen.map(ausZeile);
 }
 
+/** Nur die Chats, neueste zuerst – Aufgaben von Workflows stehen in der Lauf-Ansicht. */
+export function holeChats(db: Datenbank): AufgabeIntern[] {
+  return holeAlleAufgaben(db).filter((a) => a.herkunft === "chat");
+}
+
 /** Chats ohne eine einzige Nachricht, die gerade auf nichts warten – die räumt „Neuer Chat“ weg. */
 export function holeLeereAufgaben(db: Datenbank): string[] {
   const zeilen = db
     .prepare(
       `SELECT a.id FROM aufgaben a
-       WHERE a.status = 'bereit'
+       WHERE a.status = 'bereit' AND a.herkunft = 'chat'
          AND NOT EXISTS (SELECT 1 FROM ereignisse e WHERE e.aufgabe_id = a.id)
          AND NOT EXISTS (SELECT 1 FROM warteschlange w WHERE w.aufgabe_id = a.id)`,
     )

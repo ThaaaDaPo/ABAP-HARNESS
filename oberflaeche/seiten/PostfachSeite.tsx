@@ -1,13 +1,13 @@
 // Postfach-Seite: Freigaben, Rückfragen und Meldungen aus Workflows, die ohne David laufen (E-52),
-// offene zuerst. Freigaben aus Chats erledigt David im Chat. Bis es Workflows gibt (Phase 4), ist die
-// Seite in der Navigation ausgegraut.
+// offene zuerst. Freigaben aus Chats erledigt David im Chat – ebenso die von Workflows, die ein Agent
+// im Chat gestartet hat (E-68).
 import { useCallback, useEffect, useState } from "react";
 import type { PostfachEintrag } from "../../gemeinsam/typen.ts";
 import * as api from "../api.ts";
 import { PostfachKarte } from "../komponenten/PostfachKarte.tsx";
 import { useUebersicht } from "../live/useUebersicht.ts";
 
-export function PostfachSeite({ zeigeChat }: { zeigeChat: (aufgabeId: string) => void }) {
+export function PostfachSeite({ zeigeChat, zeigeLauf }: { zeigeChat: (aufgabeId: string) => void; zeigeLauf: (nr: number) => void }) {
   const [eintraege, setEintraege] = useState<PostfachEintrag[]>([]);
   const [beschaeftigt, setBeschaeftigt] = useState<number | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -53,7 +53,9 @@ export function PostfachSeite({ zeigeChat }: { zeigeChat: (aufgabeId: string) =>
             verwerfen: () => handle(eintrag.nr, () => api.verwerfen(eintrag.nr)),
             zurKenntnis: () => handle(eintrag.nr, () => api.zurKenntnis(eintrag.nr)),
             antworten: (text) => handle(eintrag.nr, () => api.antworten(eintrag.nr, text)),
-            zeigeChat: () => zeigeChat(eintrag.aufgabeId),
+            ...(eintrag.workflowLauf !== null
+              ? { zeigeLauf: () => zeigeLauf(eintrag.workflowLauf!) }
+              : { zeigeChat: () => zeigeChat(eintrag.aufgabeId) }),
           }}
         />
       ))}

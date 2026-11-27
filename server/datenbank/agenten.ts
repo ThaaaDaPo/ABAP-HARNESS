@@ -16,6 +16,7 @@ interface AgentenZeile {
   mcp_server: string;
   instructions: string;
   skills: string;
+  workflows: string;
   erstellt_am: string;
 }
 
@@ -28,6 +29,7 @@ function ausZeile(zeile: AgentenZeile): Agent {
     mcpServer: JSON.parse(zeile.mcp_server),
     instructions: JSON.parse(zeile.instructions),
     skills: JSON.parse(zeile.skills),
+    workflows: JSON.parse(zeile.workflows),
     erstelltAm: zeile.erstellt_am,
   };
 }
@@ -46,15 +48,15 @@ export function holeAgent(db: Datenbank, id: string): Agent | null {
 /** Legt den Agenten an und gibt ihn zurück. Ohne `id` bekommt er eine neue. */
 export function legeAgentAn(db: Datenbank, daten: AgentDaten, id: string = randomUUID()): Agent {
   db.prepare(
-    `INSERT INTO agenten (id, name, auftrag, modell, denkaufwand, kontext, mcp_server, instructions, skills, erstellt_am)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO agenten (id, name, auftrag, modell, denkaufwand, kontext, mcp_server, instructions, skills, workflows, erstellt_am)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(id, ...werte(daten), new Date().toISOString());
   return holeAgent(db, id)!;
 }
 
 export function aendereAgent(db: Datenbank, id: string, daten: AgentDaten): void {
   db.prepare(
-    `UPDATE agenten SET name = ?, auftrag = ?, modell = ?, denkaufwand = ?, kontext = ?, mcp_server = ?, instructions = ?, skills = ?
+    `UPDATE agenten SET name = ?, auftrag = ?, modell = ?, denkaufwand = ?, kontext = ?, mcp_server = ?, instructions = ?, skills = ?, workflows = ?
      WHERE id = ?`,
   ).run(...werte(daten), id);
 }
@@ -70,6 +72,7 @@ function werte(daten: AgentDaten): string[] {
     JSON.stringify(daten.mcpServer),
     JSON.stringify(daten.instructions),
     JSON.stringify(daten.skills),
+    JSON.stringify(daten.workflows),
   ];
 }
 

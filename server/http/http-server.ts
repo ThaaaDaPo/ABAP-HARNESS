@@ -20,6 +20,8 @@ import { routenInstructions } from "./routen-instructions.ts";
 import { routenMcp } from "./routen-mcp.ts";
 import { routenPostfach } from "./routen-postfach.ts";
 import type { PostfachDienst } from "../postfach/postfach-dienst.ts";
+import type { WorkflowDienst } from "../workflows/workflow-dienst.ts";
+import { routenLaeufe, routenWorkflows } from "./routen-workflows.ts";
 
 export async function erstelleHttpServer(
   einstellungen: Einstellungen,
@@ -28,6 +30,7 @@ export async function erstelleHttpServer(
   chat: ChatDienst,
   postfach: PostfachDienst,
   adt: { sso: SsoAnmeldung; schluessel: string; aenderungen: AenderungenDienst },
+  workflows: WorkflowDienst,
 ) {
   const app = express();
   app.use(express.json({ limit: "2mb" }));
@@ -48,6 +51,8 @@ export async function erstelleHttpServer(
   app.use("/api/mcp", routenMcp(db, chat));
   app.use("/api/adt", routenAdt(db, einstellungen, chat, adt.sso, adt.schluessel, adt.aenderungen));
   app.use("/api/postfach", routenPostfach(postfach));
+  app.use("/api/workflows", routenWorkflows(workflows, einstellungen.workflowOrdner, chat));
+  app.use("/api/workflow-laeufe", routenLaeufe(workflows, db));
 
   app.get("/api/verbrauch", (_anfrage, antwort) => {
     antwort.json(verbrauchsUebersicht(db));

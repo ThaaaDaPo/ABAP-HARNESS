@@ -20,8 +20,9 @@ Runden 1–3 und die Freigabe sind erledigt (E-06 bis E-39).
 
 - Transporte und Arbeiten außerhalb `$TMP`: nach Abstimmung im Unternehmen (E-13, E-28).
 - Teams-Benachrichtigung (E-21).
-- **Limit je Lauf** (V-14): bei den Workflows (Phase 4) noch einmal fragen – je Nachricht oder
-  je Aufgabe, Standardwert, Einheit (sind die 10.000 Credits die AI-Credits der GitHub-Abrechnung?).
+- **Limit je Chat-Nachricht**: Für Workflow-Läufe gibt es seit E-69 ein Limit (500 AI-Credits).
+  Für Chats weiter keins (E-60). Offen bleibt, ob die AI-Credits der App die Einheit der
+  GitHub-Abrechnung sind – Vergleich am Firmenrechner.
 - **Monatsbudget**: nur anzeigen oder ab einer Grenze sperren – beim Ausarbeiten der Feinheiten fragen.
 - **Einstellungen in der App bearbeiten** (Modus, Workspace, Ordner): fragen, wenn David die
   Einrichtungsseite gesehen hat – sie steht seit Schritt 4 (nur prüfen und anzeigen), die Frage

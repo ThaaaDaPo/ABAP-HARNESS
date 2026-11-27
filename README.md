@@ -6,8 +6,8 @@ verwalten und betreiben.
 Stand: **Phase 1, Schritt 4** – Agenten mit eigenem Auftrag, Modell, MCP-Servern, Regeln je Tool,
 Instructions und Skills; Chats mit Live-Ansicht (Markdown), Agent und Modell je Chat wählbar,
 Chats laufen gleichzeitig; Freigaben und Rückfragen im Chat; Verbrauchsanzeige; Einrichtungsseite;
-Simulation und Copilot-Anbindung. Das Postfach für Workflows ist gebaut, aber bis Phase 4 ausgegraut.
-Dazu **Phase 3**: der ADT-MCP zum Entwickeln von ABAP (siehe unten).
+Simulation und Copilot-Anbindung. Dazu **Phase 3**: der ADT-MCP zum Entwickeln von ABAP, und
+**Phase 4**: Workflows mit Postfach und Zeitsteuerung (siehe unten).
 Planung und Entscheidungen stehen in [docs/](docs/).
 
 ## Starten
@@ -66,6 +66,19 @@ zeigt der Chat darunter den Vergleich vorher/nachher nebeneinander mit dem Knopf
 (bei neu angelegten Objekten **Objekt löschen**). Details:
 [docs/09-phase-3.md](docs/09-phase-3.md).
 
+### Workflows
+
+Auf der Seite **Workflows** stehen feste Abläufe aus dem Workflow-Ordner (`workflowOrdner`, Standard
+`daten/workflows`, je Workflow eine Datei `<kennung>.workflow.json`). Ein Workflow besteht aus
+Schritten: **Tool** (MCP-Tool fest aufrufen, ohne KI, mit eigener Regel), **KI** (ein Agent
+bearbeitet einen Auftrag, optional mit festen Ergebnisfeldern), **Wenn**, **Für jedes**, **Variable
+setzen**, **Workflow** (anderen aufrufen) und **Beenden**. Platzhalter wie `{{tickets}}` oder
+`{{eingaben.status}}` verbinden die Schritte. Gestartet wird manuell, durch einen Agenten (auf der
+Agenten-Seite zuordnen) oder nach Zeitplan. Freigaben kommen ins **Postfach** – oder in den Chat,
+wenn ein Agent den Workflow dort gestartet hat. Jeder Lauf hat ein Protokoll je Schritt und lässt
+sich nach einem Neustart fortsetzen. Beim ersten Start entsteht das Beispiel *Tickets einschätzen*.
+Details: [docs/10-phase-4.md](docs/10-phase-4.md).
+
 Beim ersten Start sind zwei Stellvertreter-Server eingetragen (SAP, Jira/Confluence) mit
 Beispieldaten. Sie funktionieren in der Simulation und mit echtem Copilot und können gelöscht
 werden.
@@ -76,7 +89,7 @@ werden.
 |---|---|
 | `npm start` | App starten |
 | `npm run entwickeln` | wie `start`, startet bei Änderungen am Server neu |
-| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions, Verbrauch und den ADT-MCP samt Rückgängig |
+| `npm test` | prüft Tool-Gateway, MCP-Client, Berechtigungsregeln, Postfach, Warteschlange, Agenten, Instructions, Verbrauch, den ADT-MCP samt Rückgängig und die Workflows |
 | `npm run typpruefung` | TypeScript-Prüfung von Server und Oberfläche |
 
 ## Ordner
@@ -85,7 +98,7 @@ werden.
 server/                 Backend (Node, TypeScript – wird ohne Bau-Schritt direkt ausgeführt)
   start.ts              Einstieg
   einstellungen.ts      liest einstellungen.json
-  datenbank/            SQLite: Aufgaben, Ereignisse, Agenten, MCP-Server, Regeln, Postfach, Warteschlange, Verbrauch
+  datenbank/            SQLite: Aufgaben, Ereignisse, Agenten, MCP-Server, Regeln, Postfach, Warteschlange, Verbrauch, Workflow-Läufe
   agenten/              Agenten verwalten: Standard-Agent beim ersten Start, prüfen, kopieren, löschen
   instructions/         Instructions-Ordner lesen und bearbeiten (*.instructions.md, Skills mit SKILL.md)
   einrichtung/          Prüfungen für die Einrichtungsseite
@@ -98,16 +111,17 @@ server/                 Backend (Node, TypeScript – wird ohne Bau-Schritt dire
   mcp/                  MCP-Server verwalten, eigener kleiner MCP-Client, Aufrufe ohne Agent, Stellvertreter
   postfach/             Aktionen im Postfach (freigeben, verwerfen, antworten), Plattform-Tools des Agenten
   chat/                 Ablauf Nachricht → Warteschlange → Agent → Anzeige, Live-Verteilung
+  workflows/            Workflows: Dateien, Prüfung, Platzhalter, Ablauf, Schritte je Art, Zeitsteuerung
   http/                 HTTP-Server und Routen
 oberflaeche/            React-Oberfläche
   seiten/               ganze Seiten
-  komponenten/          Bausteine der Seiten
+  komponenten/          Bausteine der Seiten (workflow/: Editor, Schrittliste, Lauf-Ansicht)
   live/                 Live-Ereignisse vom Server
 gemeinsam/              Typen, die Server und Oberfläche teilen
 mcp/                    MCP-Server, je einer pro Unterordner (Stellvertreter, später ADT)
 pruefpaket/             Phase 0: Prüfung von Copilot und ADT auf dem Firmenrechner
 docs/                   Planung, Entscheidungen, offene Fragen
-daten/                  Datenbank, Standard-Workspace und Standard-Instructions-Ordner (wird angelegt, nicht im Repo)
+daten/                  Datenbank, Standard-Workspace, Standard-Instructions- und -Workflow-Ordner (wird angelegt, nicht im Repo)
 ```
 
 ## Pakete für Nexus
@@ -118,4 +132,4 @@ Neben den Paketen aus `package.json` lädt npm plattformabhängige Pakete. Unter
 
 Neu in Schritt 4 (Markdown im Chat): `marked` 18.2.1, `dompurify` 3.4.18 und dessen Abhängigkeit
 `@types/trusted-types` 2.0.7. Neu in Phase 3 (ADT): `abap-adt-api` 10.0.0 und `playwright-core`
-1.65.0 – beide kamen schon mit dem Prüfpaket über Nexus.
+1.65.0 – beide kamen schon mit dem Prüfpaket über Nexus. Phase 4 (Workflows) braucht keine neuen Pakete.

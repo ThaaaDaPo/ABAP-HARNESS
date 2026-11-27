@@ -1,5 +1,52 @@
 [
   {
+    "beschreibung": "KI-Schritt eines Workflows mit Ergebnisfeldern: kurze Antwort; das Ergebnis meldet die Simulation selbst mit Beispielwerten (ergebnis_melden)",
+    "wennEnthaelt": [
+      "melde dein ergebnis zum schluss"
+    ],
+    "schritte": [
+      {
+        "text": "Ich habe mir den Auftrag angesehen. *Simulation:* Das Ergebnis melde ich mit Beispielwerten über `ergebnis_melden`."
+      }
+    ]
+  },
+  {
+    "beschreibung": "Nachricht der App: ein Workflow, der ohne Warten gestartet wurde, ist fertig",
+    "wennEnthaelt": [
+      "[hinweis der app: lauf #"
+    ],
+    "schritte": [
+      {
+        "text": "Der Workflow ist fertig – das Ergebnis steht in der Nachricht darüber."
+      }
+    ]
+  },
+  {
+    "beschreibung": "Workflow starten: Der Agent ruft workflow_starten auf (Agenten-Seite: Workflow „Tickets einschätzen“ zuordnen). Freigaben des Laufs erscheinen im Chat",
+    "wennEnthaelt": [
+      "workflow"
+    ],
+    "schritte": [
+      {
+        "text": "Ich starte den Workflow „Tickets einschätzen“."
+      },
+      {
+        "tool": "workflow_starten",
+        "argumente": {
+          "workflow": "tickets-einschaetzen",
+          "eingaben": {
+            "status": "Offen"
+          }
+        },
+        "ergebnis": "Nicht ausgeführt: Dem Agenten ist der Workflow nicht zugeordnet (Seite Agenten → Workflows).",
+        "fehlgeschlagen": true
+      },
+      {
+        "text": "Der Workflow ist durch. Das Ergebnis steht im Tool-Aufruf darüber."
+      }
+    ]
+  },
+  {
     "beschreibung": "Fortsetzung nach Freigabe zum Weitermachen: Ergebnis ist da, der Agent macht weiter",
     "wennEnthaelt": [
       "wurde freigegeben und ausgeführt"
@@ -457,7 +504,7 @@
     "wennEnthaelt": [],
     "schritte": [
       {
-        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (Agent: {agent}, Modell: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern*, *langsam*, *Wer bist du* oder für ADT *entwickle*, *Syntaxfehler*, *Kundenliste*, *Testklasse*, *Report*."
+        "text": "**Simulation:** Du hast geschrieben: „{eingabe}“.\n\nIch bin kein echtes Modell (Agent: {agent}, Modell: {modell}). Probiere Nachrichten mit *Ticket*, *Klasse*, *Fehler*, *verschieben*, *Doku*, *verlinken*, *Rückfrage*, *ändern*, *langsam*, *Wer bist du*, *Workflow* oder für ADT *entwickle*, *Syntaxfehler*, *Kundenliste*, *Testklasse*, *Report*."
       }
     ]
   }

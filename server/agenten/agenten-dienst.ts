@@ -23,6 +23,7 @@ export function richteStandardAgentenEin(db: Datenbank, einstellungen: Einstellu
       mcpServer: holeAlleServer(db).map((s) => s.schluessel),
       instructions: [],
       skills: [],
+      workflows: [],
     },
     agenten.standardAgentId,
   );
@@ -43,6 +44,7 @@ export function pruefeEingabe(db: Datenbank, roh: any): AgentDaten {
     mcpServer: zeichenketten(roh?.mcpServer),
     instructions: zeichenketten(roh?.instructions),
     skills: zeichenketten(roh?.skills),
+    workflows: zeichenketten(roh?.workflows),
   };
   if (!daten.name) throw new Fehler(400, "Bitte einen Namen angeben.");
   const vorhanden = new Set(holeAlleServer(db).map((s) => s.schluessel));
@@ -60,6 +62,7 @@ export function legeNeuenAn(db: Datenbank, daten: Partial<AgentDaten> = {}): Age
     mcpServer: daten.mcpServer ?? holeAlleServer(db).map((s) => s.schluessel),
     instructions: daten.instructions ?? [],
     skills: daten.skills ?? [],
+    workflows: daten.workflows ?? [],
   });
 }
 
